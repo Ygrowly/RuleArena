@@ -1,0 +1,28 @@
+[project]
+name = "rulearena-commerce-sandbox"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.16.5,<2",
+  "asyncpg>=0.30.0,<0.31",
+  "fastapi>=0.116.1,<0.117",
+  "redis>=6.4.0,<7",
+  "rulearena-domain-contracts",
+  "rulearena-observability",
+  "sqlalchemy[asyncio]>=2.0.43,<3",
+  "uvicorn[standard]>=0.35.0,<0.36",
+]
+
+[project.scripts]
+rulearena-commerce-sandbox = "rulearena_commerce_sandbox.main:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rulearena_commerce_sandbox"]
+
+[tool.uv.sources]
+rulearena-domain-contracts = { workspace = true }
+rulearena-observability = { workspace = true }

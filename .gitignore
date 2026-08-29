@@ -1,0 +1,87 @@
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging and build output
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+pip-wheel-metadata/
+
+# Test, coverage, and profiling output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.cache/
+prof/
+*.prof
+
+# Node, pnpm, Vite, and TypeScript output
+node_modules/
+.pnpm-store/
+.vite/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime files and local databases
+*.log
+logs/
+*.pid
+*.pid.lock
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+tmp/
+temp/
+
+# Local Docker Compose overrides
+docker-compose.override.yml
+compose.override.yml
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Operating-system metadata
+.DS_Store
+.AppleDouble
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Local assistant/tool state
+.claude/
+.codex/
+.agents/

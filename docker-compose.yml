@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+    environment:
+      POSTGRES_DB: rulearena
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:?set POSTGRES_ADMIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?set POSTGRES_ADMIN_PASSWORD}
+      CONTROL_DB_PASSWORD: ${CONTROL_DB_PASSWORD:?set CONTROL_DB_PASSWORD}
+      SANDBOX_DB_PASSWORD: ${SANDBOX_DB_PASSWORD:?set SANDBOX_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/001-init.sh:/docker-entrypoint-initdb.d/001-init.sh:ro
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  redis:
+    image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  control-api:
+    build:
+      context: .
+      args:
+        SERVICE_MODULE: rulearena_control_api
+    environment:
+      CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:${CONTROL_DB_PASSWORD}@postgres:5432/rulearena
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN}
+      PORT: "8000"
+    ports: ["8000:8000"]
+    depends_on:
+      control-migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+
+  commerce-sandbox:
+    build:
+      context: .
+      args:
+        SERVICE_MODULE: rulearena_commerce_sandbox
+    environment:
+      SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:${SANDBOX_DB_PASSWORD}@postgres:5432/rulearena
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN}
+      PORT: "8001"
+    ports: ["8001:8001"]
+    depends_on:
+      sandbox-migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+
+  control-migrate:
+    build:
+      context: .
+      args:
+        SERVICE_MODULE: rulearena_control_api
+    command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+    environment:
+      CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:${CONTROL_DB_PASSWORD}@postgres:5432/rulearena
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  sandbox-migrate:
+    build:
+      context: .
+      args:
+        SERVICE_MODULE: rulearena_commerce_sandbox
+    command: ["alembic", "-c", "alembic-sandbox.ini", "upgrade", "head"]
+    environment:
+      SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:${SANDBOX_DB_PASSWORD}@postgres:5432/rulearena
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+volumes:
+  postgres-data:

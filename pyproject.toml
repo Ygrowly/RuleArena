@@ -1,0 +1,59 @@
+[project]
+name = "rulearena"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "rulearena-commerce-sandbox",
+  "rulearena-control-api",
+  "rulearena-domain-contracts",
+  "rulearena-observability",
+  "rulearena-policy-schema",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28.1,<0.29",
+  "mypy>=1.17.1,<2",
+  "pytest>=8.4.1,<9",
+  "pytest-asyncio>=1.1.0,<2",
+  "ruff>=0.12.11,<0.13",
+]
+
+[tool.uv.workspace]
+members = [
+  "packages/domain_contracts",
+  "packages/observability",
+  "packages/policy_schema",
+  "services/commerce_sandbox",
+  "services/control_api",
+]
+
+[tool.uv.sources]
+rulearena-commerce-sandbox = { workspace = true }
+rulearena-control-api = { workspace = true }
+rulearena-domain-contracts = { workspace = true }
+rulearena-observability = { workspace = true }
+rulearena-policy-schema = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider"
+asyncio_mode = "auto"
+markers = ["postgres: requires the local PostgreSQL container"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["redis.*"]
+ignore_missing_imports = true
