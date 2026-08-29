@@ -4,9 +4,11 @@ from rulearena_observability import ControlSettings, SandboxSettings
 
 
 @pytest.mark.parametrize("settings_type", [ControlSettings, SandboxSettings])
-def test_missing_required_configuration_fails_fast(settings_type: type[object]) -> None:
+def test_missing_required_configuration_fails_fast(
+    settings_type: type[ControlSettings] | type[SandboxSettings],
+) -> None:
     with pytest.raises(ValidationError) as error:
-        settings_type()  # type: ignore[call-arg]
+        settings_type()
     message = str(error.value)
     assert "DATABASE_URL" in message
     assert "redis_url" in message
@@ -20,4 +22,3 @@ def test_short_internal_token_is_rejected() -> None:
             redis_url="redis://localhost:6379/0",
             internal_service_token="weak",
         )
-

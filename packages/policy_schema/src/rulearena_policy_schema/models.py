@@ -116,4 +116,3 @@ class RuleSpec(StrictModel):
     rules: tuple[Rule, ...]
     invariants: tuple[Invariant, ...]
     ambiguities: tuple[Ambiguity, ...] = ()
-

@@ -171,6 +171,7 @@ class ActionReceipt(StrictModel):
     action_type: ActionType
     status: ActionStatus
     monetary_effects: tuple[Money, ...] = ()
+    result: dict[str, Any] = Field(default_factory=dict)
     error: ApiError | None = None
     occurred_at: datetime
 

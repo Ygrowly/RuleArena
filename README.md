@@ -1,6 +1,6 @@
 # RuleArena
 
-RuleArena 是电商业务规则上线前的对抗式验证平台。本仓库当前完成阶段 0：可复现的工程骨架、严格共享契约、两个最小服务和 PostgreSQL 权限隔离；尚未实现业务动作、Agent、Oracle 或产品 UI。
+RuleArena 是电商业务规则上线前的对抗式验证平台。本仓库当前完成阶段 1：Commerce Sandbox 的三类场景、固定/漏洞 Profile、真实 PostgreSQL 事务、事件、回执、快照和 HTTP API；Agent、Oracle 与产品 UI 留待后续阶段。
 
 ## 环境要求
 
@@ -22,32 +22,50 @@ pnpm --dir frontend test
 pnpm --dir frontend build
 ```
 
-## 启动完整基础设施
+## 启动本地开发依赖（推荐）
 
 复制 `.env.example` 为 `.env`，替换所有示例密码和内部令牌。该文件只用于本地开发，不应提交。
 
-```bash
-docker compose config --quiet
-docker compose up -d --build
-curl http://localhost:8000/healthz
-curl http://localhost:8000/readyz
-curl http://localhost:8001/healthz
-curl http://localhost:8001/readyz
+```powershell
+$env:POSTGRES_ADMIN_USER='rulearena_admin'
+$env:POSTGRES_ADMIN_PASSWORD='replace-local-admin-password'
+$env:CONTROL_DB_PASSWORD='replace-local-control-password'
+$env:SANDBOX_DB_PASSWORD='replace-local-sandbox-password'
+$env:INTERNAL_SERVICE_TOKEN='replace-with-at-least-32-random-characters'
+docker compose -p rulearena-dev up -d postgres redis
 ```
 
-Compose 会先创建 PostgreSQL 角色与 `control`、`sandbox` Schema，再分别执行两条 Alembic 基线，成功后才启动服务。`/healthz` 只表示进程存活；`/readyz` 会实际查询 PostgreSQL 和 Redis，任一依赖失败返回 503。
+默认将 PostgreSQL 和 Redis 映射到 `15432`、`16379`，避免和 Windows 原生服务冲突。应用服务优先直接在宿主机运行，便于调试：
+
+```powershell
+$env:SANDBOX_DATABASE_URL='postgresql+asyncpg://rulearena_sandbox:<sandbox-password>@127.0.0.1:15432/rulearena'
+$env:REDIS_URL='redis://127.0.0.1:16379/0'
+$env:INTERNAL_SERVICE_TOKEN='replace-with-at-least-32-random-characters'
+uv run alembic -c alembic-sandbox.ini upgrade head
+uv run rulearena-commerce-sandbox
+```
+
+`/healthz` 只表示进程存活；`/readyz` 会实际查询 PostgreSQL 和 Redis，任一依赖失败返回 503。需要完整容器编排时再执行 `docker compose up -d --build`。
 
 停止服务使用 `docker compose down`。只有明确希望删除本地数据库数据时才额外使用 `docker compose down -v`。
 
 ## 本机进程启动
 
-若服务运行在宿主机，把 `.env` 中数据库主机设为 `localhost`，先用 Compose 启动 PostgreSQL/Redis，再执行：
+若服务运行在宿主机，把 `.env` 中数据库主机设为 `127.0.0.1:15432`、Redis 设为 `127.0.0.1:16379`，先用 Compose 启动 PostgreSQL/Redis，再执行：
 
 ```bash
 uv run alembic -c alembic.ini upgrade head
 uv run alembic -c alembic-sandbox.ini upgrade head
 uv run rulearena-control-api
 uv run rulearena-commerce-sandbox
+```
+
+阶段 1 Sandbox 的真实 HTTP 验收（服务已在本机 `8001` 或其他端口启动）：
+
+```powershell
+$env:SANDBOX_HTTP_URL='http://127.0.0.1:8001'
+$env:SANDBOX_TEST_TOKEN='<internal-service-token>'
+uv run pytest -q tests/sandbox
 ```
 
 配置加载会在数据库 URL、Redis URL 或至少 32 字符的内部服务令牌缺失时立即失败。生产环境不得使用 `.env.example` 中的示例值。
@@ -57,8 +75,8 @@ uv run rulearena-commerce-sandbox
 Compose 启动后，在 PowerShell 中运行：
 
 ```powershell
-$env:TEST_CONTROL_DATABASE_URL='postgresql+asyncpg://rulearena_control:<control-password>@localhost:5432/rulearena'
-$env:TEST_SANDBOX_DATABASE_URL='postgresql+asyncpg://rulearena_sandbox:<sandbox-password>@localhost:5432/rulearena'
+$env:TEST_CONTROL_DATABASE_URL='postgresql+asyncpg://rulearena_control:<control-password>@localhost:15432/rulearena'
+$env:TEST_SANDBOX_DATABASE_URL='postgresql+asyncpg://rulearena_sandbox:<sandbox-password>@localhost:15432/rulearena'
 uv run pytest -q tests/test_database_isolation.py
 ```
 

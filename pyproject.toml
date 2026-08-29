@@ -40,7 +40,10 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-p no:cacheprovider"
 asyncio_mode = "auto"
-markers = ["postgres: requires the local PostgreSQL container"]
+markers = [
+  "postgres: requires the local PostgreSQL container",
+  "sandbox: requires the real Commerce Sandbox HTTP service",
+]
 
 [tool.ruff]
 target-version = "py312"

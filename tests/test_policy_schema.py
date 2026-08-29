@@ -26,9 +26,7 @@ def valid_rule_spec() -> dict[str, object]:
                 "restore_on_full_refund": False,
             }
         ],
-        "invariants": [
-            {"invariant_type": "COUPON_SINGLE_VALUE", "invariant_id": "INV-03"}
-        ],
+        "invariants": [{"invariant_type": "COUPON_SINGLE_VALUE", "invariant_id": "INV-03"}],
         "ambiguities": [],
     }
 

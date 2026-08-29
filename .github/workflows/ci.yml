@@ -10,11 +10,11 @@ jobs:
       POSTGRES_ADMIN_PASSWORD: ci-admin-password
       CONTROL_DB_PASSWORD: ci-control-password
       SANDBOX_DB_PASSWORD: ci-sandbox-password
-      CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:ci-control-password@127.0.0.1:5432/rulearena
-      SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:ci-sandbox-password@127.0.0.1:5432/rulearena
-      TEST_CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:ci-control-password@127.0.0.1:5432/rulearena
-      TEST_SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:ci-sandbox-password@127.0.0.1:5432/rulearena
-      REDIS_URL: redis://127.0.0.1:6379/0
+      CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:ci-control-password@127.0.0.1:15432/rulearena
+      SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:ci-sandbox-password@127.0.0.1:15432/rulearena
+      TEST_CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:ci-control-password@127.0.0.1:15432/rulearena
+      TEST_SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:ci-sandbox-password@127.0.0.1:15432/rulearena
+      REDIS_URL: redis://127.0.0.1:16379/0
       INTERNAL_SERVICE_TOKEN: ci-token-that-is-at-least-32-characters
     steps:
       - uses: actions/checkout@v4

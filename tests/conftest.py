@@ -1,7 +1,21 @@
+import os
 from collections.abc import Iterator
 
 import pytest
 from rulearena_observability import ControlSettings, SandboxSettings
+
+
+@pytest.fixture
+def sandbox_http_url() -> str:
+    url = os.getenv("SANDBOX_HTTP_URL")
+    if not url:
+        pytest.skip("set SANDBOX_HTTP_URL to run real PostgreSQL-backed HTTP tests")
+    return url.rstrip("/")
+
+
+@pytest.fixture
+def sandbox_token() -> str:
+    return os.getenv("SANDBOX_TEST_TOKEN", "local-internal-token-32-characters")
 
 
 @pytest.fixture
@@ -34,4 +48,3 @@ def clear_required_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[None
     ):
         monkeypatch.delenv(name, raising=False)
     yield
-

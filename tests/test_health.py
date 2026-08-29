@@ -1,7 +1,4 @@
-from collections.abc import Callable
-
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from rulearena_commerce_sandbox import create_app as create_sandbox_app
 from rulearena_control_api import create_app as create_control_app
@@ -21,13 +18,11 @@ def test_health_and_readiness_have_distinct_semantics(
         calls += 1
         raise ConnectionError("dependency unavailable")
 
-    factory: Callable[..., FastAPI]
-    settings: ControlSettings | SandboxSettings
     if service == "control":
-        factory, settings = create_control_app, control_settings
+        app = create_control_app(settings=control_settings, readiness_probe=broken_probe)
     else:
-        factory, settings = create_sandbox_app, sandbox_settings
-    with TestClient(factory(settings=settings, readiness_probe=broken_probe)) as client:
+        app = create_sandbox_app(settings=sandbox_settings, readiness_probe=broken_probe)
+    with TestClient(app) as client:
         health = client.get("/healthz")
         readiness = client.get("/readyz")
     assert health.status_code == 200
