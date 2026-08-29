@@ -3,11 +3,14 @@ name = "rulearena"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "rulearena-attack-runtime",
   "rulearena-commerce-sandbox",
   "rulearena-control-api",
   "rulearena-domain-contracts",
   "rulearena-observability",
+  "rulearena-oracle",
   "rulearena-policy-schema",
+  "rulearena-reference-simulator",
 ]
 
 [dependency-groups]
@@ -21,19 +24,25 @@ dev = [
 
 [tool.uv.workspace]
 members = [
+  "packages/attack_runtime",
   "packages/domain_contracts",
   "packages/observability",
+  "packages/oracle",
   "packages/policy_schema",
+  "packages/reference_simulator",
   "services/commerce_sandbox",
   "services/control_api",
 ]
 
 [tool.uv.sources]
+rulearena-attack-runtime = { workspace = true }
 rulearena-commerce-sandbox = { workspace = true }
 rulearena-control-api = { workspace = true }
 rulearena-domain-contracts = { workspace = true }
 rulearena-observability = { workspace = true }
+rulearena-oracle = { workspace = true }
 rulearena-policy-schema = { workspace = true }
+rulearena-reference-simulator = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

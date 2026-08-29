@@ -1,4 +1,5 @@
 # Oracle
 
-Reserved by the architecture. It is intentionally not implemented in phase 0.
-
+Deterministic evaluator for RuleArena's eight phase-2 invariants. Findings are based only on
+the frozen `RuleSpec`, normalized snapshots, action receipts, and business events. The
+Oracle has no Sandbox profile or ground-truth input.
