@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from rulearena_policy_schema import ScenarioType
 
 
@@ -41,10 +41,22 @@ class Scope(StrEnum):
 class CreateRunRequest(StrictModel):
     schema_version: Literal["1.0"] = "1.0"
     scenario_type: ScenarioType
-    sandbox_version: SandboxVersion = Field(
-        default=SandboxVersion.FIXED,
-        validation_alias=AliasChoices("sandbox_version", "sandbox_profile", "profile"),
-    )
+    sandbox_version: SandboxVersion = SandboxVersion.FIXED
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_profile_aliases(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        aliases = [name for name in ("sandbox_profile", "profile") if name in data]
+        if aliases and "sandbox_version" in data:
+            raise ValueError("provide only sandbox_version or one profile alias")
+        if len(aliases) > 1:
+            raise ValueError("provide only one profile alias")
+        if aliases:
+            data["sandbox_version"] = data.pop(aliases[0])
+        return data
 
 
 class ActionCommand(StrictModel):

@@ -155,6 +155,28 @@ async def test_invalid_transition_is_rejected_without_event(client: httpx.AsyncC
 
 @pytest.mark.sandbox
 @pytest.mark.asyncio
+async def test_cross_scenario_action_is_rejected_without_state_change(
+    client: httpx.AsyncClient,
+) -> None:
+    run_id = (await create_run(client, "PROMOTION"))["run_id"]
+    before = (await client.get(f"/internal/runs/{run_id}/snapshot")).json()
+    rejected = await action(
+        client,
+        run_id,
+        "activate_membership",
+        "wrong-scenario",
+        target_id="user-1",
+        arguments={"paid_amount": "50.00", "quantity": 2},
+    )
+    assert rejected["status"] == "REJECTED"
+    assert rejected["error"]["code"] == "ACTION_NOT_SUPPORTED"
+    after = (await client.get(f"/internal/runs/{run_id}/snapshot")).json()
+    assert after["state"] == before["state"]
+    assert (await client.get(f"/internal/runs/{run_id}/events")).json()["events"] == []
+
+
+@pytest.mark.sandbox
+@pytest.mark.asyncio
 async def test_run_spaces_are_isolated(client: httpx.AsyncClient) -> None:
     first = (await create_run(client, "PROMOTION"))["run_id"]
     second = (await create_run(client, "PROMOTION"))["run_id"]
@@ -311,6 +333,18 @@ async def test_internal_boundary_rejects_missing_token_unknown_action_and_large_
     )
     assert oversized.status_code == 413
     assert oversized.headers["x-request-id"] == "oversized-test"
+
+    async def chunked_body() -> AsyncIterator[bytes]:
+        for _ in range(257):
+            yield b"x" * 1024
+
+    chunked = await client.post(
+        "/internal/runs",
+        content=chunked_body(),
+        headers={"content-type": "application/json", "x-request-id": "chunked-test"},
+    )
+    assert chunked.status_code == 413
+    assert chunked.headers["x-request-id"] == "chunked-test"
 
 
 @pytest.mark.sandbox
@@ -499,6 +533,17 @@ async def test_vulnerable_points_and_membership_profiles_are_reproducible(
     )
     points_state = (await client.get(f"/internal/runs/{points_run}/snapshot")).json()["state"]
     assert points_state["users"][0]["points_balance"] == 150
+    overredeemed = await action(
+        client,
+        points_run,
+        "redeem_points",
+        "vp-overredeem",
+        target_id="user-1",
+        arguments={"amount": 151},
+    )
+    assert overredeemed["status"] == "SUCCEEDED"
+    negative_points = (await client.get(f"/internal/runs/{points_run}/snapshot")).json()["state"]
+    assert negative_points["users"][0]["points_balance"] == -1
 
     membership_run = (await create_run(client, "MEMBERSHIP_ENTITLEMENT", "vulnerable"))["run_id"]
     await action(
@@ -540,3 +585,56 @@ async def test_vulnerable_points_and_membership_profiles_are_reproducible(
         arguments={"quantity": 1},
     )
     assert still_usable["status"] == "SUCCEEDED"
+
+
+@pytest.mark.sandbox
+@pytest.mark.asyncio
+async def test_vulnerable_membership_defect_is_scoped_to_refunds(
+    client: httpx.AsyncClient,
+) -> None:
+    run_id = (await create_run(client, "MEMBERSHIP_ENTITLEMENT", "vulnerable"))["run_id"]
+    await action(client, run_id, "create_user", "user", arguments={"initial_balance": "100.00"})
+    activated = await action(
+        client,
+        run_id,
+        "activate_membership",
+        "activate",
+        target_id="user-1",
+        arguments={"paid_amount": "50.00", "quantity": 2},
+    )
+    cancelled = await action(
+        client,
+        run_id,
+        "cancel_membership",
+        "cancel-without-refund",
+        target_id=activated["result"]["membership_id"],
+        arguments={"refund_requested": False},
+    )
+    assert cancelled["status"] == "SUCCEEDED"
+    consume = await action(
+        client,
+        run_id,
+        "consume_entitlement",
+        "consume-after-cancel",
+        target_id=activated["result"]["entitlement_id"],
+        arguments={"quantity": 1},
+    )
+    assert consume["status"] == "REJECTED"
+    assert consume["error"]["code"] == "ENTITLEMENT_NOT_AVAILABLE"
+
+
+@pytest.mark.sandbox
+@pytest.mark.asyncio
+async def test_fixed_points_profile_rejects_overredemption(client: httpx.AsyncClient) -> None:
+    run_id = (await create_run(client, "REFUND_POINTS", "fixed"))["run_id"]
+    await action(client, run_id, "create_user", "user", arguments={"initial_balance": "10.00"})
+    rejected = await action(
+        client,
+        run_id,
+        "redeem_points",
+        "overredeem",
+        target_id="user-1",
+        arguments={"amount": 1},
+    )
+    assert rejected["status"] == "REJECTED"
+    assert rejected["error"]["code"] == "INSUFFICIENT_POINTS"

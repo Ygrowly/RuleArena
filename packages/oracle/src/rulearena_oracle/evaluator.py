@@ -25,10 +25,23 @@ def _items(state: Mapping[str, Any] | None, name: str) -> list[Mapping[str, Any]
 
 
 def _decimal(value: Any) -> Decimal | None:
+    if isinstance(value, float | bool) or not isinstance(value, str | int | Decimal):
+        return None
     try:
-        return Decimal(str(value))
+        parsed = Decimal(value)
     except (InvalidOperation, TypeError, ValueError):
         return None
+    return parsed if parsed.is_finite() else None
+
+
+def _integer(value: Any) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int | str):
+        return None
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    return parsed if str(value) == str(parsed) else None
 
 
 def _finding(
@@ -182,11 +195,19 @@ class DeterministicOracle:
             for event in events
             if event.get("event_type") == "COUPON_USED"
         )
-        bad = [
-            str(c.get("id"))
-            for c in coupons
-            if int(c.get("usage_count", 0)) > 1 or counts[str(c.get("id"))] > 1
-        ]
+        bad = []
+        for coupon in coupons:
+            usage_count = _integer(coupon.get("usage_count", 0))
+            if usage_count is None:
+                return _finding(
+                    iid,
+                    OracleStatus.INSUFFICIENT_EVIDENCE,
+                    snapshots,
+                    "优惠券使用次数字段无效。",
+                )
+            coupon_id = str(coupon.get("id"))
+            if usage_count > 1 or counts[coupon_id] > 1:
+                bad.append(coupon_id)
         return _finding(
             iid,
             OracleStatus.VIOLATED if bad else OracleStatus.SATISFIED,
@@ -277,8 +298,14 @@ class DeterministicOracle:
                         "event_revoke": revokes[oid],
                     }
                 )
-        if any(int(user.get("points_balance", 0)) < 0 for user in users):
-            bad.append({"negative_user_balance": True})
+        for user in users:
+            points_balance = _integer(user.get("points_balance", 0))
+            if points_balance is None:
+                return _finding(
+                    iid, OracleStatus.INSUFFICIENT_EVIDENCE, snapshots, "用户积分字段无效。"
+                )
+            if points_balance < 0:
+                bad.append({"negative_user_balance": True, "user_id": user.get("id")})
         return _finding(
             iid,
             OracleStatus.VIOLATED if bad else OracleStatus.SATISFIED,
@@ -344,10 +371,17 @@ class DeterministicOracle:
             return _finding(iid, OracleStatus.NOT_APPLICABLE, snapshots, "没有权益。")
         bad = []
         for item in values:
+            granted = _integer(item.get("granted_quantity", 0))
+            consumed = _integer(item.get("consumed_quantity", 0))
+            revoked = _integer(item.get("revoked_quantity", 0))
+            if granted is None or consumed is None or revoked is None:
+                return _finding(
+                    iid, OracleStatus.INSUFFICIENT_EVIDENCE, snapshots, "权益数量字段无效。"
+                )
             available = (
-                int(item.get("granted_quantity", 0))
-                - int(item.get("consumed_quantity", 0))
-                - int(item.get("revoked_quantity", 0))
+                granted
+                - consumed
+                - revoked
             )
             if available < 0:
                 bad.append({"entitlement_id": item.get("id"), "available": available})
@@ -379,7 +413,6 @@ class DeterministicOracle:
         if not memberships:
             return _finding(iid, OracleStatus.NOT_APPLICABLE, snapshots, "没有会员。")
         by_membership = {str(e.get("membership_id")): e for e in entitlements}
-        event_types = [str(event.get("event_type")) for event in events]
         bad = []
         for membership in memberships:
             if membership.get("status") in {"CANCELLED", "REFUNDED"}:
@@ -388,11 +421,17 @@ class DeterministicOracle:
                     return _finding(
                         iid, OracleStatus.INSUFFICIENT_EVIDENCE, snapshots, "会员缺少关联权益。"
                     )
-                available = (
-                    int(entitlement.get("granted_quantity", 0))
-                    - int(entitlement.get("consumed_quantity", 0))
-                    - int(entitlement.get("revoked_quantity", 0))
-                )
+                granted = _integer(entitlement.get("granted_quantity", 0))
+                consumed = _integer(entitlement.get("consumed_quantity", 0))
+                revoked = _integer(entitlement.get("revoked_quantity", 0))
+                if granted is None or consumed is None or revoked is None:
+                    return _finding(
+                        iid,
+                        OracleStatus.INSUFFICIENT_EVIDENCE,
+                        snapshots,
+                        "权益数量字段无效。",
+                    )
+                available = granted - consumed - revoked
                 if available != 0:
                     bad.append({"membership_id": membership.get("id"), "available": available})
                 if (
@@ -403,15 +442,35 @@ class DeterministicOracle:
                 if (
                     rule.refund_policy == "UNUSED_ONLY"
                     and membership.get("status") == "REFUNDED"
-                    and int(entitlement.get("consumed_quantity", 0)) > 0
+                    and consumed > 0
                 ):
                     bad.append(
                         {"membership_id": membership.get("id"), "reason": "used_then_refunded"}
                     )
-        if "MEMBERSHIP_REFUNDED" in event_types:
-            refund_index = event_types.index("MEMBERSHIP_REFUNDED")
-            if "ENTITLEMENT_CONSUMED" in event_types[refund_index + 1 :]:
-                bad.append({"reason": "consumed_after_refund"})
+                if membership.get("status") == "REFUNDED":
+                    membership_id = str(membership.get("id"))
+                    entitlement_id = str(entitlement.get("id"))
+                    refund_indexes = []
+                    for index, event in enumerate(events):
+                        payload = event.get("payload", {})
+                        payload_membership_id = (
+                            str(payload.get("membership_id"))
+                            if isinstance(payload, Mapping) and payload.get("membership_id")
+                            else ""
+                        )
+                        if event.get("event_type") == "MEMBERSHIP_REFUNDED" and (
+                            str(event.get("aggregate_id")) == membership_id
+                            or payload_membership_id == membership_id
+                        ):
+                            refund_indexes.append(index)
+                    if refund_indexes and any(
+                        later.get("event_type") == "ENTITLEMENT_CONSUMED"
+                        and str(later.get("aggregate_id")) == entitlement_id
+                        for later in events[min(refund_indexes) + 1 :]
+                    ):
+                        bad.append(
+                            {"membership_id": membership_id, "reason": "consumed_after_refund"}
+                        )
         return _finding(
             iid,
             OracleStatus.VIOLATED if bad else OracleStatus.SATISFIED,

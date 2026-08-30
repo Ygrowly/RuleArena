@@ -43,6 +43,17 @@ services:
     depends_on:
       control-migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=2)",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
 
   commerce-sandbox:
     build:
@@ -58,6 +69,17 @@ services:
     depends_on:
       sandbox-migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=2)",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
 
   control-migrate:
     build:

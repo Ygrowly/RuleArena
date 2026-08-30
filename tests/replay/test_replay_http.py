@@ -1,11 +1,23 @@
 import pytest
-from rulearena_attack_runtime import ReplayClassification, SandboxReplayRunner
+from rulearena_attack_runtime import ReplayClassification, SandboxReplayRunner, classify_replay
 from rulearena_domain_contracts import ActionType
-from rulearena_oracle import InvariantId
+from rulearena_oracle import InvariantId, OracleStatus
 from rulearena_policy_schema import ScenarioType
 from rulearena_reference_simulator import SimAction
 
 from tests.phase2_factories import rule_spec
+
+
+def test_replay_classification_keeps_missing_evidence_distinct() -> None:
+    assert (
+        classify_replay(OracleStatus.INSUFFICIENT_EVIDENCE)
+        is ReplayClassification.INSUFFICIENT_EVIDENCE
+    )
+    assert (
+        classify_replay(OracleStatus.VIOLATED)
+        is ReplayClassification.CONFIRMED_VIOLATION
+    )
+    assert classify_replay(OracleStatus.SATISFIED) is ReplayClassification.MODEL_DIVERGENCE
 
 
 def vulnerable_cases() -> tuple[tuple[ScenarioType, InvariantId, tuple[SimAction, ...]], ...]:

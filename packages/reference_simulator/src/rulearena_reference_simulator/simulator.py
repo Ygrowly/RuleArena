@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
 from typing import TypeVar
 
 from rulearena_domain_contracts import ActionType
@@ -156,6 +156,33 @@ class ReferenceSimulator:
         return tuple(sorted(actions, key=SimAction.canonical_key))
 
     def transition(self, state: SimulationState, action: SimAction) -> TransitionResult:
+        common = {ActionType.CREATE_USER}
+        scenario_actions = {
+            ScenarioType.PROMOTION: {
+                ActionType.ISSUE_COUPON,
+                ActionType.CREATE_ORDER,
+                ActionType.APPLY_COUPON,
+                ActionType.PAY_ORDER,
+                ActionType.CANCEL_ORDER,
+                ActionType.REFUND_ORDER,
+            },
+            ScenarioType.REFUND_POINTS: {
+                ActionType.CREATE_ORDER,
+                ActionType.PAY_ORDER,
+                ActionType.CANCEL_ORDER,
+                ActionType.REFUND_ORDER,
+                ActionType.REDEEM_POINTS,
+            },
+            ScenarioType.MEMBERSHIP_ENTITLEMENT: {
+                ActionType.ACTIVATE_MEMBERSHIP,
+                ActionType.CONSUME_ENTITLEMENT,
+                ActionType.CANCEL_MEMBERSHIP,
+            },
+        }
+        if action.action_type not in common | scenario_actions[state.scenario_type]:
+            return TransitionResult(
+                TransitionStatus.UNSUPPORTED, state, code="ACTION_NOT_SUPPORTED"
+            )
         if action.idempotency_key:
             marker = (action.action_type.value, action.idempotency_key)
             if marker in state.seen_idempotency_keys:
@@ -163,7 +190,10 @@ class ReferenceSimulator:
         handler = getattr(self, f"_do_{action.action_type.value.lower()}", None)
         if handler is None or action.action_type is ActionType.INSPECT_STATE:
             return TransitionResult(TransitionStatus.UNSUPPORTED, state, code="UNSUPPORTED_ACTION")
-        result: TransitionResult = handler(state, action)
+        try:
+            result: TransitionResult = handler(state, action)
+        except (ArithmeticError, TypeError, ValueError, StopIteration):
+            return self._reject(state, "INVALID_ARGUMENT")
         if result.status is TransitionStatus.APPLIED and action.idempotency_key:
             result = replace(
                 result,
@@ -183,7 +213,10 @@ class ReferenceSimulator:
         if state.users:
             return self._reject(state, "USER_EXISTS")
         currency = Currency(str(action.argument("currency", "CNY")))
-        user = SimUser(action.actor_id, _money(action.argument("initial_balance", "0")), currency)
+        balance = _money(action.argument("initial_balance", "0"))
+        if balance < 0:
+            return self._reject(state, "INVALID_AMOUNT")
+        user = SimUser(action.actor_id, balance, currency)
         return TransitionResult(
             TransitionStatus.APPLIED,
             replace(state, users=(user,)),
@@ -193,12 +226,24 @@ class ReferenceSimulator:
     def _do_issue_coupon(self, state: SimulationState, action: SimAction) -> TransitionResult:
         if not state.users or self.promotion is None:
             return self._reject(state, "PRECONDITION_FAILED")
+        owner_id = action.target_id or action.actor_id
+        if not any(user.user_id == owner_id for user in state.users):
+            return self._reject(state, "USER_NOT_FOUND")
+        face_value = _money(action.argument("value", self.promotion.discount_amount.amount))
+        threshold = _money(action.argument("threshold", self.promotion.minimum_order_amount.amount))
+        currency = Currency(str(action.argument("currency", "CNY")))
+        if (
+            face_value <= 0
+            or threshold < 0
+            or currency is not self.promotion.discount_amount.currency
+        ):
+            return self._reject(state, "INVALID_COUPON")
         coupon = SimCoupon(
             f"coupon-{len(state.coupons) + 1}",
-            action.actor_id,
-            _money(action.argument("value", self.promotion.discount_amount.amount)),
-            _money(action.argument("threshold", self.promotion.minimum_order_amount.amount)),
-            Currency(str(action.argument("currency", "CNY"))),
+            owner_id,
+            face_value,
+            threshold,
+            currency,
         )
         return TransitionResult(
             TransitionStatus.APPLIED,
@@ -209,11 +254,18 @@ class ReferenceSimulator:
     def _do_create_order(self, state: SimulationState, action: SimAction) -> TransitionResult:
         if not state.users:
             return self._reject(state, "USER_NOT_FOUND")
+        user_id = action.target_id or action.actor_id
+        if not any(user.user_id == user_id for user in state.users):
+            return self._reject(state, "USER_NOT_FOUND")
+        amount = _money(action.argument("amount"))
+        currency = Currency(str(action.argument("currency", "CNY")))
+        if amount <= 0:
+            return self._reject(state, "INVALID_AMOUNT")
         order = SimOrder(
             f"order-{len(state.orders) + 1}",
-            action.actor_id,
-            _money(action.argument("amount")),
-            Currency(str(action.argument("currency", "CNY"))),
+            user_id,
+            amount,
+            currency,
         )
         return TransitionResult(
             TransitionStatus.APPLIED,
@@ -232,6 +284,8 @@ class ReferenceSimulator:
             order.status != "CREATED"
             or order.coupon_id
             or coupon.status != "AVAILABLE"
+            or coupon.owner_id != order.user_id
+            or coupon.currency is not order.currency
             or order.original_amount < coupon.threshold
         ):
             return self._reject(state, "COUPON_NOT_APPLICABLE")
@@ -334,21 +388,35 @@ class ReferenceSimulator:
         events = [
             SimEvent("REFUND_ISSUED", "ORDER", order.order_id, (("amount", format(amount, "f")),))
         ]
-        if full and self.points and self.points.revoke_on_refund and order.points_granted:
-            if user.points_balance < order.points_granted:
-                return self._reject(state, "POINTS_ALREADY_REDEEMED")
-            user = replace(user, points_balance=user.points_balance - order.points_granted)
-            events.append(
-                SimEvent(
-                    "POINTS_REVOKED",
-                    "USER",
-                    user.user_id,
-                    (("amount", order.points_granted), ("order_id", order.order_id)),
+        if self.points and self.points.revoke_on_refund and order.points_granted:
+            target_revoke = (
+                order.points_granted
+                if full
+                else int(
+                    (Decimal(order.points_granted) * total / order.paid_amount).to_integral_value(
+                        rounding=ROUND_FLOOR
+                    )
                 )
             )
+            revoke_delta = max(target_revoke - order.points_revoked, 0)
+            if user.points_balance < revoke_delta:
+                return self._reject(state, "POINTS_ALREADY_REDEEMED")
+            if revoke_delta:
+                user = replace(user, points_balance=user.points_balance - revoke_delta)
+                events.append(
+                    SimEvent(
+                        "POINTS_REVOKED",
+                        "USER",
+                        user.user_id,
+                        (("amount", revoke_delta), ("order_id", order.order_id)),
+                    )
+                )
         order = replace(
             order,
             refunded_amount=total,
+            points_revoked=target_revoke
+            if self.points and self.points.revoke_on_refund
+            else order.points_revoked,
             refund_count=order.refund_count + 1,
             status="REFUNDED" if full else "PARTIALLY_REFUNDED",
         )
@@ -392,26 +460,30 @@ class ReferenceSimulator:
     ) -> TransitionResult:
         if not state.users or self.membership is None or state.memberships:
             return self._reject(state, "PRECONDITION_FAILED")
+        user_id = action.target_id or action.actor_id
+        ui = next((i for i, item in enumerate(state.users) if item.user_id == user_id), -1)
+        if ui < 0:
+            return self._reject(state, "USER_NOT_FOUND")
         paid = _money(action.argument("paid_amount", self.membership.price.amount))
         quantity = int(action.argument("quantity", self.membership.entitlement_quantity))
         if (
             paid != self.membership.price.amount
             or quantity != self.membership.entitlement_quantity
-            or state.users[0].balance < paid
+            or state.users[ui].balance < paid
         ):
             return self._reject(state, "MEMBERSHIP_RULE_MISMATCH")
         membership = SimMembership(
-            "membership-1", state.users[0].user_id, paid, self.membership.price.currency
+            "membership-1", state.users[ui].user_id, paid, self.membership.price.currency
         )
         entitlement = SimEntitlement("entitlement-1", membership.membership_id, quantity)
         user = replace(
-            state.users[0], balance=state.users[0].balance - paid, membership_status="ACTIVE"
+            state.users[ui], balance=state.users[ui].balance - paid, membership_status="ACTIVE"
         )
         return TransitionResult(
             TransitionStatus.APPLIED,
             replace(
                 state,
-                users=_replace(state.users, 0, user),
+                users=_replace(state.users, ui, user),
                 memberships=(membership,),
                 entitlements=(entitlement,),
             ),
@@ -432,13 +504,23 @@ class ReferenceSimulator:
         if not state.entitlements:
             return self._reject(state, "ENTITLEMENT_NOT_FOUND")
         quantity = int(action.argument("quantity", 0))
-        entitlement = state.entitlements[0]
+        ei = next(
+            (
+                i
+                for i, item in enumerate(state.entitlements)
+                if item.entitlement_id == action.target_id
+            ),
+            -1,
+        )
+        if ei < 0:
+            return self._reject(state, "ENTITLEMENT_NOT_FOUND")
+        entitlement = state.entitlements[ei]
         if quantity <= 0 or entitlement.available < quantity:
             return self._reject(state, "INSUFFICIENT_ENTITLEMENT")
         entitlement = replace(entitlement, consumed=entitlement.consumed + quantity)
         return TransitionResult(
             TransitionStatus.APPLIED,
-            replace(state, entitlements=_replace(state.entitlements, 0, entitlement)),
+            replace(state, entitlements=_replace(state.entitlements, ei, entitlement)),
             (
                 SimEvent(
                     "ENTITLEMENT_CONSUMED",
@@ -458,9 +540,9 @@ class ReferenceSimulator:
             return self._reject(state, "MEMBERSHIP_NOT_ACTIVE")
         membership, entitlement, user = state.memberships[0], state.entitlements[0], state.users[0]
         requested = bool(action.argument("refund_requested", False))
+        if requested and self.membership.refund_policy == "UNUSED_ONLY" and entitlement.consumed:
+            return self._reject(state, "ENTITLEMENT_CONSUMED")
         refundable = requested and self.membership.refund_policy != "NON_REFUNDABLE"
-        if self.membership.refund_policy == "UNUSED_ONLY" and entitlement.consumed:
-            refundable = False
         refund = membership.paid_amount if refundable else Decimal("0")
         if self.membership.refund_policy == "PRORATED" and refundable:
             refund = (
@@ -472,7 +554,7 @@ class ReferenceSimulator:
             membership, status="REFUNDED" if refund else "CANCELLED", refunded_amount=refund
         )
         entitlement = replace(entitlement, revoked=entitlement.revoked + entitlement.available)
-        user = replace(user, balance=user.balance + refund, membership_status=membership.status)
+        user = replace(user, balance=user.balance + refund, membership_status="INACTIVE")
         return TransitionResult(
             TransitionStatus.APPLIED,
             replace(

@@ -93,6 +93,7 @@ class SimOrder:
     paid_amount: Decimal = Decimal("0")
     refunded_amount: Decimal = Decimal("0")
     points_granted: int = 0
+    points_revoked: int = 0
     refund_count: int = 0
     status: str = "CREATED"
     coupon_id: str | None = None
@@ -159,7 +160,6 @@ class SimulationState:
 
     def normalized(self) -> dict[str, Any]:
         data = asdict(self)
-        data.pop("seen_idempotency_keys", None)
         for collection in ("users", "coupons", "orders", "memberships", "entitlements"):
             data[collection] = sorted(data[collection], key=lambda item: next(iter(item.values())))
         normalized = _jsonable(data)

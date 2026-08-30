@@ -28,6 +28,10 @@ class SandboxProfile:
         return self.is_vulnerable
 
     @property
+    def allows_points_overredemption(self) -> bool:
+        return self.is_vulnerable
+
+    @property
     def allows_full_membership_refund_after_consumption(self) -> bool:
         return self.is_vulnerable
 

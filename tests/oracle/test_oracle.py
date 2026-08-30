@@ -192,3 +192,56 @@ def test_each_invariant_has_satisfied_or_not_applicable_and_insufficient_cases()
                 OracleStatus.INSUFFICIENT_EVIDENCE,
                 OracleStatus.NOT_APPLICABLE,
             }
+
+
+def test_membership_event_order_is_correlated_to_the_same_entitlement() -> None:
+    state = base_state()
+    state["orders"] = []
+    state["memberships"] = [
+        {"id": "m1", "status": "REFUNDED"},
+        {"id": "m2", "status": "ACTIVE"},
+    ]
+    state["entitlements"] = [
+        {
+            "id": "e1",
+            "membership_id": "m1",
+            "granted_quantity": 1,
+            "consumed_quantity": 0,
+            "revoked_quantity": 1,
+        },
+        {
+            "id": "e2",
+            "membership_id": "m2",
+            "granted_quantity": 2,
+            "consumed_quantity": 1,
+            "revoked_quantity": 0,
+        },
+    ]
+    report = DeterministicOracle().evaluate(
+        rule_spec(ScenarioType.MEMBERSHIP_ENTITLEMENT),
+        snapshots=[snapshot(state)],
+        events=[
+            {
+                "event_type": "MEMBERSHIP_REFUNDED",
+                "aggregate_id": "m1",
+                "payload": {"membership_id": "m1"},
+            },
+            {"event_type": "ENTITLEMENT_CONSUMED", "aggregate_id": "e2"},
+        ],
+    )
+    assert (
+        report.finding(InvariantId.ENTITLEMENT_REFUND_CONSISTENCY).status
+        is OracleStatus.SATISFIED
+    )
+
+
+def test_malformed_numeric_evidence_is_insufficient_instead_of_crashing() -> None:
+    state = base_state()
+    state["coupons"] = [{"id": "c", "usage_count": "not-an-integer"}]
+    report = DeterministicOracle().evaluate(
+        rule_spec(ScenarioType.PROMOTION), snapshots=[snapshot(state)]
+    )
+    assert (
+        report.finding(InvariantId.COUPON_SINGLE_CONSUMPTION).status
+        is OracleStatus.INSUFFICIENT_EVIDENCE
+    )

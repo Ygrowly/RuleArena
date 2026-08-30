@@ -9,7 +9,8 @@
   seeded Random 和有界 BFS。
 - `oracle`：只消费冻结 `RuleSpec`、Snapshot、Receipt、Event 的确定性判定器。
 - `attack_runtime`：全新 RunSpace HTTP 重放、语义 ID 到运行时 ID 映射、
-  `CONFIRMED_VIOLATION` / `MODEL_DIVERGENCE` 分类和删除式最小化。
+  `CONFIRMED_VIOLATION` / `MODEL_DIVERGENCE` / `INSUFFICIENT_EVIDENCE`
+  分类和删除式最小化。
 - 未实现 LLM、Rule Compiler、多 Agent、Benchmark UI 或成品 Web。
 
 ## 八个 invariant 的形式化口径
@@ -81,8 +82,8 @@ uv run --offline mypy services packages scripts tests
 Success: no issues found in 48 source files
 
 uv run --offline pytest -q
-32 passed, 19 skipped
+64 passed
 
 SANDBOX_HTTP_URL=http://127.0.0.1:8001 uv run --offline pytest tests/replay -q
-4 passed (包含 3×3 漏洞重放、fixed 防误报和真实 1-minimal)
+5 passed (包含证据不足分类、3×3 漏洞重放、fixed 防误报和真实 1-minimal)
 ```

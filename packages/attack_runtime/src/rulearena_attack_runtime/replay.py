@@ -11,6 +11,15 @@ from .minimization import minimize_trace
 from .models import MinimizationResult, ReplayClassification, ReplayResult
 
 
+def classify_replay(status: OracleStatus) -> ReplayClassification:
+    """Keep missing evidence distinct from a clean, non-violating replay."""
+    if status is OracleStatus.VIOLATED:
+        return ReplayClassification.CONFIRMED_VIOLATION
+    if status is OracleStatus.INSUFFICIENT_EVIDENCE:
+        return ReplayClassification.INSUFFICIENT_EVIDENCE
+    return ReplayClassification.MODEL_DIVERGENCE
+
+
 class SandboxReplayRunner:
     """HTTP-only adapter between candidate traces and a clean Sandbox RunSpace."""
 
@@ -77,11 +86,7 @@ class SandboxReplayRunner:
             rule_spec, snapshots=snapshots, receipts=receipts, events=events
         )
         finding = report.finding(target_invariant)
-        classification = (
-            ReplayClassification.CONFIRMED_VIOLATION
-            if finding.status is OracleStatus.VIOLATED
-            else ReplayClassification.MODEL_DIVERGENCE
-        )
+        classification = classify_replay(finding.status)
         return ReplayResult(
             classification=classification,
             target_invariant=target_invariant,

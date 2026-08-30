@@ -190,6 +190,35 @@ class SandboxService:
         command: ActionCommand,
         key: str,
     ) -> tuple[dict[str, Any], list[Money]]:
+        common = {ActionName.CREATE_USER, ActionName.INSPECT_STATE}
+        scenario_actions = {
+            ScenarioType.PROMOTION.value: {
+                ActionName.ISSUE_COUPON,
+                ActionName.CREATE_ORDER,
+                ActionName.APPLY_COUPON,
+                ActionName.PAY_ORDER,
+                ActionName.CANCEL_ORDER,
+                ActionName.REFUND_ORDER,
+            },
+            ScenarioType.REFUND_POINTS.value: {
+                ActionName.CREATE_ORDER,
+                ActionName.PAY_ORDER,
+                ActionName.CANCEL_ORDER,
+                ActionName.REFUND_ORDER,
+                ActionName.REDEEM_POINTS,
+            },
+            ScenarioType.MEMBERSHIP_ENTITLEMENT.value: {
+                ActionName.ACTIVATE_MEMBERSHIP,
+                ActionName.CONSUME_ENTITLEMENT,
+                ActionName.CANCEL_MEMBERSHIP,
+            },
+        }
+        if command.action not in common | scenario_actions.get(run.scenario_type, set()):
+            raise DomainError(
+                "ACTION_NOT_SUPPORTED",
+                "the action is not supported by this scenario",
+                {"action": command.action.value, "scenario_type": run.scenario_type},
+            )
         handlers = {
             ActionName.CREATE_USER: self._create_user,
             ActionName.ISSUE_COUPON: self._issue_coupon,
@@ -575,7 +604,11 @@ class SandboxService:
         self._args(command, {"amount"}, {"amount"})
         amount = self._positive_int(command.arguments["amount"], "amount")
         user = await self._user(session, run.id, command.target_id or command.actor_id, lock=True)
-        if user.points_balance < amount:
+        profile = SandboxProfile(SandboxVersion(run.sandbox_version))
+        if user.points_balance < amount and not (
+            run.scenario_type == ScenarioType.REFUND_POINTS.value
+            and profile.allows_points_overredemption
+        ):
             raise DomainError("INSUFFICIENT_POINTS", "points balance is insufficient")
         user.points_balance -= amount
         user.version += 1
@@ -767,7 +800,9 @@ class SandboxService:
         membership.status = "CANCELLED"
         user.membership_status = "INACTIVE"
         membership.version += 1
-        if not profile.leaves_entitlement_after_membership_refund and available > 0:
+        # The injected defect is scoped to membership refunds. A plain
+        # cancellation must never leave usable entitlement behind.
+        if available > 0:
             entitlement.revoked_quantity += available
             entitlement.status = "REVOKED"
             entitlement.version += 1

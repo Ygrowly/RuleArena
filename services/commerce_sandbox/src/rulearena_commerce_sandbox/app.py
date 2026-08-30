@@ -63,18 +63,24 @@ def create_app(
     ) -> Response:
         request_id = request.headers.get("X-Request-ID") or str(uuid4())
         content_length = request.headers.get("content-length")
+        too_large = False
         if content_length is not None:
             try:
                 too_large = int(content_length) > MAX_REQUEST_BYTES
             except ValueError:
                 too_large = True
-            if too_large:
-                oversized_response = JSONResponse(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    content={"code": "REQUEST_TOO_LARGE", "message": "request body is too large"},
-                )
-                oversized_response.headers["X-Request-ID"] = request_id
-                return oversized_response
+        if not too_large and request.method in {"POST", "PUT", "PATCH"}:
+            # Content-Length can be absent for chunked requests or can be
+            # untrustworthy at a proxy boundary. Enforce the limit on bytes
+            # actually received as well.
+            too_large = len(await request.body()) > MAX_REQUEST_BYTES
+        if too_large:
+            oversized_response = JSONResponse(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                content={"code": "REQUEST_TOO_LARGE", "message": "request body is too large"},
+            )
+            oversized_response.headers["X-Request-ID"] = request_id
+            return oversized_response
         request.state.request_id = request_id
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id

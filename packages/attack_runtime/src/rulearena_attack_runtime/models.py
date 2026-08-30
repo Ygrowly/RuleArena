@@ -10,6 +10,7 @@ from rulearena_reference_simulator import SimAction
 class ReplayClassification(StrEnum):
     CONFIRMED_VIOLATION = "CONFIRMED_VIOLATION"
     MODEL_DIVERGENCE = "MODEL_DIVERGENCE"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
 class ReplayResult(BaseModel):

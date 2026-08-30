@@ -79,3 +79,23 @@ def test_rule_spec_json_schema_is_strict_and_discriminated() -> None:
     assert schema["properties"]["schema_version"]["const"] == "1.0"
     rule_items = schema["properties"]["rules"]["items"]
     assert rule_items["discriminator"]["propertyName"] == "rule_type"
+
+
+def test_rule_spec_rejects_zero_divisor_and_cross_scenario_rules() -> None:
+    zero_spend = valid_rule_spec()
+    zero_spend["scenario_type"] = "REFUND_POINTS"
+    zero_spend["rules"] = [
+        {
+            "rule_type": "POINTS",
+            "spend_amount": {"currency": "CNY", "amount": Decimal("0")},
+            "points_granted": 1,
+            "revoke_on_refund": True,
+        }
+    ]
+    with pytest.raises(ValidationError, match="positive"):
+        RuleSpec.model_validate(zero_spend)
+
+    wrong_rule = valid_rule_spec()
+    wrong_rule["scenario_type"] = "MEMBERSHIP_ENTITLEMENT"
+    with pytest.raises(ValidationError, match="does not belong"):
+        RuleSpec.model_validate(wrong_rule)

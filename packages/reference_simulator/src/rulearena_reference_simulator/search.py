@@ -79,6 +79,8 @@ def seeded_random_search(
     state = simulator.initial_state()
     trace: tuple[SimAction, ...] = ()
     seen = {state.state_hash()}
+    if goal(state, trace):
+        return SearchResult(SearchStatus.FOUND, trace, state, 0, 1, budget, seed)
     for expanded in range(budget.max_nodes):
         if goal(state, trace):
             return SearchResult(SearchStatus.FOUND, trace, state, expanded, len(seen), budget, seed)
