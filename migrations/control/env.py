@@ -3,14 +3,15 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import MetaData, pool
+from rulearena_control_api.db import metadata
+from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 config.set_main_option("sqlalchemy.url", os.environ["CONTROL_DATABASE_URL"])
-target_metadata = MetaData(schema="control")
+target_metadata = metadata
 
 
 def include_object(
@@ -24,8 +25,23 @@ def include_object(
 
     if type_ == "table" and name == "alembic_version":
         return False
-    if reflected and type_ == "table" and getattr(object_, "schema", None) != "control":
+    if reflected and type_ == "table" and getattr(object_, "schema", None) not in {
+        None,
+        "control",
+    }:
         return False
+    return True
+
+
+def include_name(
+    name: str | None,
+    type_: str,
+    parent_names: dict[str, str | None],
+) -> bool:
+    if type_ == "schema":
+        return name in {None, "control"}
+    if type_ == "table":
+        return parent_names.get("schema_name") in {None, "control"}
     return True
 
 
@@ -36,6 +52,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         version_table_schema="control",
         include_schemas=True,
+        include_name=include_name,
         include_object=include_object,
     )
     with context.begin_transaction():
@@ -48,6 +65,7 @@ def do_run_migrations(connection: object) -> None:
         target_metadata=target_metadata,
         version_table_schema="control",
         include_schemas=True,
+        include_name=include_name,
         include_object=include_object,
     )
     with context.begin_transaction():

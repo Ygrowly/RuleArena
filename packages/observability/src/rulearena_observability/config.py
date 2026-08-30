@@ -17,6 +17,9 @@ class BaseServiceSettings(BaseSettings):
 
 class ControlSettings(BaseServiceSettings):
     database_url: PostgresDsn = Field(validation_alias="CONTROL_DATABASE_URL")
+    llm_base_url: str | None = None
+    llm_api_key: SecretStr | None = None
+    llm_model: str | None = None
 
 
 class SandboxSettings(BaseServiceSettings):

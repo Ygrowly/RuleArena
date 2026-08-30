@@ -6,7 +6,7 @@ dependencies = [
   "alembic>=1.16.5,<2",
   "asyncpg>=0.30.0,<0.31",
   "fastapi>=0.116.1,<0.117",
-  "redis>=6.4.0,<7",
+  "redis>=5.0.8,<6",
   "rulearena-domain-contracts",
   "rulearena-observability",
   "sqlalchemy[asyncio]>=2.0.43,<3",

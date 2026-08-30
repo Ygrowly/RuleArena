@@ -39,10 +39,7 @@ class ScenarioVersion(Base):
 
 class RunSpace(Base):
     __tablename__ = "run_spaces"
-    __table_args__ = (
-        UniqueConstraint("scenario_version_id", "id", name="uq_run_spaces_scenario_id"),
-        {"schema": SCHEMA},
-    )
+    __table_args__ = {"schema": SCHEMA}
 
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     scenario_version_id: Mapped[str] = mapped_column(

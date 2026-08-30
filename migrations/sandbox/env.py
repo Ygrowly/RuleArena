@@ -34,6 +34,18 @@ def include_object(
     return True
 
 
+def include_name(
+    name: str | None,
+    type_: str,
+    parent_names: dict[str, str | None],
+) -> bool:
+    if type_ == "schema":
+        return name in {None, "sandbox"}
+    if type_ == "table":
+        return parent_names.get("schema_name") in {None, "sandbox"}
+    return True
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
@@ -41,6 +53,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         version_table_schema="sandbox",
         include_schemas=True,
+        include_name=include_name,
         include_object=include_object,
     )
     with context.begin_transaction():
@@ -53,6 +66,7 @@ def do_run_migrations(connection: object) -> None:
         target_metadata=target_metadata,
         version_table_schema="sandbox",
         include_schemas=True,
+        include_name=include_name,
         include_object=include_object,
     )
     with context.begin_transaction():

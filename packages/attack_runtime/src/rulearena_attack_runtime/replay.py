@@ -11,6 +11,10 @@ from .minimization import minimize_trace
 from .models import MinimizationResult, ReplayClassification, ReplayResult
 
 
+class ActionUnknownError(RuntimeError):
+    """A timed-out write had no authoritative receipt and must not be guessed or retried blindly."""
+
+
 def classify_replay(status: OracleStatus) -> ReplayClassification:
     """Keep missing evidence distinct from a clean, non-violating replay."""
     if status is OracleStatus.VIOLATED:
@@ -23,10 +27,18 @@ def classify_replay(status: OracleStatus) -> ReplayClassification:
 class SandboxReplayRunner:
     """HTTP-only adapter between candidate traces and a clean Sandbox RunSpace."""
 
-    def __init__(self, base_url: str, internal_token: str, *, timeout: float = 10.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        internal_token: str,
+        *,
+        timeout: float = 10.0,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.headers = {"X-Internal-Service-Token": internal_token}
         self.timeout = timeout
+        self.transport = transport
         self.oracle = DeterministicOracle()
 
     async def replay(
@@ -38,7 +50,10 @@ class SandboxReplayRunner:
         sandbox_version: str = "fixed",
     ) -> ReplayResult:
         async with httpx.AsyncClient(
-            base_url=self.base_url, headers=self.headers, timeout=self.timeout
+            base_url=self.base_url,
+            headers=self.headers,
+            timeout=self.timeout,
+            transport=self.transport,
         ) as client:
             created = await client.post(
                 "/internal/runs",
@@ -64,9 +79,21 @@ class SandboxReplayRunner:
                     if name.endswith("_id") and isinstance(value, str):
                         arguments[name] = aliases.get(value, value)
                 payload["arguments"] = arguments
-                response = await client.post(f"/internal/runs/{run_id}/actions", json=payload)
-                response.raise_for_status()
-                receipt = dict(response.json())
+                key = str(payload["idempotency_key"])
+                try:
+                    response = await client.post(f"/internal/runs/{run_id}/actions", json=payload)
+                    response.raise_for_status()
+                    receipt = dict(response.json())
+                except httpx.TimeoutException as exc:
+                    authoritative = await client.get(
+                        f"/internal/runs/{run_id}/receipts/{key}"
+                    )
+                    if authoritative.status_code == 404:
+                        raise ActionUnknownError(
+                            f"ACTION_UNKNOWN for stable idempotency key {key}"
+                        ) from exc
+                    authoritative.raise_for_status()
+                    receipt = dict(authoritative.json())
                 receipts.append(receipt)
                 result = receipt.get("result")
                 if isinstance(result, dict):

@@ -4,9 +4,22 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response, status
 from redis.asyncio import Redis
+from rulearena_attack_runtime import (
+    LLMAdapter,
+    OpenAICompatibleLLMAdapter,
+    PostgresRuleVersionStore,
+    PostgresRuntimeStore,
+    RuleCompiler,
+    RuntimeStore,
+    UnavailableLLMAdapter,
+    VersionStore,
+)
 from rulearena_observability import ControlSettings, configure_logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+
+from .api import NullRunEnqueuer, PolicyService, RunEnqueuer, runtime_router
+from .queue import ArqRunEnqueuer
 
 ReadinessProbe = Callable[[], Awaitable[None]]
 logger = logging.getLogger(__name__)
@@ -15,11 +28,35 @@ logger = logging.getLogger(__name__)
 def create_app(
     settings: ControlSettings | None = None,
     readiness_probe: ReadinessProbe | None = None,
+    *,
+    compiler: RuleCompiler | None = None,
+    runtime_store: RuntimeStore | None = None,
+    version_store: VersionStore | None = None,
+    run_enqueuer: RunEnqueuer | None = None,
 ) -> FastAPI:
     resolved = settings or ControlSettings()
     configure_logging(resolved.log_level)
     engine: AsyncEngine | None = None
     redis: Redis | None = None
+    owns_runtime_store = runtime_store is None
+    owns_version_store = version_store is None
+    enqueuer = run_enqueuer or (
+        NullRunEnqueuer()
+        if runtime_store is not None
+        else ArqRunEnqueuer(str(resolved.redis_url))
+    )
+    selected_runtime_store = runtime_store or PostgresRuntimeStore(str(resolved.database_url))
+    selected_version_store = version_store or PostgresRuleVersionStore(str(resolved.database_url))
+    if compiler is None:
+        if resolved.llm_base_url and resolved.llm_api_key and resolved.llm_model:
+            adapter: LLMAdapter = OpenAICompatibleLLMAdapter(
+                base_url=resolved.llm_base_url,
+                api_key=resolved.llm_api_key.get_secret_value(),
+                model=resolved.llm_model,
+            )
+        else:
+            adapter = UnavailableLLMAdapter()
+        compiler = RuleCompiler(adapter)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -40,8 +77,19 @@ def create_app(
             await redis.aclose()
         if engine is not None:
             await engine.dispose()
+        if owns_runtime_store and isinstance(selected_runtime_store, PostgresRuntimeStore):
+            selected_runtime_store.close()
+        if owns_version_store and isinstance(selected_version_store, PostgresRuleVersionStore):
+            selected_version_store.close()
+        if isinstance(enqueuer, ArqRunEnqueuer):
+            await enqueuer.close()
 
     app = FastAPI(title="RuleArena Control API", version="0.1.0", lifespan=lifespan)
+    app.include_router(
+        runtime_router(
+            PolicyService(compiler, selected_version_store), selected_runtime_store, enqueuer
+        )
+    )
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

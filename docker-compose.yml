@@ -81,6 +81,25 @@ services:
       timeout: 3s
       retries: 15
 
+  attack-worker:
+    build:
+      context: .
+      args:
+        SERVICE_MODULE: rulearena_attack_worker
+    command: ["rulearena-attack-worker"]
+    environment:
+      CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:${CONTROL_DB_PASSWORD}@postgres:5432/rulearena
+      REDIS_URL: redis://redis:6379/0
+      SANDBOX_HTTP_URL: http://commerce-sandbox:8001
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+    depends_on:
+      control-migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+      commerce-sandbox: {condition: service_healthy}
+
   control-migrate:
     build:
       context: .

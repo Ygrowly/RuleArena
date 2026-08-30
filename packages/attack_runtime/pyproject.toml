@@ -4,9 +4,12 @@ version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "httpx>=0.28.1,<0.29",
+  "psycopg[binary]>=3.2.9,<4",
+  "rulearena-domain-contracts",
   "rulearena-oracle",
   "rulearena-policy-schema",
   "rulearena-reference-simulator",
+  "sqlalchemy>=2.0.43,<3",
 ]
 
 [build-system]
@@ -17,6 +20,7 @@ build-backend = "hatchling.build"
 packages = ["src/rulearena_attack_runtime"]
 
 [tool.uv.sources]
+rulearena-domain-contracts = { workspace = true }
 rulearena-oracle = { workspace = true }
 rulearena-policy-schema = { workspace = true }
 rulearena-reference-simulator = { workspace = true }

@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "rulearena-attack-runtime",
+  "rulearena-attack-worker",
   "rulearena-commerce-sandbox",
   "rulearena-control-api",
   "rulearena-domain-contracts",
@@ -31,11 +32,13 @@ members = [
   "packages/policy_schema",
   "packages/reference_simulator",
   "services/commerce_sandbox",
+  "services/attack_worker",
   "services/control_api",
 ]
 
 [tool.uv.sources]
 rulearena-attack-runtime = { workspace = true }
+rulearena-attack-worker = { workspace = true }
 rulearena-commerce-sandbox = { workspace = true }
 rulearena-control-api = { workspace = true }
 rulearena-domain-contracts = { workspace = true }
