@@ -11,6 +11,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from rulearena_domain_contracts import ActionType
+from rulearena_observability import NullTraceSink, TraceKind, TraceRecord, TraceSink
 from rulearena_oracle import DeterministicOracle, InvariantId, OracleStatus
 from rulearena_policy_schema import RuleSpec, ScenarioType
 from rulearena_reference_simulator import ReferenceSimulator, SimAction, SimulationState
@@ -156,6 +157,7 @@ class AttackWorker:
         agents: Mapping[StrategyType, StrategyAgent],
         *,
         fault_injector: FaultInjector | None = None,
+        trace_sink: TraceSink | None = None,
     ) -> None:
         missing = set(StrategyType).difference(agents)
         if missing:
@@ -168,6 +170,7 @@ class AttackWorker:
         self.agents = dict(agents)
         self.oracle = DeterministicOracle()
         self.fault_injector = fault_injector
+        self.trace_sink = trace_sink or NullTraceSink()
 
     def _fault(self, point: FaultPoint) -> None:
         if self.fault_injector:
@@ -257,6 +260,48 @@ class AttackWorker:
                     actions,
                     invariant,
                     sandbox_version=run.sandbox_version,
+                )
+                for step_id, (action, receipt) in enumerate(
+                    zip(replayed.actions, replayed.receipts, strict=False), start=1
+                ):
+                    self.trace_sink.append_trace(
+                        TraceRecord(
+                            run_id=run_id,
+                            step_id=step_id,
+                            kind=TraceKind.SANDBOX_HTTP,
+                            rule_version_id=run.rule_version_id,
+                            action_summary={
+                                "action_type": action.action_type.value,
+                                "target_id": action.target_id,
+                                "argument_names": sorted(key for key, _ in action.arguments),
+                            },
+                            tool_result_summary={
+                                "receipt_id": receipt.get("receipt_id"),
+                                "status": receipt.get("status"),
+                            },
+                            status=str(receipt.get("status", "UNKNOWN")),
+                        )
+                    )
+                self.trace_sink.append_trace(
+                    TraceRecord(
+                        run_id=run_id,
+                        step_id=len(replayed.actions),
+                        kind=TraceKind.ORACLE_CHECK,
+                        rule_version_id=run.rule_version_id,
+                        tool_result_summary={
+                            "target_invariant": invariant.value,
+                            "classification": replayed.classification.value,
+                            "finding_statuses": [
+                                {
+                                    "invariant": finding.invariant_id.value,
+                                    "status": finding.status.value,
+                                }
+                                for finding in replayed.report.findings
+                            ],
+                            "replay_run_id": replayed.run_id,
+                        },
+                        status=replayed.classification.value,
+                    )
                 )
                 self._fault(FaultPoint.BEFORE_ORACLE_PERSIST)
                 if replayed.classification is ReplayClassification.CONFIRMED_VIOLATION:
@@ -376,6 +421,32 @@ class AttackWorker:
             )
             proposal = await self.agents[strategy.strategy_type].propose(context)
             call = self.agents[strategy.strategy_type].adapter.last_call
+            model_config_hash = hashlib.sha256(
+                (
+                    f"{call.provider}:{call.model}:{call.temperature}"
+                    if call
+                    else strategy.strategy_type.value
+                ).encode()
+            ).hexdigest()
+            llm_trace = TraceRecord(
+                run_id=run_id,
+                strategy_id=strategy.strategy_run_id,
+                step_id=usage.steps + 1,
+                kind=TraceKind.LLM_CALL,
+                rule_version_id=self.store.get_run(run_id).rule_version_id,
+                model_config_hash=model_config_hash,
+                prompt_version=call.prompt_version if call else None,
+                tool_result_summary={
+                    "response_hash": call.response_hash if call else None,
+                    "proposal_type": proposal.proposal_type,
+                },
+                latency_ms=call.latency_ms if call else 0,
+                input_tokens=call.input_tokens if call else 0,
+                output_tokens=call.output_tokens if call else 0,
+                cost=call.cost if call else 0,
+                status="RECEIVED",
+            )
+            self.trace_sink.append_trace(llm_trace)
             call_tokens = (call.input_tokens + call.output_tokens) if call else 0
             call_cost = call.cost if call else 0
             next_usage = usage.model_copy(
@@ -425,6 +496,7 @@ class AttackWorker:
                     f"{run_id}:{strategy.strategy_run_id}:step:{usage.steps + 1}"
                 ),
             )
+            before_state_hash = state.state_hash()
             transition = simulator.transition(state, stable_action)
             state = transition.state
             actions.append(stable_action)
@@ -433,16 +505,53 @@ class AttackWorker:
             usage = usage.model_copy(update={"steps": usage.steps + 1})
             strategy = strategy.model_copy(update={"usage": usage})
             self.store.update_strategy(strategy)
-            self._fault(FaultPoint.BEFORE_CHECKPOINT)
             last_call = self.agents[strategy.strategy_type].adapter.last_call
+            proposal_trace = TraceRecord(
+                run_id=run_id,
+                strategy_id=strategy.strategy_run_id,
+                step_id=usage.steps,
+                kind=TraceKind.ACTION_PROPOSAL,
+                rule_version_id=self.store.get_run(run_id).rule_version_id,
+                model_config_hash=model_config_hash,
+                prompt_version=last_call.prompt_version if last_call else None,
+                action_summary={
+                    "action_type": stable_action.action_type.value,
+                    "target_id": stable_action.target_id,
+                    "argument_names": sorted(key for key, _ in stable_action.arguments),
+                    "response_hash": last_call.response_hash if last_call else None,
+                },
+                input_tokens=last_call.input_tokens if last_call else 0,
+                output_tokens=last_call.output_tokens if last_call else 0,
+                cost=last_call.cost if last_call else 0,
+                status="ACCEPTED",
+                parent_trace_id=llm_trace.trace_id,
+            )
+            self.trace_sink.append_trace(proposal_trace)
+            self.trace_sink.append_trace(
+                TraceRecord(
+                    run_id=run_id,
+                    strategy_id=strategy.strategy_run_id,
+                    step_id=usage.steps,
+                    kind=TraceKind.SIMULATION,
+                    rule_version_id=self.store.get_run(run_id).rule_version_id,
+                    action_summary={"action_type": stable_action.action_type.value},
+                    tool_result_summary={
+                        "transition_status": transition.status.value,
+                        "event_types": [event.event_type for event in transition.events],
+                    },
+                    before_state_hash=before_state_hash,
+                    after_state_hash=state.state_hash(),
+                    status=transition.status.value,
+                    parent_trace_id=proposal_trace.trace_id,
+                )
+            )
+            self._fault(FaultPoint.BEFORE_CHECKPOINT)
             saved = self.store.save_checkpoint(
                 strategy.strategy_run_id,
                 {
                     "actions": [_serialize_action(item) for item in actions],
                     "usage": usage.model_dump(mode="json"),
-                    "model_config_hash": hashlib.sha256(
-                        strategy.strategy_type.value.encode()
-                    ).hexdigest(),
+                    "model_config_hash": model_config_hash,
                     "prompt_version": last_call.prompt_version if last_call else "unknown",
                 },
                 expected_version=checkpoint_version,

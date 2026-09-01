@@ -10,6 +10,7 @@ dependencies = [
   "redis>=5.0.8,<6",
   "rulearena-attack-runtime",
   "rulearena-domain-contracts",
+  "rulearena-evaluation",
   "rulearena-observability",
   "sqlalchemy[asyncio]>=2.0.43,<3",
   "uvicorn[standard]>=0.35.0,<0.36",
@@ -28,4 +29,5 @@ packages = ["src/rulearena_control_api"]
 [tool.uv.sources]
 rulearena-attack-runtime = { workspace = true }
 rulearena-domain-contracts = { workspace = true }
+rulearena-evaluation = { workspace = true }
 rulearena-observability = { workspace = true }

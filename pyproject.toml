@@ -8,6 +8,7 @@ dependencies = [
   "rulearena-commerce-sandbox",
   "rulearena-control-api",
   "rulearena-domain-contracts",
+  "rulearena-evaluation",
   "rulearena-observability",
   "rulearena-oracle",
   "rulearena-policy-schema",
@@ -27,6 +28,7 @@ dev = [
 members = [
   "packages/attack_runtime",
   "packages/domain_contracts",
+  "packages/evaluation",
   "packages/observability",
   "packages/oracle",
   "packages/policy_schema",
@@ -42,6 +44,7 @@ rulearena-attack-worker = { workspace = true }
 rulearena-commerce-sandbox = { workspace = true }
 rulearena-control-api = { workspace = true }
 rulearena-domain-contracts = { workspace = true }
+rulearena-evaluation = { workspace = true }
 rulearena-observability = { workspace = true }
 rulearena-oracle = { workspace = true }
 rulearena-policy-schema = { workspace = true }

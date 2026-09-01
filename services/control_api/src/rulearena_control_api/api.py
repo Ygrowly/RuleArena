@@ -20,6 +20,8 @@ from rulearena_attack_runtime import (
     VersionStore,
     validate_rule_spec,
 )
+from rulearena_evaluation import BenchmarkStore, public_metric_summary
+from rulearena_observability import TraceSink
 from rulearena_policy_schema import RuleSpec
 
 
@@ -101,6 +103,8 @@ def runtime_router(
     policy_service: PolicyService,
     runtime_store: RuntimeStore,
     enqueuer: RunEnqueuer | None = None,
+    benchmark_store: BenchmarkStore | None = None,
+    trace_store: TraceSink | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api")
     selected_enqueuer = enqueuer or NullRunEnqueuer()
@@ -165,6 +169,32 @@ def runtime_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="run not found") from exc
         return {"counterexamples": runtime_store.counterexamples(run_id)}
+
+    @router.get("/runs/{run_id}/trace")
+    async def trace(run_id: str) -> object:
+        try:
+            runtime_store.get_run(run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        return {
+            "trace": trace_store.traces_for_run(run_id) if trace_store is not None else ()
+        }
+
+    @router.get("/benchmarks/latest")
+    async def latest_benchmark() -> object:
+        benchmark = benchmark_store.latest_completed() if benchmark_store is not None else None
+        if benchmark is None:
+            raise HTTPException(status_code=404, detail="completed benchmark not found")
+        return {
+            "benchmark_run_id": benchmark.benchmark_run_id,
+            "versions": benchmark.versions,
+            "baseline": benchmark.baseline,
+            "suite": benchmark.suite,
+            "status": benchmark.status,
+            "metrics": public_metric_summary(benchmark.metrics),
+            "started_at": benchmark.started_at,
+            "finished_at": benchmark.finished_at,
+        }
 
     @router.get("/runs/{run_id}/events")
     async def events(

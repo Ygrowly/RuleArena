@@ -13,6 +13,7 @@ from rulearena_attack_runtime import (
     StrategyType,
     proposal_json_schema,
 )
+from rulearena_observability import PostgresTraceStore
 
 from .jobs import execute_attack
 
@@ -32,6 +33,7 @@ async def startup(context: dict[str, Any]) -> None:
     api_key = _required("LLM_API_KEY")
     model = _required("LLM_MODEL")
     store = PostgresRuntimeStore(database_url)
+    trace_store = PostgresTraceStore(database_url)
     agents = {
         strategy: StrategyAgent(
             strategy,
@@ -47,12 +49,14 @@ async def startup(context: dict[str, Any]) -> None:
         for strategy in StrategyType
     }
     context["runtime_store"] = store
+    context["trace_store"] = trace_store
     context["runtime"] = AttackWorker(
         store,
         SandboxReplayRunner(
             _required("SANDBOX_HTTP_URL"), _required("INTERNAL_SERVICE_TOKEN")
         ),
         agents,
+        trace_sink=trace_store,
     )
 
 
@@ -60,6 +64,9 @@ async def shutdown(context: dict[str, Any]) -> None:
     store = context.get("runtime_store")
     if isinstance(store, PostgresRuntimeStore):
         store.close()
+    trace_store = context.get("trace_store")
+    if isinstance(trace_store, PostgresTraceStore):
+        trace_store.close()
 
 
 class WorkerSettings:

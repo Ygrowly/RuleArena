@@ -70,6 +70,7 @@ class SandboxReplayRunner:
             receipts: list[dict[str, object]] = []
             aliases: dict[str, str] = {}
             alias_counts: dict[str, int] = {}
+            known_alias_values: set[tuple[str, str]] = set()
             for index, action in enumerate(actions):
                 payload = action.to_http_payload(key=action.idempotency_key or f"replay-{index}")
                 if action.target_id:
@@ -101,6 +102,10 @@ class SandboxReplayRunner:
                         if not name.endswith("_id") or not isinstance(value, str):
                             continue
                         prefix = name.removesuffix("_id")
+                        marker = (prefix, value)
+                        if marker in known_alias_values:
+                            continue
+                        known_alias_values.add(marker)
                         alias_counts[prefix] = alias_counts.get(prefix, 0) + 1
                         aliases[f"{prefix}-{alias_counts[prefix]}"] = value
                 snapshot = await client.get(f"/internal/runs/{run_id}/snapshot")

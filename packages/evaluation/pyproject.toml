@@ -1,28 +1,31 @@
 [project]
-name = "rulearena-attack-runtime"
+name = "rulearena-evaluation"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "httpx>=0.28.1,<0.29",
+  "pydantic>=2.11.7,<3",
   "psycopg[binary]>=3.2.9,<4",
+  "rulearena-attack-runtime",
   "rulearena-domain-contracts",
   "rulearena-oracle",
-  "rulearena-observability",
   "rulearena-policy-schema",
   "rulearena-reference-simulator",
   "sqlalchemy>=2.0.43,<3",
 ]
+
+[project.scripts]
+rulearena = "rulearena_evaluation.cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rulearena_attack_runtime"]
+packages = ["src/rulearena_evaluation"]
 
 [tool.uv.sources]
+rulearena-attack-runtime = { workspace = true }
 rulearena-domain-contracts = { workspace = true }
 rulearena-oracle = { workspace = true }
-rulearena-observability = { workspace = true }
 rulearena-policy-schema = { workspace = true }
 rulearena-reference-simulator = { workspace = true }
