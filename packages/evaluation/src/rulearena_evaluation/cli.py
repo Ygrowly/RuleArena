@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
+from dotenv import load_dotenv
 from rulearena_attack_runtime import (
     Budget,
     OpenAICompatibleLLMAdapter,
@@ -165,6 +166,7 @@ def _die(message: str) -> NoReturn:
 
 
 def main() -> None:
+    load_dotenv(override=False)
     args = _parser().parse_args()
     try:
         if args.action == "verify":
