@@ -116,6 +116,7 @@ def test_private_hidden_loader_requires_evaluation_capability(
         rows.append(row)
     path = ROOT / ".cache" / "phase4-private-suite.json"
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             json.dumps({"rule_specs": rule_specs, "cases": rows}), encoding="utf-8"
         )
