@@ -1,87 +1,134 @@
-# RuleArena
+# RuleArena 在线 Demo（技术预览）
 
-RuleArena 是电商业务规则上线前的对抗式验证平台。本仓库当前完成阶段 1：Commerce Sandbox 的三类场景、固定/漏洞 Profile、真实 PostgreSQL 事务、事件、回执、快照和 HTTP API；Agent、Oracle 与产品 UI 留待后续阶段。
+> 一句话：**AI 搜索电商规则的异常操作组合，真实 API 重放，确定性 Oracle 裁决。**
+
+RuleArena 不是“智能审查产品方案”。它在给定规则下让三个隔离的策略 Agent
+（价值流 / 生命周期 / 边界）在 Reference Simulator 中搜索可疑操作组合，
+每个候选必须经过真实 Commerce Sandbox HTTP 重放，并由确定性 Oracle 对
+快照/回执/事件裁决；只有 `CONFIRMED_VIOLATION` 才会成为反例。
+
+## 30 秒看懂
+
+1. 选一个业务模板（优惠券 / 退款与积分 / 会员权益），用中文改规则。
+2. 确认歧义后冻结 RuleSpec（content hash 绑定，不可变）。
+3. 三个策略独立搜索；候选经真实 Sandbox 重放 + Oracle 裁决。
+4. 反例自动最小化（Delta Debugging），展示每步真实状态 Diff、回执与事件。
+5. 切到 Fixed v2 重放：旧反例不再成立，正常路径仍通过。
+
+## 为什么不是 Prompt
+
+- Agent 只能输出结构化 `ActionProposal/StopProposal`（`extra=forbid`），
+  没有工具通道，不能自封结论、不能写 outcome。
+- 状态机、预算、取消、恢复全部由确定性代码控制；模型输出不可信。
+- 结论唯一来源是重放后的 Oracle。详见
+  [架构决策记录](docs/architecture-decisions.md)。
+
+## 架构
+
+```
+浏览器 (React/Vite, nginx:8080)
+   │  /api（Idempotency-Key、SSE、限流）
+   ▼
+Control API (FastAPI) ── PostgreSQL（权威状态）── Redis（ARQ 队列）
+   │                                        │
+   ▼                                        ▼
+Reference Simulator ◄── Attack Worker（确定性状态机 + 三策略 Agent）
+                                            │
+                                            ▼
+                          Commerce Sandbox（独立服务/私网）→ Oracle
+```
+
+## 快速启动（Docker 一条命令）
+
+```bash
+cp .env.example .env   # 修改全部示例密码与内部令牌
+docker compose up -d --build
+open http://127.0.0.1:8080
+```
+
+迁移由 `control-migrate` / `sandbox-migrate` 在服务启动前执行，失败阻断发布。
+`/healthz` 只表示进程存活；`/readyz` 实际查询 PostgreSQL 与 Redis。
+
+- 冻结黄金案例：无需模型即可浏览。数据来自真实持久化 Run
+  （`frontend/public/frozen/golden-run.json`，由 `scripts/export_frozen_demo.py`
+  通过真实 Sandbox HTTP 重放 + 确定性 Oracle 导出，动议由确定性脚本驱动并在
+  `provenance.honesty` 中如实声明）。
+- 实时运行：限额 Live Run（默认 12 步 / 12k tokens / $1.5 / 90s，IP 限流
+  10 次 / 5 分钟）。LLM/Worker 不可用时显示真实失败状态；冻结案例始终可浏览。
+
+## 评测
+
+| Baseline | 漏洞发现率 | 正常误报 | 备注 |
+| --- | --- | --- | --- |
+| Random | 0/9 | 0/7 | development 16 Case，seed 20260831，实测 |
+| BFS | 2/9 | 0/7 | 同上，实测 |
+| Single Agent | N/A | N/A | 需真实 LLM，未执行 |
+| Multi-strategy | N/A | N/A | 需真实 LLM，未执行 |
+
+复现：`uv run rulearena benchmark --suite development --baselines random,bfs`。
+无数据的格子标 N/A，不填估计值。完整口径见 `docs/exec/04-eval-observability-report.md`。
+
+## 边界与诚实声明
+
+- 本项目**不是形式化证明**。搜索受预算约束，「预算内未发现违规」不等于「规则安全」。
+- 当前 LLM 凭据无有效订阅：Single/Multi Agent 实测 NOT VERIFIED，
+  Release Gate 保持未通过（`benchmark verify` 可复核）。
+- hidden 私有载荷与真实模型凭据属部署侧资产；公共仓库只有无答案 manifest，
+  Runtime 无读取路径。
+- 攻击面与信任边界见 [安全模型](docs/security-model.md)。
+
+## 设计取舍
+
+[架构决策记录](docs/architecture-decisions.md)：Simulator/Sandbox 分离、
+确定性 Runtime、多策略隔离、Oracle 裁决、不用 LangGraph。
+
+## 3 分钟演示
+
+[演示脚本](docs/demo-script.md)。
+
+## 本地开发与质量检查
+
+```bash
+uv sync --all-groups
+uv run ruff check .
+uv run mypy .
+uv run pytest -q          # 真实服务验收需 SANDBOX_HTTP_URL / TEST_*_DATABASE_URL / TEST_REDIS_URL
+pnpm --dir frontend install
+pnpm --dir frontend test                # vitest
+pnpm --dir frontend test:e2e            # Playwright（复用系统 Chrome，E2E_BASE_URL 默认 8080）
+pnpm --dir frontend run lint && pnpm --dir frontend run typecheck && pnpm --dir frontend run build
+docker compose config
+```
+
+导出冻结黄金案例（需本地 Sandbox 运行）：
+
+```bash
+SANDBOX_HTTP_URL=http://127.0.0.1:8001 INTERNAL_SERVICE_TOKEN=<token>   uv run python scripts/export_frozen_demo.py
+```
+
+## 部署（Railway）
+
+公开 Web/Control，Sandbox 仅私网并验证内部令牌；迁移失败阻断发布。
+当前仓库未包含云资源授权，Railway 部署步骤与拓扑见
+`docs/security-model.md` 的部署章节；未经明确授权不创建云资源。
+
+## 数据库隔离验证
+
+```bash
+TEST_CONTROL_DATABASE_URL='postgresql+asyncpg://rulearena_control:<pwd>@localhost:15432/rulearena' TEST_SANDBOX_DATABASE_URL='postgresql+asyncpg://rulearena_sandbox:<pwd>@localhost:15432/rulearena'   uv run pytest -q tests/test_database_isolation.py
+```
+
+测试检查自身 Schema 的 `USAGE` 权限与对方 Schema 的拒绝访问；不能以 SQLite 或 mock 替代。
+
+## 依赖边界
+
+`control_api` 与 `commerce_sandbox` 只依赖共享包；共享包不反向导入服务。
+`policy_schema` 定义规则与值对象，`domain_contracts` 定义动作、回执、事件、
+快照和 API 错误，`observability` 提供统一配置与 JSON 日志，`evaluation`
+只属于评测侧进程，`attack_runtime` 不依赖 `evaluation`。
 
 ## 环境要求
 
 - Python 3.12、uv 0.11+
 - Node.js 20+、pnpm 10.15+
 - Docker Engine 与 Docker Compose
-
-## 本地安装与质量检查
-
-```bash
-uv sync --all-groups
-uv run ruff check .
-uv run mypy services packages scripts
-uv run pytest -q
-pnpm --dir frontend install --frozen-lockfile
-pnpm --dir frontend lint
-pnpm --dir frontend typecheck
-pnpm --dir frontend test
-pnpm --dir frontend build
-```
-
-## 启动本地开发依赖（推荐）
-
-复制 `.env.example` 为 `.env`，替换所有示例密码和内部令牌。该文件只用于本地开发，不应提交。
-
-```powershell
-$env:POSTGRES_ADMIN_USER='rulearena_admin'
-$env:POSTGRES_ADMIN_PASSWORD='replace-local-admin-password'
-$env:CONTROL_DB_PASSWORD='replace-local-control-password'
-$env:SANDBOX_DB_PASSWORD='replace-local-sandbox-password'
-$env:INTERNAL_SERVICE_TOKEN='replace-with-at-least-32-random-characters'
-docker compose -p rulearena-dev up -d postgres redis
-```
-
-默认将 PostgreSQL 和 Redis 映射到 `15432`、`16379`，避免和 Windows 原生服务冲突。应用服务优先直接在宿主机运行，便于调试：
-
-```powershell
-$env:SANDBOX_DATABASE_URL='postgresql+asyncpg://rulearena_sandbox:<sandbox-password>@127.0.0.1:15432/rulearena'
-$env:REDIS_URL='redis://127.0.0.1:16379/0'
-$env:INTERNAL_SERVICE_TOKEN='replace-with-at-least-32-random-characters'
-uv run alembic -c alembic-sandbox.ini upgrade head
-uv run rulearena-commerce-sandbox
-```
-
-`/healthz` 只表示进程存活；`/readyz` 会实际查询 PostgreSQL 和 Redis，任一依赖失败返回 503。需要完整容器编排时再执行 `docker compose up -d --build`。
-
-停止服务使用 `docker compose down`。只有明确希望删除本地数据库数据时才额外使用 `docker compose down -v`。
-
-## 本机进程启动
-
-若服务运行在宿主机，把 `.env` 中数据库主机设为 `127.0.0.1:15432`、Redis 设为 `127.0.0.1:16379`，先用 Compose 启动 PostgreSQL/Redis，再执行：
-
-```bash
-uv run alembic -c alembic.ini upgrade head
-uv run alembic -c alembic-sandbox.ini upgrade head
-uv run rulearena-control-api
-uv run rulearena-commerce-sandbox
-```
-
-阶段 1 Sandbox 的真实 HTTP 验收（服务已在本机 `8001` 或其他端口启动）：
-
-```powershell
-$env:SANDBOX_HTTP_URL='http://127.0.0.1:8001'
-$env:SANDBOX_TEST_TOKEN='<internal-service-token>'
-uv run pytest -q tests/sandbox
-```
-
-配置加载会在数据库 URL、Redis URL 或至少 32 字符的内部服务令牌缺失时立即失败。生产环境不得使用 `.env.example` 中的示例值。
-
-## 数据库隔离验证
-
-Compose 启动后，在 PowerShell 中运行：
-
-```powershell
-$env:TEST_CONTROL_DATABASE_URL='postgresql+asyncpg://rulearena_control:<control-password>@localhost:15432/rulearena'
-$env:TEST_SANDBOX_DATABASE_URL='postgresql+asyncpg://rulearena_sandbox:<sandbox-password>@localhost:15432/rulearena'
-uv run pytest -q tests/test_database_isolation.py
-```
-
-测试同时检查自身 Schema 的 `USAGE` 权限和对方 Schema 的拒绝访问。不能以 SQLite 或 mock 结果替代此项验收。
-
-## 依赖边界
-
-`control_api` 与 `commerce_sandbox` 只依赖共享包；共享包不反向导入服务。`policy_schema` 定义规则和值对象，`domain_contracts` 定义动作、回执、事件、快照和 API 错误，`observability` 提供统一配置及 JSON 日志。后续阶段目录只保留边界说明，不含提前实现。

@@ -1,8 +1,11 @@
 import logging
+import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from rulearena_attack_runtime import (
     LLMAdapter,
@@ -103,6 +106,27 @@ def create_app(
             await enqueuer.close()
 
     app = FastAPI(title="RuleArena Control API", version="0.1.0", lifespan=lifespan)
+    allowed_origins = [
+        origin.strip()
+        for origin in os.getenv("PUBLIC_ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    if allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Idempotency-Key", "Content-Type", "Last-Event-ID"],
+        )
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next: Callable[[Request], Any]) -> Response:
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     app.include_router(
         runtime_router(
             PolicyService(compiler, selected_version_store),

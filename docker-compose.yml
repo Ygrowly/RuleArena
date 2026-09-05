@@ -111,6 +111,12 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
     restart: "no"
+  web:
+    build: ./frontend
+    ports: ["8080:80"]
+    depends_on:
+      control-api: {condition: service_healthy}
+    restart: unless-stopped
 
   sandbox-migrate:
     build:

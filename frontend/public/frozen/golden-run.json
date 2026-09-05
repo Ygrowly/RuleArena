@@ -1,0 +1,1475 @@
+{
+  "provenance": {
+    "generated_by": "scripts/export_frozen_demo.py",
+    "honesty": "真实运行：Commerce Sandbox 通过真实 HTTP API 重放，快照/回执/事件来自真实服务，Oracle 为确定性裁决，最小化使用 Delta Debugging。策略动议由确定性脚本（FakeLLM）驱动，未调用真实模型。",
+    "sandbox_versions": [
+      "vulnerable",
+      "fixed"
+    ],
+    "oracle_version": "1.0"
+  },
+  "rule": {
+    "template_id": "refund-points",
+    "chinese_modification": "每消费 1 元获得 1 积分，退款时按退款金额撤销积分。",
+    "version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+    "rule_spec": {
+      "schema_version": "1.0",
+      "scenario_type": "REFUND_POINTS",
+      "participants": [],
+      "assets": [],
+      "rules": [
+        {
+          "rule_type": "REFUND",
+          "allow_partial_refund": true,
+          "maximum_refunds_per_order": 2
+        },
+        {
+          "rule_type": "POINTS",
+          "spend_amount": {
+            "currency": "CNY",
+            "amount": "1.00"
+          },
+          "points_granted": 1,
+          "revoke_on_refund": true
+        }
+      ],
+      "invariants": [],
+      "ambiguities": []
+    }
+  },
+  "run": {
+    "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+    "job_key": "frozen-demo",
+    "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+    "scenario_version_id": "refund-points-v1",
+    "sandbox_version": "vulnerable",
+    "oracle_version": "1.0",
+    "status": "COMPLETED",
+    "outcome": "CONFIRMED_VIOLATION",
+    "budget": {
+      "max_steps": 8,
+      "max_tokens": 1000,
+      "max_cost": 1.0,
+      "max_time_seconds": 30.0
+    },
+    "random_seed": 20260830,
+    "created_at": "2026-09-05T12:47:24.229437Z"
+  },
+  "counterexamples": [
+    {
+      "counterexample_id": "7056ef4a-1f2c-43b5-b82c-60df61c3f23b",
+      "attack_run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "candidate_key": "POINTS_VALUE_CONSERVATION:641c2b8923eeba92efd32275257a7999f2229a0857e412b0ae6458d4b41c46f4",
+      "invariant_id": "POINTS_VALUE_CONSERVATION",
+      "original_actions": [
+        {
+          "action_type": "CREATE_USER",
+          "actor_id": "user-1",
+          "target_id": null,
+          "arguments": {
+            "initial_balance": "500.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1"
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "actor_id": "user-1",
+          "target_id": "user-1",
+          "arguments": {
+            "amount": "100.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2"
+        },
+        {
+          "action_type": "PAY_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "arguments": {},
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3"
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "50.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4"
+        }
+      ],
+      "minimized_actions": [
+        {
+          "action_type": "CREATE_USER",
+          "actor_id": "user-1",
+          "target_id": null,
+          "arguments": {
+            "initial_balance": "500.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1"
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "actor_id": "user-1",
+          "target_id": "user-1",
+          "arguments": {
+            "amount": "100.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2"
+        },
+        {
+          "action_type": "PAY_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "arguments": {},
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3"
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "50.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4"
+        }
+      ],
+      "replay_run_id": "c3ec0983-8f00-4664-b86b-1c2a4e7f3f04",
+      "created_at": "2026-09-05T12:47:46.952828Z"
+    }
+  ],
+  "evidence": {
+    "vulnerable": {
+      "classification": "CONFIRMED_VIOLATION",
+      "target_invariant": "POINTS_VALUE_CONSERVATION",
+      "actions": [
+        {
+          "action_type": "CREATE_USER",
+          "actor_id": "user-1",
+          "target_id": null,
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1",
+          "arguments": {
+            "initial_balance": "500.00"
+          }
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "actor_id": "user-1",
+          "target_id": "user-1",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2",
+          "arguments": {
+            "amount": "100.00"
+          }
+        },
+        {
+          "action_type": "PAY_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "arguments": {}
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "arguments": {
+            "amount": "50.00"
+          }
+        }
+      ],
+      "snapshots": [
+        {
+          "schema_version": "1.0",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "snapshot_version": 0,
+          "state_hash": "c33a64202c746aa67480b3d66028c40fdf2d494c02e4e4d7c8573bc7d579f70f",
+          "state": {
+            "users": [],
+            "coupons": [],
+            "orders": [],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:48.347245+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "snapshot_version": 1,
+          "state_hash": "34c2d9c811e6941d042ffffc9972c198a22f9bbc57899e95f15cf6d33b75e57e",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "500.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:48.400010+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "snapshot_version": 2,
+          "state_hash": "d92a1fd053f85eea877a666820912966f676ddcec44ab5335df155ac3a64da94",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "500.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "100.00",
+                "discount_amount": "0.00",
+                "paid_amount": "0.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PENDING_PAYMENT",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:48.441630+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "snapshot_version": 3,
+          "state_hash": "91f25bf89aeaef2f5c59f4625ccad9672147270d90d1b97c726cdcb5312c258e",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "400.00",
+                "currency": "CNY",
+                "points_balance": 100,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "100.00",
+                "discount_amount": "0.00",
+                "paid_amount": "100.00",
+                "refunded_amount": "0.00",
+                "points_granted": 100,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:48.482536+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "snapshot_version": 4,
+          "state_hash": "94a03b64e6e4a188968f61dd7642eddea1973d419f685587919fd2c70c13b743",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "450.00",
+                "currency": "CNY",
+                "points_balance": 150,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "100.00",
+                "discount_amount": "0.00",
+                "paid_amount": "100.00",
+                "refunded_amount": "50.00",
+                "points_granted": 100,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:48.525948+00:00"
+        }
+      ],
+      "receipts": [
+        {
+          "schema_version": "1.0",
+          "receipt_id": "1f7dcc33-ad8a-4435-bbd6-e4d53447b75c",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1",
+          "action_type": "CREATE_USER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "500.00"
+            }
+          ],
+          "result": {
+            "user_id": "user-1",
+            "balance": "500.00"
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:48.378384Z"
+        },
+        {
+          "schema_version": "1.0",
+          "receipt_id": "562a7152-0fa9-4b82-8cfe-48c3dd7aff1f",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2",
+          "action_type": "CREATE_ORDER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "100.00"
+            }
+          ],
+          "result": {
+            "order_id": "order-1",
+            "amount": "100.00"
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:48.418316Z"
+        },
+        {
+          "schema_version": "1.0",
+          "receipt_id": "1bda84af-2502-4874-8915-abb716869797",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "action_type": "PAY_ORDER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "100.00"
+            }
+          ],
+          "result": {
+            "order_id": "order-1",
+            "paid_amount": "100.00",
+            "points_granted": 100
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:48.461157Z"
+        },
+        {
+          "schema_version": "1.0",
+          "receipt_id": "65bd3b31-17d3-4645-a860-dfc80b8ee80c",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "action_type": "REFUND_ORDER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "50.00"
+            }
+          ],
+          "result": {
+            "refund_id": "refund-1",
+            "order_id": "order-1",
+            "refunded_amount": "50.00",
+            "order_refunded_total": "50.00"
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:48.503138Z"
+        }
+      ],
+      "events": [
+        {
+          "schema_version": "1.0",
+          "event_id": "0e8239b3-ce63-4cee-8b88-76b1eef9b409",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "sequence": 1,
+          "aggregate_type": "USER",
+          "aggregate_id": "user-1",
+          "event_type": "USER_CREATED",
+          "payload": {
+            "user_id": "user-1"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1",
+          "occurred_at": "2026-09-05T12:47:48.375957+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "3bf036ed-f491-4a45-91ea-eef123744dfb",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "sequence": 2,
+          "aggregate_type": "ORDER",
+          "aggregate_id": "order-1",
+          "event_type": "ORDER_CREATED",
+          "payload": {
+            "order_id": "order-1",
+            "user_id": "user-1"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2",
+          "occurred_at": "2026-09-05T12:47:48.416634+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "9ee522e0-7bbf-4fb5-af76-6a8a78e58a63",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "sequence": 3,
+          "aggregate_type": "ORDER",
+          "aggregate_id": "order-1",
+          "event_type": "PAYMENT_CAPTURED",
+          "payload": {
+            "order_id": "order-1",
+            "paid_amount": "100.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "occurred_at": "2026-09-05T12:47:48.455716+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "5cc87c3a-cfb5-43ff-af70-cead56a25cb1",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "sequence": 4,
+          "aggregate_type": "USER",
+          "aggregate_id": "user-1",
+          "event_type": "POINTS_GRANTED",
+          "payload": {
+            "user_id": "user-1",
+            "order_id": "order-1",
+            "amount": 100
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "occurred_at": "2026-09-05T12:47:48.458016+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "6b6e9476-22fa-4c2e-9e64-709f2be5c4e0",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "sequence": 5,
+          "aggregate_type": "ORDER",
+          "aggregate_id": "order-1",
+          "event_type": "REFUND_ISSUED",
+          "payload": {
+            "order_id": "order-1",
+            "amount": "50.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "occurred_at": "2026-09-05T12:47:48.498683+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "a36e84c2-24a0-48fb-b277-22aed92fa0e3",
+          "run_id": "98cb2200-afc0-430b-b900-3bfcea9ffe1c",
+          "sequence": 6,
+          "aggregate_type": "USER",
+          "aggregate_id": "user-1",
+          "event_type": "POINTS_GRANTED",
+          "payload": {
+            "user_id": "user-1",
+            "order_id": "order-1",
+            "amount": 50
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "occurred_at": "2026-09-05T12:47:48.501293+00:00"
+        }
+      ]
+    },
+    "fixed_regression": {
+      "classification": "MODEL_DIVERGENCE",
+      "target_invariant": "POINTS_VALUE_CONSERVATION",
+      "actions": [
+        {
+          "action_type": "CREATE_USER",
+          "actor_id": "user-1",
+          "target_id": null,
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1",
+          "arguments": {
+            "initial_balance": "500.00"
+          }
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "actor_id": "user-1",
+          "target_id": "user-1",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2",
+          "arguments": {
+            "amount": "100.00"
+          }
+        },
+        {
+          "action_type": "PAY_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "arguments": {}
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "arguments": {
+            "amount": "50.00"
+          }
+        }
+      ],
+      "snapshots": [
+        {
+          "schema_version": "1.0",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "snapshot_version": 0,
+          "state_hash": "c33a64202c746aa67480b3d66028c40fdf2d494c02e4e4d7c8573bc7d579f70f",
+          "state": {
+            "users": [],
+            "coupons": [],
+            "orders": [],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:49.871885+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "snapshot_version": 1,
+          "state_hash": "34c2d9c811e6941d042ffffc9972c198a22f9bbc57899e95f15cf6d33b75e57e",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "500.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:49.924808+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "snapshot_version": 2,
+          "state_hash": "d92a1fd053f85eea877a666820912966f676ddcec44ab5335df155ac3a64da94",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "500.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "100.00",
+                "discount_amount": "0.00",
+                "paid_amount": "0.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PENDING_PAYMENT",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:49.964302+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "snapshot_version": 3,
+          "state_hash": "91f25bf89aeaef2f5c59f4625ccad9672147270d90d1b97c726cdcb5312c258e",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "400.00",
+                "currency": "CNY",
+                "points_balance": 100,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "100.00",
+                "discount_amount": "0.00",
+                "paid_amount": "100.00",
+                "refunded_amount": "0.00",
+                "points_granted": 100,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:50.012923+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "snapshot_version": 4,
+          "state_hash": "d0a82c4f81d36e0439f5aeb36883be0665ff4beb6654b586a95b27f18e210bfa",
+          "state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "450.00",
+                "currency": "CNY",
+                "points_balance": 50,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "100.00",
+                "discount_amount": "0.00",
+                "paid_amount": "100.00",
+                "refunded_amount": "50.00",
+                "points_granted": 100,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "captured_at": "2026-09-05T12:47:50.093191+00:00"
+        }
+      ],
+      "receipts": [
+        {
+          "schema_version": "1.0",
+          "receipt_id": "14686f0a-44e0-4a0f-9245-e5b3d929e544",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1",
+          "action_type": "CREATE_USER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "500.00"
+            }
+          ],
+          "result": {
+            "user_id": "user-1",
+            "balance": "500.00"
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:49.901686Z"
+        },
+        {
+          "schema_version": "1.0",
+          "receipt_id": "22f8cbf3-fa0f-45dc-98e6-f268f5823d5e",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2",
+          "action_type": "CREATE_ORDER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "100.00"
+            }
+          ],
+          "result": {
+            "order_id": "order-1",
+            "amount": "100.00"
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:49.942174Z"
+        },
+        {
+          "schema_version": "1.0",
+          "receipt_id": "c74130fe-bbee-4452-87d4-ff4bbf9c0e7f",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "action_type": "PAY_ORDER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "100.00"
+            }
+          ],
+          "result": {
+            "order_id": "order-1",
+            "paid_amount": "100.00",
+            "points_granted": 100
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:49.989237Z"
+        },
+        {
+          "schema_version": "1.0",
+          "receipt_id": "68554bfe-0d20-44ae-94c1-08dc6e0de577",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "action_type": "REFUND_ORDER",
+          "status": "SUCCEEDED",
+          "monetary_effects": [
+            {
+              "currency": "CNY",
+              "amount": "50.00"
+            }
+          ],
+          "result": {
+            "refund_id": "refund-1",
+            "order_id": "order-1",
+            "refunded_amount": "50.00",
+            "order_refunded_total": "50.00"
+          },
+          "error": null,
+          "occurred_at": "2026-09-05T12:47:50.069061Z"
+        }
+      ],
+      "events": [
+        {
+          "schema_version": "1.0",
+          "event_id": "077f062a-061a-4def-8e75-8deb7c7ad9ae",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "sequence": 1,
+          "aggregate_type": "USER",
+          "aggregate_id": "user-1",
+          "event_type": "USER_CREATED",
+          "payload": {
+            "user_id": "user-1"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:1",
+          "occurred_at": "2026-09-05T12:47:49.899869+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "17761283-2bdc-4107-9397-fc43ebce7c19",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "sequence": 2,
+          "aggregate_type": "ORDER",
+          "aggregate_id": "order-1",
+          "event_type": "ORDER_CREATED",
+          "payload": {
+            "order_id": "order-1",
+            "user_id": "user-1"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:2",
+          "occurred_at": "2026-09-05T12:47:49.940391+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "56882e68-a466-401b-b42f-b7347f7ab893",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "sequence": 3,
+          "aggregate_type": "ORDER",
+          "aggregate_id": "order-1",
+          "event_type": "PAYMENT_CAPTURED",
+          "payload": {
+            "order_id": "order-1",
+            "paid_amount": "100.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "occurred_at": "2026-09-05T12:47:49.981025+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "cdb4564e-8329-47a2-8314-3b74872438eb",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "sequence": 4,
+          "aggregate_type": "USER",
+          "aggregate_id": "user-1",
+          "event_type": "POINTS_GRANTED",
+          "payload": {
+            "user_id": "user-1",
+            "order_id": "order-1",
+            "amount": 100
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:3",
+          "occurred_at": "2026-09-05T12:47:49.985193+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "2d0c67ef-ecf8-43a4-bbe8-1e6fbe20f727",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "sequence": 5,
+          "aggregate_type": "ORDER",
+          "aggregate_id": "order-1",
+          "event_type": "REFUND_ISSUED",
+          "payload": {
+            "order_id": "order-1",
+            "amount": "50.00"
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "occurred_at": "2026-09-05T12:47:50.039047+00:00"
+        },
+        {
+          "schema_version": "1.0",
+          "event_id": "c253f6ea-1dae-493c-a56b-df9376367f18",
+          "run_id": "b757cb84-dde3-421b-9e05-89c716ba49d7",
+          "sequence": 6,
+          "aggregate_type": "USER",
+          "aggregate_id": "user-1",
+          "event_type": "POINTS_REVOKED",
+          "payload": {
+            "user_id": "user-1",
+            "order_id": "order-1",
+            "amount": 50
+          },
+          "idempotency_key": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99:41bac067-a1d9-4242-be22-92b3f82910ee:step:4",
+          "occurred_at": "2026-09-05T12:47:50.066369+00:00"
+        }
+      ]
+    }
+  },
+  "trace": [
+    {
+      "trace_id": "51c12912-4c18-4512-8b0c-3df8f14ccf9a",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 1,
+      "kind": "LLM_CALL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "4466580e5419fc7c0967618cd3e8ba70c29ae48b3873e0030c740d0e91341b4f",
+        "proposal_type": "ACTION"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:24.229437Z"
+    },
+    {
+      "trace_id": "f1e06827-ab59-4b0c-96f0-a3b22659c8a1",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 1,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {
+        "action_type": "CREATE_USER",
+        "target_id": null,
+        "argument_names": [
+          "initial_balance"
+        ],
+        "response_hash": "4466580e5419fc7c0967618cd3e8ba70c29ae48b3873e0030c740d0e91341b4f"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "51c12912-4c18-4512-8b0c-3df8f14ccf9a",
+      "created_at": "2026-09-05T12:47:24.230547Z"
+    },
+    {
+      "trace_id": "f494fc97-8627-4d08-8b5d-c9c73b0a6d33",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 1,
+      "kind": "SIMULATION",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "CREATE_USER"
+      },
+      "tool_result_summary": {
+        "transition_status": "APPLIED",
+        "event_types": [
+          "USER_CREATED"
+        ]
+      },
+      "before_state_hash": "a1212c1778c84a6470e970031fc5cbd994d42ac3bae06a245002d286cb032d15",
+      "after_state_hash": "0adc2b9c821a329cc28658f318adad9f8a790654e7c1f65c012bc38c327f87e6",
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "APPLIED",
+      "error_type": null,
+      "parent_trace_id": "f1e06827-ab59-4b0c-96f0-a3b22659c8a1",
+      "created_at": "2026-09-05T12:47:24.230547Z"
+    },
+    {
+      "trace_id": "39e8119d-0f47-445f-93dc-e03d47bd39f0",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 2,
+      "kind": "LLM_CALL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "bc6882d46c17bf8ec7d04c883cd3b12acf49261b24209b8ab7f5c2a2692394aa",
+        "proposal_type": "ACTION"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:24.230547Z"
+    },
+    {
+      "trace_id": "aee0429c-8aee-487c-8b30-3d8a512ab927",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 2,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {
+        "action_type": "CREATE_ORDER",
+        "target_id": "user-1",
+        "argument_names": [
+          "amount"
+        ],
+        "response_hash": "bc6882d46c17bf8ec7d04c883cd3b12acf49261b24209b8ab7f5c2a2692394aa"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "39e8119d-0f47-445f-93dc-e03d47bd39f0",
+      "created_at": "2026-09-05T12:47:24.231554Z"
+    },
+    {
+      "trace_id": "908040e7-e595-4222-8f8b-27762afd7b96",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 2,
+      "kind": "SIMULATION",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "CREATE_ORDER"
+      },
+      "tool_result_summary": {
+        "transition_status": "APPLIED",
+        "event_types": [
+          "ORDER_CREATED"
+        ]
+      },
+      "before_state_hash": "0adc2b9c821a329cc28658f318adad9f8a790654e7c1f65c012bc38c327f87e6",
+      "after_state_hash": "db6d3ef015dcfcb9a63e802640d0605b0aa3145b0b0d03886b33be44da7d8667",
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "APPLIED",
+      "error_type": null,
+      "parent_trace_id": "aee0429c-8aee-487c-8b30-3d8a512ab927",
+      "created_at": "2026-09-05T12:47:24.231554Z"
+    },
+    {
+      "trace_id": "8ce70b1b-09ae-449d-a5d2-df5e6166934e",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 3,
+      "kind": "LLM_CALL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "ce0690bafc237041ac88bf5c7caccb90e8217f023bc4fb917ced838d76c28b19",
+        "proposal_type": "ACTION"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:24.232553Z"
+    },
+    {
+      "trace_id": "637d2af6-3aaf-4bf2-9c2f-bbba6939b09e",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 3,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {
+        "action_type": "PAY_ORDER",
+        "target_id": "order-1",
+        "argument_names": [],
+        "response_hash": "ce0690bafc237041ac88bf5c7caccb90e8217f023bc4fb917ced838d76c28b19"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "8ce70b1b-09ae-449d-a5d2-df5e6166934e",
+      "created_at": "2026-09-05T12:47:24.232553Z"
+    },
+    {
+      "trace_id": "fb224689-cf6d-4b34-8d43-a347ea563c8d",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 3,
+      "kind": "SIMULATION",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "PAY_ORDER"
+      },
+      "tool_result_summary": {
+        "transition_status": "APPLIED",
+        "event_types": [
+          "PAYMENT_CAPTURED",
+          "POINTS_GRANTED"
+        ]
+      },
+      "before_state_hash": "db6d3ef015dcfcb9a63e802640d0605b0aa3145b0b0d03886b33be44da7d8667",
+      "after_state_hash": "36bc02901004a2cda5dcaa0eaa0ca94e0d15577419f5fd086b24465ea2bda935",
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "APPLIED",
+      "error_type": null,
+      "parent_trace_id": "637d2af6-3aaf-4bf2-9c2f-bbba6939b09e",
+      "created_at": "2026-09-05T12:47:24.232553Z"
+    },
+    {
+      "trace_id": "96ff3316-e92e-456c-a2fe-5cabdc639a73",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 4,
+      "kind": "LLM_CALL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "b2db6a77b6a8885c350cf7f74ba695b61ca04b73f477fd8917a07e34a2ffb8b1",
+        "proposal_type": "ACTION"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:24.233554Z"
+    },
+    {
+      "trace_id": "3dd7e497-28be-418f-a50c-0d6551bb8134",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 4,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ],
+        "response_hash": "b2db6a77b6a8885c350cf7f74ba695b61ca04b73f477fd8917a07e34a2ffb8b1"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "96ff3316-e92e-456c-a2fe-5cabdc639a73",
+      "created_at": "2026-09-05T12:47:24.234555Z"
+    },
+    {
+      "trace_id": "1d18d541-0c98-49f2-bf31-b1758d8bda87",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 4,
+      "kind": "SIMULATION",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER"
+      },
+      "tool_result_summary": {
+        "transition_status": "APPLIED",
+        "event_types": [
+          "REFUND_ISSUED",
+          "POINTS_REVOKED"
+        ]
+      },
+      "before_state_hash": "36bc02901004a2cda5dcaa0eaa0ca94e0d15577419f5fd086b24465ea2bda935",
+      "after_state_hash": "93c33b99ccae7f365ad9d0a969e0e91dfba7341ee29cc1767d2278fd1d8ef20f",
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "APPLIED",
+      "error_type": null,
+      "parent_trace_id": "3dd7e497-28be-418f-a50c-0d6551bb8134",
+      "created_at": "2026-09-05T12:47:24.234555Z"
+    },
+    {
+      "trace_id": "465c680c-ae68-4f64-93ba-10a842491e06",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": "41bac067-a1d9-4242-be22-92b3f82910ee",
+      "step_id": 5,
+      "kind": "LLM_CALL",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
+      "prompt_version": "compiler-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "387413e57aedbe4d781474747084d89f47972b134a35a4391f0b648199bfbfe2",
+        "proposal_type": "STOP"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:24.234555Z"
+    },
+    {
+      "trace_id": "37f69ac5-1e0d-4578-b4a6-3c5b89a59a30",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": null,
+      "step_id": 1,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "CREATE_USER",
+        "target_id": null,
+        "argument_names": [
+          "initial_balance"
+        ]
+      },
+      "tool_result_summary": {
+        "receipt_id": "c71309d7-5a17-4129-8573-f8ed7b56caf1",
+        "status": "SUCCEEDED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "SUCCEEDED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:25.850809Z"
+    },
+    {
+      "trace_id": "e74951d3-efbb-4ae6-b3fd-f3b2cc050f1e",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": null,
+      "step_id": 2,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "CREATE_ORDER",
+        "target_id": "user-1",
+        "argument_names": [
+          "amount"
+        ]
+      },
+      "tool_result_summary": {
+        "receipt_id": "8b455931-0777-4bb0-bb2c-39ca47a6ec19",
+        "status": "SUCCEEDED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "SUCCEEDED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:25.850809Z"
+    },
+    {
+      "trace_id": "4515eac0-5cce-4a7a-a110-0dfaa34cd756",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": null,
+      "step_id": 3,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "PAY_ORDER",
+        "target_id": "order-1",
+        "argument_names": []
+      },
+      "tool_result_summary": {
+        "receipt_id": "432bc9e0-f49c-402a-807e-68d43832ed13",
+        "status": "SUCCEEDED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "SUCCEEDED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:25.850809Z"
+    },
+    {
+      "trace_id": "0c2d2b29-e08e-4310-ba0e-b62c0eb533f3",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": null,
+      "step_id": 4,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ]
+      },
+      "tool_result_summary": {
+        "receipt_id": "fc7c12f2-9399-4274-be6d-abdb251308ea",
+        "status": "SUCCEEDED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "SUCCEEDED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:25.850809Z"
+    },
+    {
+      "trace_id": "e940f3fc-69fc-4b3b-9504-154e31bb5bb8",
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "strategy_id": null,
+      "step_id": 4,
+      "kind": "ORACLE_CHECK",
+      "rule_version_id": "6211da53-1dc9-4899-b86a-3e7efd16592c",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {},
+      "tool_result_summary": {
+        "target_invariant": "POINTS_VALUE_CONSERVATION",
+        "classification": "CONFIRMED_VIOLATION",
+        "finding_statuses": [
+          {
+            "invariant": "NET_PAID_NON_NEGATIVE",
+            "status": "SATISFIED"
+          },
+          {
+            "invariant": "REFUND_NOT_EXCEED_PAID",
+            "status": "SATISFIED"
+          },
+          {
+            "invariant": "COUPON_SINGLE_CONSUMPTION",
+            "status": "NOT_APPLICABLE"
+          },
+          {
+            "invariant": "POINTS_VALUE_CONSERVATION",
+            "status": "VIOLATED"
+          },
+          {
+            "invariant": "ORDER_TERMINAL_MONOTONICITY",
+            "status": "SATISFIED"
+          },
+          {
+            "invariant": "ENTITLEMENT_NON_NEGATIVE",
+            "status": "NOT_APPLICABLE"
+          },
+          {
+            "invariant": "ENTITLEMENT_REFUND_CONSISTENCY",
+            "status": "NOT_APPLICABLE"
+          },
+          {
+            "invariant": "IDEMPOTENT_EFFECT",
+            "status": "SATISFIED"
+          }
+        ],
+        "replay_run_id": "c3ec0983-8f00-4664-b86b-1c2a4e7f3f04"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "CONFIRMED_VIOLATION",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-05T12:47:25.851333Z"
+    }
+  ],
+  "events": [
+    {
+      "cursor": 1,
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "event_type": "RUN_CREATED",
+      "data": {
+        "status": "READY"
+      },
+      "created_at": "2026-09-05T12:47:24.229437Z"
+    },
+    {
+      "cursor": 2,
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "event_type": "STATUS_CHANGED",
+      "data": {
+        "from": "READY",
+        "to": "SEARCHING",
+        "outcome": null
+      },
+      "created_at": "2026-09-05T12:47:24.229437Z"
+    },
+    {
+      "cursor": 3,
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "event_type": "STATUS_CHANGED",
+      "data": {
+        "from": "SEARCHING",
+        "to": "REPLAYING",
+        "outcome": null
+      },
+      "created_at": "2026-09-05T12:47:24.234555Z"
+    },
+    {
+      "cursor": 4,
+      "run_id": "ca22a098-7fe7-42fc-a791-7c7ffd4bbe99",
+      "event_type": "STATUS_CHANGED",
+      "data": {
+        "from": "REPLAYING",
+        "to": "COMPLETED",
+        "outcome": "CONFIRMED_VIOLATION"
+      },
+      "created_at": "2026-09-05T12:47:46.953342Z"
+    }
+  ]
+}

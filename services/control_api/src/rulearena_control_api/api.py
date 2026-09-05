@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
+import time
+from collections import defaultdict, deque
 from collections.abc import AsyncIterator
 from typing import Annotated, Protocol
 from uuid import uuid4
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 from rulearena_attack_runtime import (
@@ -99,15 +102,66 @@ class PolicyService:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+BUILTIN_TEMPLATE_CATALOG: tuple[dict[str, str], ...] = (
+    {
+        "id": "promotion",
+        "scenario_type": "PROMOTION",
+        "label": "优惠券",
+        "description": "满减券的门槛、折扣与退款恢复规则。",
+        "example_modification": "满 150 元减 50 元，全额退款时不恢复优惠券。",
+    },
+    {
+        "id": "refund-points",
+        "scenario_type": "REFUND_POINTS",
+        "label": "退款与积分",
+        "description": "消费得积分、退款撤销积分与兑换规则。",
+        "example_modification": "每消费 1 元获得 1 积分，退款时按退款金额撤销积分。",
+    },
+    {
+        "id": "membership-entitlement",
+        "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+        "label": "次数型会员权益",
+        "description": "会员购买、权益消费与退款一致性规则。",
+        "example_modification": "会员卡 50 元，含 2 次权益，仅未使用可退款。",
+    },
+)
+
+
+class RunRateLimiter:
+    """Fixed-window per-client limiter for the public live-run endpoint."""
+
+    def __init__(self, limit: int = 10, window_seconds: int = 300) -> None:
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def check(self, request: Request) -> None:
+        client = request.client.host if request.client else "unknown"
+        now = time.monotonic()
+        with self._lock:
+            window = self._hits[client]
+            while window and now - window[0] > self.window_seconds:
+                window.popleft()
+            if len(window) >= self.limit:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="live run rate limit exceeded; explore the frozen demo instead",
+                )
+            window.append(now)
+
+
 def runtime_router(
     policy_service: PolicyService,
     runtime_store: RuntimeStore,
     enqueuer: RunEnqueuer | None = None,
     benchmark_store: BenchmarkStore | None = None,
     trace_store: TraceSink | None = None,
+    limiter: RunRateLimiter | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api")
     selected_enqueuer = enqueuer or NullRunEnqueuer()
+    selected_limiter = limiter or RunRateLimiter()
 
     @router.post("/policies/compile")
     async def compile_policy(payload: CompileRequest) -> dict[str, object]:
@@ -125,7 +179,15 @@ def runtime_router(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="rule version not found") from exc
 
-    @router.post("/runs", status_code=status.HTTP_201_CREATED)
+    @router.get("/templates")
+    async def templates() -> object:
+        return {"templates": BUILTIN_TEMPLATE_CATALOG}
+
+    @router.post(
+        "/runs",
+        status_code=status.HTTP_201_CREATED,
+        dependencies=[Depends(selected_limiter.check)],
+    )
     async def create_run(
         payload: CreateRunRequest,
         idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
