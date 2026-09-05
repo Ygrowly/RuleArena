@@ -66,7 +66,12 @@ def _summary(values: Sequence[float], run_ids: Sequence[str]) -> dict[str, Metri
 
 
 def compute_metrics(
-    cases: Sequence[BenchmarkCase], raw_runs: Sequence[RawCaseRun], *, k: int = 1
+    cases: Sequence[BenchmarkCase],
+    raw_runs: Sequence[RawCaseRun],
+    *,
+    k: int = 1,
+    leakage_findings: Sequence[str] = (),
+    historical_p0_pass_rate: float | None = None,
 ) -> dict[str, Any]:
     case_by_id = {case.case_id: case for case in cases}
     if len(case_by_id) != len(cases):
@@ -153,6 +158,8 @@ def compute_metrics(
         },
         f"pass@{k}": pass_at_k(success_groups, k).model_dump(mode="json"),
         f"pass^{k}": pass_to_k(success_groups, k).model_dump(mode="json"),
+        "ground_truth_leakage_count": len(leakage_findings),
+        "historical_p0_pass_rate": historical_p0_pass_rate,
         "failure_counts": {
             kind.value: sum(run.failure_kind is kind for run in raw_runs)
             for kind in FailureKind

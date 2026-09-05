@@ -53,6 +53,19 @@ def scan_ground_truth_leakage(
     return tuple(findings)
 
 
+def scan_forbidden_markers(payloads: Iterable[Any]) -> tuple[str, ...]:
+    """Marker-only exit scan for boundaries that never hold hidden answer material."""
+    findings: list[str] = []
+    for index, payload in enumerate(payloads):
+        lowered = _canonical(payload).casefold()
+        findings.extend(
+            f"payload[{index}] contains forbidden marker {marker}"
+            for marker in _MARKERS
+            if marker in lowered
+        )
+    return tuple(findings)
+
+
 def public_metric_summary(metrics: dict[str, Any]) -> dict[str, Any]:
     """Remove run/case-level evidence before a benchmark aggregate crosses the public API."""
 

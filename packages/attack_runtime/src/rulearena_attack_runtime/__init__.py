@@ -1,5 +1,4 @@
 from .agents import (
-    ALLOWED_TOOLS,
     ActionProposal,
     AgentContext,
     ProposalRejected,
@@ -52,7 +51,6 @@ from .workflow import (
 )
 
 __all__ = [
-    "ALLOWED_TOOLS",
     "ActionProposal",
     "ActionUnknownError",
     "AgentContext",

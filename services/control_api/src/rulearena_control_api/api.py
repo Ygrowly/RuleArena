@@ -20,7 +20,7 @@ from rulearena_attack_runtime import (
     VersionStore,
     validate_rule_spec,
 )
-from rulearena_evaluation import BenchmarkStore, public_metric_summary
+from rulearena_evaluation import BenchmarkStore, public_metric_summary, scan_forbidden_markers
 from rulearena_observability import TraceSink
 from rulearena_policy_schema import RuleSpec
 
@@ -176,9 +176,15 @@ def runtime_router(
             runtime_store.get_run(run_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="run not found") from exc
-        return {
-            "trace": trace_store.traces_for_run(run_id) if trace_store is not None else ()
-        }
+        records = trace_store.traces_for_run(run_id) if trace_store is not None else ()
+        safe_records = []
+        blocked = 0
+        for record in records:
+            if scan_forbidden_markers([record.model_dump(mode="json")]):
+                blocked += 1
+                continue
+            safe_records.append(record)
+        return {"trace": safe_records, "leakage_blocked": blocked}
 
     @router.get("/benchmarks/latest")
     async def latest_benchmark() -> object:
@@ -221,13 +227,19 @@ def runtime_router(
                     return
                 values = runtime_store.events_after(run_id, current_cursor)
                 for event in values:
-                    data = json.dumps(
-                        event.data, ensure_ascii=False, separators=(",", ":")
-                    )
-                    yield (
-                        f"id: {event.cursor}\nevent: {event.event_type}\n"
-                        f"data: {data}\n\n"
-                    )
+                    if scan_forbidden_markers([event.data]):
+                        yield (
+                            f"id: {event.cursor}\nevent: LEAKAGE_BLOCKED\n"
+                            "data: {}\n\n"
+                        )
+                    else:
+                        data = json.dumps(
+                            event.data, ensure_ascii=False, separators=(",", ":")
+                        )
+                        yield (
+                            f"id: {event.cursor}\nevent: {event.event_type}\n"
+                            f"data: {data}\n\n"
+                        )
                     current_cursor = event.cursor
                 run = runtime_store.get_run(run_id)
                 if not follow or run.status in {

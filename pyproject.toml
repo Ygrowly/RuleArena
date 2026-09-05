@@ -71,6 +71,10 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+# Alembic requires every environment file to be named env.py, which mypy cannot
+# disambiguate across control/sandbox migration packages; DDL scripts are checked
+# by alembic itself against a live database.
+exclude = "^migrations/"
 
 [[tool.mypy.overrides]]
 module = ["redis.*"]

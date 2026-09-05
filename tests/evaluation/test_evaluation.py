@@ -300,6 +300,15 @@ def test_postgres_benchmark_facts_are_normalized_and_append_only() -> None:
                     ),
                     {"id": run.benchmark_run_id},
                 )
+        with pytest.raises(sa.exc.DBAPIError):
+            with store.engine.begin() as connection:
+                connection.execute(
+                    sa.text(
+                        "DELETE FROM control.benchmark_case_run "
+                        "WHERE benchmark_run_id = CAST(:id AS uuid)"
+                    ),
+                    {"id": run.benchmark_run_id},
+                )
     finally:
         store.close()
 

@@ -53,3 +53,39 @@ async def test_openai_compatible_adapter_uses_selected_schema_and_redacted_audit
     assert adapter.last_call.cost == 0.01
     assert "secret-provider-key" not in adapter.last_call.model_dump_json()
     assert "bounded stop" not in adapter.last_call.model_dump_json()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("usage", "input_price", "output_price", "expected_cost"),
+    [
+        ({"prompt_tokens": 1_000_000, "completion_tokens": 500_000}, 0.5, 4.0, 0.5 + 2.0),
+        ({"prompt_tokens": 10, "completion_tokens": 20, "cost": 0.25}, 0.5, 4.0, 0.25),
+        ({"prompt_tokens": 10, "completion_tokens": 20}, 0.0, 0.0, 0.0),
+    ],
+    ids=["estimated-from-pricing", "provider-cost-wins", "no-pricing-no-provider-cost"],
+)
+async def test_adapter_cost_falls_back_to_configured_pricing(
+    usage: dict[str, object], input_price: float, output_price: float, expected_cost: float
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": '{"proposal_type":"STOP","reason":"x"}'}}],
+                "usage": usage,
+            },
+        )
+
+    adapter = OpenAICompatibleLLMAdapter(
+        base_url="https://model.invalid/v1",
+        api_key="secret-provider-key",
+        model="structured-model",
+        response_schema=proposal_json_schema(),
+        transport=httpx.MockTransport(handler),
+        input_cost_per_million_tokens=input_price,
+        output_cost_per_million_tokens=output_price,
+    )
+    await adapter.complete_structured(system="s", untrusted_input="u")
+    assert adapter.last_call is not None
+    assert adapter.last_call.cost == pytest.approx(expected_cost)

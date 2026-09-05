@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import pytest
 from rulearena_attack_runtime import (
@@ -13,7 +14,7 @@ from rulearena_attack_runtime import (
     StrategyAgent,
     StrategyType,
 )
-from rulearena_oracle import InvariantId, OracleFinding, OracleReport, OracleStatus
+from rulearena_oracle import OracleFinding, OracleReport, OracleStatus
 from rulearena_policy_schema import ScenarioType
 
 from tests.phase2_factories import rule_spec
@@ -29,7 +30,7 @@ class ClassifiedReplay:
         self.calls = 0
 
     async def replay(
-        self, spec: object, actions: object, invariant: InvariantId, **_: object
+        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
     ) -> ReplayResult:
         self.calls += 1
         status = (
@@ -40,7 +41,7 @@ class ClassifiedReplay:
         report = OracleReport(
             findings=(
                 OracleFinding(
-                    invariant_id=invariant,
+                    invariant_id=target_invariant,
                     status=status,
                     explanation="sandbox replay verdict",
                 ),
@@ -48,9 +49,9 @@ class ClassifiedReplay:
         )
         return ReplayResult(
             classification=self.classification,
-            target_invariant=invariant,
+            target_invariant=target_invariant,
             run_id=f"sandbox-{self.calls}",
-            actions=tuple(actions),  # type: ignore[arg-type]
+            actions=tuple(actions),
             report=report,
             snapshots=(),
             receipts=(),
@@ -58,11 +59,11 @@ class ClassifiedReplay:
         )
 
     async def minimize(
-        self, spec: object, actions: object, invariant: InvariantId, **_: object
+        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
     ) -> MinimizationResult:
-        values = tuple(actions)  # type: ignore[arg-type]
+        values: tuple[Any, ...] = tuple(actions)
         return MinimizationResult(
-            invariant_id=invariant,
+            invariant_id=target_invariant,
             original_length=len(values),
             minimized_actions=values,
             trials=1,

@@ -1,8 +1,27 @@
+from collections.abc import Iterator
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 from rulearena_observability import ControlSettings, SandboxSettings
 
 
+@pytest.fixture()
+def no_env_file() -> Iterator[None]:
+    """Temporarily hide the repo-root .env so settings load nothing from disk."""
+    env_file = Path(".env")
+    hidden = env_file.with_name(".env.hidden-by-test")
+    if env_file.exists():
+        env_file.rename(hidden)
+        try:
+            yield
+        finally:
+            hidden.rename(env_file)
+    else:
+        yield
+
+
+@pytest.mark.usefixtures("no_env_file")
 @pytest.mark.parametrize("settings_type", [ControlSettings, SandboxSettings])
 def test_missing_required_configuration_fails_fast(
     settings_type: type[ControlSettings] | type[SandboxSettings],

@@ -27,6 +27,7 @@ from .agents import (
 from .models import MinimizationResult, ReplayClassification, ReplayResult
 from .workflow import (
     AttackOutcome,
+    AttackRun,
     AttackStatus,
     Budget,
     CounterexampleRecord,
@@ -176,6 +177,15 @@ class AttackWorker:
         if self.fault_injector:
             self.fault_injector(point)
 
+    def _recovery_target(self, run_id: str, run: AttackRun) -> AttackStatus:
+        """A FAILED run holding a durable candidate checkpoint must resume REPLAYING."""
+        for strategy_type in StrategyType:
+            strategy = self.store.ensure_strategy(run_id, strategy_type, run.budget)
+            checkpoint = self.store.load_checkpoint(strategy.strategy_run_id)
+            if checkpoint and isinstance(checkpoint.state.get("candidate_invariant"), str):
+                return AttackStatus.REPLAYING
+        return AttackStatus.SEARCHING
+
     async def run(self, run_id: str, rule_spec: RuleSpec) -> None:
         run = self.store.get_run(run_id)
         if run.status in {AttackStatus.COMPLETED, AttackStatus.CANCELLED}:
@@ -199,7 +209,7 @@ class AttackWorker:
             ):
                 return
             if not self.store.compare_and_set_status(
-                run_id, AttackStatus.RECOVERING, AttackStatus.SEARCHING
+                run_id, AttackStatus.RECOVERING, self._recovery_target(run_id, run)
             ):
                 return
         elif run.status not in {AttackStatus.SEARCHING, AttackStatus.REPLAYING}:
@@ -251,6 +261,14 @@ class AttackWorker:
                     continue
                 actions, invariant = candidate
                 current = self.store.get_run(run_id).status
+                if current is AttackStatus.CANCEL_REQUESTED:
+                    self.store.compare_and_set_status(
+                        run_id,
+                        AttackStatus.CANCEL_REQUESTED,
+                        AttackStatus.CANCELLED,
+                        outcome=AttackOutcome.CANCELLED,
+                    )
+                    return
                 if current is AttackStatus.SEARCHING:
                     self.store.compare_and_set_status(
                         run_id, AttackStatus.SEARCHING, AttackStatus.REPLAYING

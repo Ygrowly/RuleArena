@@ -57,9 +57,8 @@ class ProposalRejected(ValueError):
     pass
 
 
-ALLOWED_TOOLS = frozenset(
-    {"query_simulation_state", "list_legal_actions", "execute_simulator_action", "submit_candidate"}
-)
+# The agent has no tool layer at all: its only output channel is a validated
+# proposal, so the tool whitelist lives in the Runtime, not here.
 FORBIDDEN_CONTEXT_KEYS = frozenset(
     {
         "ground_truth",
@@ -104,6 +103,7 @@ def build_agent_context(
                 assert_safe(item)
 
     assert_safe(normalized_state)
+    assert_safe(rule_spec.model_dump(mode="json"))
     return AgentContext(
         strategy_type=strategy_type,
         rule_spec=rule_spec,
@@ -193,5 +193,6 @@ class StrategyAgent:
         response = await self.adapter.complete_structured(
             system=system,
             untrusted_input=context.model_dump_json(),
+            max_output_tokens=context.remaining_budget.max_tokens or None,
         )
         return parse_proposal(response.content)

@@ -1,8 +1,10 @@
 import json
+from typing import Any
 
 import pytest
 from rulearena_attack_runtime import (
     AttackOutcome,
+    AttackStatus,
     AttackWorker,
     Budget,
     FakeLLMAdapter,
@@ -22,10 +24,10 @@ from tests.phase2_factories import rule_spec
 
 
 class ReplayMustNotRun:
-    async def replay(self, *args: object, **kwargs: object) -> object:
+    async def replay(self, *args: Any, **kwargs: Any) -> ReplayResult:
         raise AssertionError("a candidate was not produced")
 
-    async def minimize(self, *args: object, **kwargs: object) -> object:
+    async def minimize(self, *args: Any, **kwargs: Any) -> MinimizationResult:
         raise AssertionError("a candidate was not produced")
 
 
@@ -47,15 +49,15 @@ class ConfirmingReplay:
         self.replay_calls = 0
 
     async def replay(
-        self, spec: object, actions: object, invariant: InvariantId, **_: object
+        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
     ) -> ReplayResult:
         self.replay_calls += 1
         report = AlwaysViolationOracle().evaluate()
         return ReplayResult(
             classification=ReplayClassification.CONFIRMED_VIOLATION,
-            target_invariant=invariant,
+            target_invariant=target_invariant,
             run_id=f"sandbox-{self.replay_calls}",
-            actions=tuple(actions),  # type: ignore[arg-type]
+            actions=tuple(actions),
             report=report,
             snapshots=(),
             receipts=(),
@@ -63,11 +65,11 @@ class ConfirmingReplay:
         )
 
     async def minimize(
-        self, spec: object, actions: object, invariant: InvariantId, **_: object
+        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
     ) -> MinimizationResult:
-        values = tuple(actions)  # type: ignore[arg-type]
+        values: tuple[Any, ...] = tuple(actions)
         return MinimizationResult(
-            invariant_id=invariant,
+            invariant_id=target_invariant,
             original_length=len(values),
             minimized_actions=values,
             trials=1,
@@ -125,14 +127,14 @@ async def test_worker_recovers_when_crash_happens_before_checkpoint() -> None:
 
     crashing_worker = AttackWorker(
         store, ReplayMustNotRun(), agents(), fault_injector=crash_once
-    )  # type: ignore[arg-type]
+    )
     with pytest.raises(InjectedWorkerCrash):
         await crashing_worker.run(run.run_id, rule_spec(ScenarioType.PROMOTION))
 
     value_run = store.ensure_strategy(run.run_id, StrategyType.VALUE_FLOW, run.budget)
     assert store.load_checkpoint(value_run.strategy_run_id) is None
 
-    resumed_worker = AttackWorker(store, ReplayMustNotRun(), agents())  # type: ignore[arg-type]
+    resumed_worker = AttackWorker(store, ReplayMustNotRun(), agents())
     await resumed_worker.run(run.run_id, rule_spec(ScenarioType.PROMOTION))
 
     checkpoint = store.load_checkpoint(value_run.strategy_run_id)
@@ -173,7 +175,7 @@ async def test_worker_resumes_after_checkpoint_without_repeating_step() -> None:
             fired = True
             raise InjectedWorkerCrash("simulated process death")
 
-    worker = AttackWorker(store, ReplayMustNotRun(), agents, fault_injector=crash_once)  # type: ignore[arg-type]
+    worker = AttackWorker(store, ReplayMustNotRun(), agents, fault_injector=crash_once)
     with pytest.raises(InjectedWorkerCrash):
         await worker.run(run.run_id, rule_spec(ScenarioType.PROMOTION))
 
@@ -243,3 +245,64 @@ async def test_oracle_persistence_crashes_resume_without_duplicate_counterexampl
     assert len(store.counterexamples(run.run_id)) == 1
     assert replay.replay_calls == expected_replays
     assert store.get_run(run.run_id).outcome is AttackOutcome.CONFIRMED_VIOLATION
+
+
+@pytest.mark.asyncio
+async def test_failed_recovery_replays_durable_candidate_instead_of_dropping_it() -> None:
+    store = InMemoryRuntimeStore()
+    run = store.create_run(
+        job_key="job-failed-candidate-recovery",
+        rule_version_id="rule-1",
+        scenario_version_id="scenario-1",
+        sandbox_version="fixed",
+        oracle_version="1.0",
+        budget=Budget(max_steps=3, max_tokens=100, max_cost=1, max_time_seconds=10),
+        random_seed=1,
+    )
+    agents = {
+        strategy: StrategyAgent(
+            strategy,
+            FakeLLMAdapter(
+                [_action("CREATE_USER", initial_balance="500.00")]
+                if strategy is StrategyType.VALUE_FLOW
+                else [_stop()]
+            ),
+        )
+        for strategy in StrategyType
+    }
+    fired = False
+
+    def crash_once(point: FaultPoint) -> None:
+        nonlocal fired
+        if point is FaultPoint.BEFORE_ORACLE_PERSIST and not fired:
+            fired = True
+            raise InjectedWorkerCrash(point.value)
+
+    replay = ConfirmingReplay()
+    worker = AttackWorker(store, replay, agents, fault_injector=crash_once)
+    worker.oracle = AlwaysViolationOracle()  # type: ignore[assignment]
+    with pytest.raises(InjectedWorkerCrash):
+        await worker.run(run.run_id, rule_spec(ScenarioType.PROMOTION))
+
+    # Simulate a monitoring process marking the interrupted run as FAILED.
+    assert store.compare_and_set_status(
+        run.run_id,
+        AttackStatus.REPLAYING,
+        AttackStatus.FAILED,
+        outcome=AttackOutcome.INFRA_FAILED,
+    )
+    value_run = store.ensure_strategy(run.run_id, StrategyType.VALUE_FLOW, run.budget)
+    checkpoint = store.load_checkpoint(value_run.strategy_run_id)
+    assert checkpoint is not None
+    assert isinstance(checkpoint.state.get("candidate_invariant"), str)
+
+    resumed = AttackWorker(store, replay, agents)
+    resumed.oracle = AlwaysViolationOracle()  # type: ignore[assignment]
+    await resumed.run(run.run_id, rule_spec(ScenarioType.PROMOTION))
+
+    completed = store.get_run(run.run_id)
+    assert completed.status is AttackStatus.COMPLETED
+    assert completed.outcome is AttackOutcome.CONFIRMED_VIOLATION
+    assert len(store.counterexamples(run.run_id)) == 1
+    # One replay before the injected crash plus exactly one recovery replay.
+    assert replay.replay_calls == 2

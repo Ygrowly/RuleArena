@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
 from rulearena_attack_runtime import (
@@ -11,12 +11,15 @@ from rulearena_attack_runtime import (
     FakeLLMAdapter,
     InMemoryRuntimeStore,
     LLMAdapter,
+    LLMCallRecord,
+    LLMResponse,
     ReplayClassification,
     SandboxReplayRunner,
     StrategyAgent,
     StrategyType,
 )
 from rulearena_domain_contracts import ActionType
+from rulearena_observability import InMemoryTraceStore, TraceKind
 from rulearena_oracle import InvariantId
 from rulearena_policy_schema import ScenarioType
 from rulearena_reference_simulator import (
@@ -29,6 +32,7 @@ from rulearena_reference_simulator import (
 )
 
 from .models import BaselineType, BenchmarkCase, FailureKind, RawCaseRun
+from .security import scan_ground_truth_leakage
 
 _SCENARIO_INVARIANTS: dict[ScenarioType, tuple[InvariantId, ...]] = {
     ScenarioType.PROMOTION: (
@@ -172,6 +176,36 @@ class SearchBaselineExecutor:
 AdapterFactory = Callable[[str], LLMAdapter]
 
 
+class _CapturingLLMAdapter:
+    """Records every string crossing the model boundary so the leakage scanner can audit it."""
+
+    def __init__(self, inner: LLMAdapter, captured: list[str]) -> None:
+        self._inner = inner
+        self._captured = captured
+
+    async def complete_structured(
+        self, *, system: str, untrusted_input: str, max_output_tokens: int | None = None
+    ) -> LLMResponse:
+        self._captured.extend((system, untrusted_input))
+        response = await self._inner.complete_structured(
+            system=system, untrusted_input=untrusted_input, max_output_tokens=max_output_tokens
+        )
+        self._captured.append(response.content)
+        return response
+
+    @property
+    def last_call(self) -> LLMCallRecord | None:
+        return self._inner.last_call
+
+
+def _assert_no_leakage(payloads: Sequence[str], case: BenchmarkCase) -> None:
+    findings = scan_ground_truth_leakage(payloads, hidden_cases=(case,))
+    if findings:
+        raise ValueError(
+            "ground truth leakage detected in agent payloads: " + "; ".join(findings)
+        )
+
+
 class AgentBaselineExecutor:
     """Runs either one predefined general agent or the three isolated strategies."""
 
@@ -191,6 +225,11 @@ class AgentBaselineExecutor:
             raise ValueError("AgentBaselineExecutor supports only agent baselines")
         started_at = datetime.now(UTC)
         store = InMemoryRuntimeStore()
+        captured_payloads: list[str] = []
+
+        def capturing_factory(prompt_version: str) -> LLMAdapter:
+            return _CapturingLLMAdapter(self.adapter_factory(prompt_version), captured_payloads)
+
         run = store.create_run(
             job_key=f"benchmark:{case.case_id}:{baseline.value}:{repetition}:{random_seed}",
             rule_version_id=case.rule_version_id,
@@ -204,7 +243,7 @@ class AgentBaselineExecutor:
             agents = {
                 StrategyType.VALUE_FLOW: StrategyAgent(
                     StrategyType.VALUE_FLOW,
-                    self.adapter_factory("single-general-v1"),
+                    capturing_factory("single-general-v1"),
                     role_name="GENERAL",
                 ),
                 StrategyType.LIFECYCLE: StrategyAgent(
@@ -219,13 +258,17 @@ class AgentBaselineExecutor:
         else:
             agents = {
                 strategy: StrategyAgent(
-                    strategy, self.adapter_factory(f"{strategy.value.casefold()}-v1")
+                    strategy, capturing_factory(f"{strategy.value.casefold()}-v1")
                 )
                 for strategy in StrategyType
             }
+        trace_store = InMemoryTraceStore()
         try:
-            await AttackWorker(store, self.replay, agents).run(run.run_id, case.rule_spec)
+            await AttackWorker(store, self.replay, agents, trace_sink=trace_store).run(
+                run.run_id, case.rule_spec
+            )
         except Exception:
+            _assert_no_leakage(captured_payloads, case)
             finished = datetime.now(UTC)
             return RawCaseRun(
                 case_id=case.case_id,
@@ -241,6 +284,7 @@ class AgentBaselineExecutor:
                     elapsed_seconds=(finished - started_at).total_seconds()
                 ),
             )
+        _assert_no_leakage(captured_payloads, case)
         completed = store.get_run(run.run_id)
         counterexamples = store.counterexamples(run.run_id)
         stability_attempts = 0
@@ -289,14 +333,9 @@ class AgentBaselineExecutor:
             confirmed_invariant_ids=frozenset(
                 InvariantId(item.invariant_id) for item in counterexamples
             ),
-            replayed_candidates=(
-                1
-                if completed.outcome
-                in {
-                    AttackOutcome.CONFIRMED_VIOLATION,
-                    AttackOutcome.UNCONFIRMED_CANDIDATE,
-                }
-                else 0
+            replayed_candidates=sum(
+                record.kind is TraceKind.ORACLE_CHECK
+                for record in trace_store.traces_for_run(run.run_id)
             ),
             confirmed_candidates=len(counterexamples),
             replay_attempts=stability_attempts,

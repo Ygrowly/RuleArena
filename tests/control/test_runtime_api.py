@@ -75,3 +75,53 @@ def test_compile_confirm_create_idempotent_run_and_resume_sse(control_settings: 
         ).text
         assert "event: RUN_CREATED" not in resumed
         assert "event: PROGRESS" in resumed
+
+
+def test_sse_exit_scan_blocks_leakage_markers(control_settings: object) -> None:
+    spec = rule_spec(ScenarioType.PROMOTION)
+    runtime = InMemoryRuntimeStore()
+    versions = RuleVersionStore()
+    enqueuer = RecordingEnqueuer()
+
+    async def ready() -> None:
+        return None
+
+    app = create_app(
+        control_settings,  # type: ignore[arg-type]
+        ready,
+        compiler=RuleCompiler(FakeLLMAdapter([spec.model_dump_json()])),
+        runtime_store=runtime,
+        version_store=versions,
+        run_enqueuer=enqueuer,
+    )
+    with TestClient(app) as client:
+        compiled = client.post(
+            "/api/policies/compile",
+            json={"template_id": "promotion", "chinese_modification": "满 150 减 50。"},
+        )
+        policy_id = compiled.json()["policy_id"]
+        confirmed = client.post(f"/api/policies/{policy_id}/confirm", json={})
+        version_id = confirmed.json()["version_id"]
+        created = client.post(
+            "/api/runs",
+            json={
+                "rule_version_id": version_id,
+                "scenario_version_id": "scenario-1",
+                "budget": {
+                    "max_steps": 3,
+                    "max_tokens": 100,
+                    "max_cost": 1,
+                    "max_time_seconds": 10,
+                },
+            },
+            headers={"Idempotency-Key": "api-job-leak"},
+        )
+        run_id = created.json()["run_id"]
+        runtime.append_event(run_id, "PROGRESS", {"step": 1})
+        runtime.append_event(
+            run_id, "PROGRESS", {"ground_truth": "expected_invariant_ids leaked"}
+        )
+        stream = client.get(f"/api/runs/{run_id}/events?follow=false").text
+        assert "event: RUN_CREATED" in stream
+        assert "ground_truth" not in stream
+        assert "event: LEAKAGE_BLOCKED" in stream

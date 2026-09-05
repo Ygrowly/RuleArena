@@ -62,13 +62,15 @@ class LLMCallRecord(BaseModel):
 
 
 class LLMAdapter(Protocol):
-    async def complete_structured(self, *, system: str, untrusted_input: str) -> LLMResponse: ...
+    async def complete_structured(
+        self, *, system: str, untrusted_input: str, max_output_tokens: int | None = None
+    ) -> LLMResponse: ...
 
     @property
     def last_call(self) -> LLMCallRecord | None: ...
 
 
-ProviderCall = Callable[[str, str], Awaitable[LLMResponse]]
+ProviderCall = Callable[[str, str, int | None], Awaitable[LLMResponse]]
 
 
 class RecordedLLMAdapter:
@@ -98,10 +100,12 @@ class RecordedLLMAdapter:
     def last_call(self) -> LLMCallRecord | None:
         return self._last_call
 
-    async def complete_structured(self, *, system: str, untrusted_input: str) -> LLMResponse:
+    async def complete_structured(
+        self, *, system: str, untrusted_input: str, max_output_tokens: int | None = None
+    ) -> LLMResponse:
         started = time.monotonic()
         try:
-            response = await self._call(system, untrusted_input)
+            response = await self._call(system, untrusted_input, max_output_tokens)
         except Exception:
             self._last_call = LLMCallRecord(
                 call_id=str(uuid4()),
@@ -139,7 +143,7 @@ class FakeLLMAdapter(RecordedLLMAdapter):
     def __init__(self, responses: list[str]) -> None:
         self._responses = iter(responses)
 
-        async def call(_: str, __: str) -> LLMResponse:
+        async def call(_: str, __: str, ___: int | None) -> LLMResponse:
             return LLMResponse(content=next(self._responses))
 
         super().__init__(call, provider="fake", model="fake-structured")
@@ -160,10 +164,14 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
         response_schema: Mapping[str, object] | None = None,
         schema_name: str = "rulearena_rulespec",
         transport: httpx.AsyncBaseTransport | None = None,
+        input_cost_per_million_tokens: float = 0.0,
+        output_cost_per_million_tokens: float = 0.0,
     ) -> None:
         structured_schema = dict(response_schema or RuleSpec.model_json_schema())
 
-        async def call(system: str, untrusted_input: str) -> LLMResponse:
+        async def call(
+            system: str, untrusted_input: str, max_output_tokens: int | None
+        ) -> LLMResponse:
             payload: dict[str, object] = {
                 "model": model,
                 "temperature": temperature,
@@ -182,6 +190,8 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
             }
             if seed is not None:
                 payload["seed"] = seed
+            if max_output_tokens is not None:
+                payload["max_tokens"] = max_output_tokens
             async with httpx.AsyncClient(
                 base_url=base_url.rstrip("/"),
                 headers={"Authorization": f"Bearer {api_key}"},
@@ -198,12 +208,21 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
                     raise TypeError
             except (KeyError, IndexError, TypeError) as exc:
                 raise ValueError("provider response did not match the adapter contract") from exc
+            input_tokens = int(usage.get("prompt_tokens", 0))
+            output_tokens = int(usage.get("completion_tokens", 0))
+            provider_cost = float(usage.get("cost", 0) or 0)
+            estimated_cost = (
+                input_tokens / 1_000_000 * input_cost_per_million_tokens
+                + output_tokens / 1_000_000 * output_cost_per_million_tokens
+            )
+            # Many OpenAI-compatible endpoints do not report cost; fall back to the
+            # configured per-token pricing so the cost budget stays enforceable.
             return LLMResponse(
                 content=content,
                 usage=LLMUsage(
-                    input_tokens=int(usage.get("prompt_tokens", 0)),
-                    output_tokens=int(usage.get("completion_tokens", 0)),
-                    cost=float(usage.get("cost", 0)),
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost=provider_cost if provider_cost > 0 else estimated_cost,
                 ),
             )
 
@@ -221,7 +240,7 @@ class UnavailableLLMAdapter(RecordedLLMAdapter):
     """Fail-closed adapter used when no provider credentials are configured."""
 
     def __init__(self) -> None:
-        async def call(_: str, __: str) -> LLMResponse:
+        async def call(_: str, __: str, ___: int | None) -> LLMResponse:
             return LLMResponse(content="")
 
         super().__init__(call, provider="unavailable", model="unavailable")

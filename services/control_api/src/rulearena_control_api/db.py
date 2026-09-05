@@ -191,13 +191,13 @@ trace_step = sa.Table(
     sa.Column(
         "attack_run_id",
         postgresql.UUID(as_uuid=True),
-        sa.ForeignKey("attack_run.id", ondelete="CASCADE"),
+        sa.ForeignKey("attack_run.id", ondelete="RESTRICT"),
         nullable=False,
     ),
     sa.Column(
         "strategy_run_id",
         postgresql.UUID(as_uuid=True),
-        sa.ForeignKey("strategy_run.id", ondelete="CASCADE"),
+        sa.ForeignKey("strategy_run.id", ondelete="RESTRICT"),
     ),
     sa.Column("step_id", sa.BigInteger(), nullable=False),
     sa.Column("kind", sa.Text(), nullable=False),
@@ -292,7 +292,7 @@ benchmark_case_run = sa.Table(
     sa.Column(
         "benchmark_run_id",
         postgresql.UUID(as_uuid=True),
-        sa.ForeignKey("benchmark_run.id", ondelete="CASCADE"),
+        sa.ForeignKey("benchmark_run.id", ondelete="RESTRICT"),
         nullable=False,
     ),
     sa.Column("case_id", sa.Text(), nullable=False),

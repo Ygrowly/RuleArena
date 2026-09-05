@@ -9,6 +9,7 @@ from .ground_truth import (
     parse_ground_truth_actions,
     verify_ground_truth,
 )
+from .historical_p0 import HistoricalP0Case, historical_p0_pass_rate
 from .loader import (
     DevelopmentCaseLoader,
     EvaluationAccess,
@@ -33,6 +34,7 @@ from .runner import BenchmarkRunner, CaseExecutor
 from .security import (
     hidden_answer_fingerprints,
     public_metric_summary,
+    scan_forbidden_markers,
     scan_ground_truth_leakage,
 )
 from .store import BenchmarkStore, InMemoryBenchmarkStore, PostgresBenchmarkStore
@@ -54,6 +56,7 @@ __all__ = [
     "GateResult",
     "GroundTruthEvidence",
     "HiddenCaseLoader",
+    "HistoricalP0Case",
     "InMemoryBenchmarkStore",
     "MetricValue",
     "PostgresBenchmarkStore",
@@ -65,11 +68,13 @@ __all__ = [
     "Visibility",
     "compute_metrics",
     "hidden_answer_fingerprints",
+    "historical_p0_pass_rate",
     "load_hidden_manifest",
     "pass_at_k",
     "pass_to_k",
     "parse_ground_truth_actions",
     "public_metric_summary",
+    "scan_forbidden_markers",
     "scan_ground_truth_leakage",
     "verify_ground_truth",
 ]

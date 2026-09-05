@@ -32,6 +32,8 @@ async def startup(context: dict[str, Any]) -> None:
     base_url = _required("LLM_BASE_URL")
     api_key = _required("LLM_API_KEY")
     model = _required("LLM_MODEL")
+    input_cost = float(os.getenv("LLM_INPUT_COST_PER_MTOKEN", "0") or 0)
+    output_cost = float(os.getenv("LLM_OUTPUT_COST_PER_MTOKEN", "0") or 0)
     store = PostgresRuntimeStore(database_url)
     trace_store = PostgresTraceStore(database_url)
     agents = {
@@ -44,6 +46,8 @@ async def startup(context: dict[str, Any]) -> None:
                 prompt_version=f"{strategy.value.casefold()}-v1",
                 response_schema=proposal_json_schema(),
                 schema_name="rulearena_agent_proposal",
+                input_cost_per_million_tokens=input_cost,
+                output_cost_per_million_tokens=output_cost,
             ),
         )
         for strategy in StrategyType

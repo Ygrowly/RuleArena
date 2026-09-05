@@ -27,7 +27,7 @@ class NoReplay:
 
 
 def _adapter(content: str, *, tokens: int = 0, cost: float = 0) -> RecordedLLMAdapter:
-    async def call(_: str, __: str) -> LLMResponse:
+    async def call(_: str, __: str, ___: int | None) -> LLMResponse:
         return LLMResponse(
             content=content,
             usage=LLMUsage(input_tokens=tokens, output_tokens=0, cost=cost),

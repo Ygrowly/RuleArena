@@ -2,7 +2,6 @@ import json
 
 import pytest
 from rulearena_attack_runtime import (
-    ALLOWED_TOOLS,
     ActionProposal,
     Budget,
     BudgetUsage,
@@ -20,14 +19,19 @@ from rulearena_reference_simulator import ReferenceSimulator
 from tests.phase2_factories import rule_spec
 
 
-def test_tool_whitelist_has_no_side_effecting_system_access() -> None:
-    assert ALLOWED_TOOLS == {
-        "query_simulation_state",
-        "list_legal_actions",
-        "execute_simulator_action",
-        "submit_candidate",
+def test_agent_has_no_tool_surface_beyond_structured_proposals() -> None:
+    """The agent exposes no tool channel; everything must arrive as a validated proposal."""
+    import inspect
+
+    from rulearena_attack_runtime import StrategyAgent as Agent
+
+    public_methods = {
+        name
+        for name, member in inspect.getmembers(Agent, inspect.isfunction)
+        if not name.startswith("_")
     }
-    assert not ({"database", "filesystem", "shell", "network", "ground_truth"} & ALLOWED_TOOLS)
+    assert public_methods == {"propose"}
+    assert not ({"database", "filesystem", "shell", "network", "ground_truth"} & public_methods)
 
 
 @pytest.mark.parametrize(

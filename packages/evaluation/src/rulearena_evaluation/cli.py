@@ -19,7 +19,13 @@ from rulearena_attack_runtime import (
 
 from .baselines import AgentBaselineExecutor, DelegatingCaseExecutor, SearchBaselineExecutor
 from .gate import ReleaseGate
-from .loader import DevelopmentCaseLoader, EvaluationAccess, HiddenCaseLoader
+from .historical_p0 import historical_p0_pass_rate
+from .loader import (
+    DevelopmentCaseLoader,
+    EvaluationAccess,
+    HiddenCaseLoader,
+    load_hidden_manifest,
+)
 from .models import BaselineType, VersionTuple, Visibility
 from .runner import BenchmarkRunner
 from .store import PostgresBenchmarkStore
@@ -91,12 +97,15 @@ async def _run(args: argparse.Namespace) -> int:
             prompt_version=prompt_version,
             response_schema=proposal_json_schema(),
             schema_name="rulearena_agent_proposal",
+            input_cost_per_million_tokens=float(os.getenv("LLM_INPUT_COST_PER_MTOKEN", "0") or 0),
+            output_cost_per_million_tokens=float(os.getenv("LLM_OUTPUT_COST_PER_MTOKEN", "0") or 0),
         )
 
     executor = DelegatingCaseExecutor(
         SearchBaselineExecutor(replay), AgentBaselineExecutor(replay, adapter_factory)
     )
     store = PostgresBenchmarkStore(_required("CONTROL_DATABASE_URL"))
+    regression_rate = historical_p0_pass_rate()
     try:
         runner = BenchmarkRunner(store, executor)
         for baseline in selected:
@@ -106,6 +115,7 @@ async def _run(args: argparse.Namespace) -> int:
                 baseline=baseline,
                 repetitions=args.repetitions,
                 random_seed=args.seed,
+                historical_p0_pass_rate=regression_rate,
             )
             print(
                 json.dumps(
@@ -122,6 +132,15 @@ async def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _manifest_budget(root: Path) -> Budget:
+    """The release gate compares against the budget declared by the hidden manifest."""
+    metadata = load_hidden_manifest(root / "benchmarks" / "hidden-manifest.json")
+    budgets = {case.budget for case in metadata}
+    if len(budgets) != 1:
+        raise RuntimeError("hidden manifest must declare one normalized budget")
+    return next(iter(budgets))
+
+
 def _verify(args: argparse.Namespace) -> int:
     store = PostgresBenchmarkStore(_required("CONTROL_DATABASE_URL"))
     try:
@@ -134,9 +153,7 @@ def _verify(args: argparse.Namespace) -> int:
         gate = ReleaseGate().evaluate(
             run,
             expected_versions=versions,
-            expected_budget=Budget(
-                max_steps=12, max_tokens=12000, max_cost=1.5, max_time_seconds=90
-            ),
+            expected_budget=_manifest_budget(Path(__file__).resolve().parents[4]),
             expected_seed=args.seed,
         )
         print(gate.model_dump_json())
