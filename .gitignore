@@ -85,3 +85,6 @@ $RECYCLE.BIN/
 .claude/
 .codex/
 .agents/
+
+frontend/test-results/
+frontend/playwright-report/
