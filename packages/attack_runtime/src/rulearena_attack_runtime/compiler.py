@@ -273,8 +273,16 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
                         )
                     response.raise_for_status()
                     data = response.json()
+                    # Some gateways (opencode zen free tier) report upstream
+                    # failures inside HTTP 200 with no choices; treat them as
+                    # transient transport errors so the retry path engages.
+                    if isinstance(data, dict) and data.get("error") and not data.get("choices"):
+                        raise httpx.TransportError(
+                            f"provider upstream error in 200 response: {str(data['error'])[:200]}"
+                        )
                     break
                 except httpx.TransportError as exc:
+                    data = None
                     last_transport_failure = exc
             if data is None:
                 assert last_transport_failure is not None

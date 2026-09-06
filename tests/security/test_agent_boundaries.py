@@ -132,3 +132,43 @@ async def test_agent_retries_once_on_invalid_json_and_worker_sees_both_attempts(
     records = adapter.drain_call_records()
     assert len(records) == 2
     assert all(record.response_hash for record in records)
+
+
+@pytest.mark.asyncio
+async def test_agent_retries_transient_provider_errors_and_succeeds() -> None:
+    """429/transport failures from the provider must be retried, not escape."""
+    import httpx
+    from rulearena_attack_runtime import FakeLLMAdapter, LLMResponse
+
+    class FlakyAdapter(FakeLLMAdapter):
+        def __init__(self) -> None:
+            super().__init__([])
+            self.calls = 0
+
+        async def complete_structured(
+            self, *, system: str, untrusted_input: str, max_output_tokens: int | None = None
+        ) -> LLMResponse:
+            self.calls += 1
+            if self.calls <= 2:
+                request = httpx.Request("POST", "https://model.invalid/v1/chat/completions")
+                raise httpx.HTTPStatusError(
+                    "429", request=request, response=httpx.Response(429, request=request)
+                )
+            return LLMResponse(
+                content='{"proposal_type":"STOP","reason":"done after retries"}'
+            )
+
+    adapter = FlakyAdapter()
+    agent = StrategyAgent(StrategyType.VALUE_FLOW, adapter)
+    context = build_agent_context(
+        strategy_type=StrategyType.VALUE_FLOW,
+        rule_spec=rule_spec(ScenarioType.PROMOTION),
+        normalized_state={},
+        legal_actions=(),
+        own_history=(),
+        remaining_budget=Budget(max_steps=2, max_tokens=10, max_cost=1, max_time_seconds=1),
+        confirmed_counterexample_ids=(),
+    )
+    proposal = await agent.propose(context)
+    assert proposal.proposal_type == "STOP"
+    assert adapter.calls == 3

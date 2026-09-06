@@ -252,25 +252,14 @@ class StrategyAgent:
             "the context."
         )
         for _attempt in range(4):
-            response = await self.adapter.complete_structured(
-                system=system,
-                untrusted_input=untrusted,
-                max_output_tokens=min(context.remaining_budget.max_tokens, 8192) or None,
-            )
+            # The provider call itself must be inside the retry scope: transport
+            # errors and 429/5xx were previously escaping on attempt one.
             try:
-                return parse_proposal(response.content)
-            except ProposalRejected as exc:
-                last_error = exc
-                untrusted = (
-                    untrusted
-                    + chr(10) * 2
-                    + f"Your previous reply was rejected: {exc}. "
-                    + corrective
+                response = await self.adapter.complete_structured(
+                    system=system,
+                    untrusted_input=untrusted,
+                    max_output_tokens=min(context.remaining_budget.max_tokens, 8192) or None,
                 )
-            except httpx.TransportError as exc:
-                last_error = exc
-                untrusted = untrusted + chr(10) * 2 + "Transient provider error; retry."
-                await asyncio.sleep(min(8.0, 2.0**_attempt))
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code < 500 and exc.response.status_code != 429:
                     raise
@@ -281,5 +270,21 @@ class StrategyAgent:
                     + f"Transient provider error ({exc.response.status_code}); retry."
                 )
                 await asyncio.sleep(min(8.0, 2.0**_attempt))
+                continue
+            except httpx.TransportError as exc:
+                last_error = exc
+                untrusted = untrusted + chr(10) * 2 + "Transient provider error; retry."
+                await asyncio.sleep(min(8.0, 2.0**_attempt))
+                continue
+            try:
+                return parse_proposal(response.content)
+            except ProposalRejected as exc:
+                last_error = exc
+                untrusted = (
+                    untrusted
+                    + chr(10) * 2
+                    + f"Your previous reply was rejected: {exc}. "
+                    + corrective
+                )
         assert last_error is not None
         raise last_error

@@ -161,3 +161,24 @@ async def test_adapter_strips_inline_think_blocks() -> None:
     )
     response = await adapter.complete_structured(system="s", untrusted_input="u")
     assert json.loads(response.content)["proposal_type"] == "STOP"
+
+
+@pytest.mark.asyncio
+async def test_adapter_treats_200_wrapped_upstream_error_as_transient() -> None:
+    """opencode zen free tier reports upstream failures inside HTTP 200."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"error": {"type": "server_error", "message": "Upstream request failed"}},
+        )
+
+    adapter = OpenAICompatibleLLMAdapter(
+        base_url="https://model.invalid/v1",
+        api_key="secret-provider-key",
+        model="free-model",
+        response_schema=proposal_json_schema(),
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(httpx.TransportError):
+        await adapter.complete_structured(system="s", untrusted_input="u")
