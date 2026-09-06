@@ -81,3 +81,20 @@ async def test_dynamic_code_and_unsupported_template_never_reach_model() -> None
     unsupported = await compiler.compile("inventory", "库存规则")
     assert rejected.status is CompileStatus.REJECTED
     assert unsupported.status is CompileStatus.UNSUPPORTED_RULE
+
+
+@pytest.mark.asyncio
+async def test_vague_rule_text_forces_confirmation_even_without_model_ambiguity() -> None:
+    spec = rule_spec(ScenarioType.PROMOTION)
+    compiler = RuleCompiler(FakeLLMAdapter([spec.model_dump_json()]))
+    result = await compiler.compile("promotion", "给顾客发点优惠，具体你看着办。")
+    assert result.status is CompileStatus.NEEDS_CONFIRMATION
+    assert any(q.question_id == "vague-rule-text" for q in result.questions)
+
+
+@pytest.mark.asyncio
+async def test_concrete_rule_text_stays_compiled() -> None:
+    spec = rule_spec(ScenarioType.PROMOTION)
+    compiler = RuleCompiler(FakeLLMAdapter([spec.model_dump_json()]))
+    result = await compiler.compile("promotion", "满 150 元减 50 元，全额退款不恢复优惠券。")
+    assert result.status is CompileStatus.COMPILED

@@ -56,7 +56,7 @@ def _versions(args: argparse.Namespace) -> VersionTuple:
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--benchmark-version", default="golden-v1")
+    parser.add_argument("--benchmark-version", default="golden-v2")
     parser.add_argument("--runtime-version", default="runtime-v1")
     parser.add_argument("--rule-set-version", default="rules-v1")
     parser.add_argument("--scenario-set-version", default="scenarios-v1")
