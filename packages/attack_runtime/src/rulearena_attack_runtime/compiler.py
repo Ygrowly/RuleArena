@@ -167,6 +167,23 @@ class FakeLLMAdapter(RecordedLLMAdapter):
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
+# Deterministic ambiguity heuristic: if the rule text delegates decisions to the
+# implementer, a compiled spec must not silently freeze invented defaults.
+_VAGUE_MARKERS: tuple[str, ...] = (
+    "看着办",
+    "你决定",
+    "酌情",
+    "视情况",
+    "适当",
+    "尽量",
+    "大致",
+    "大概",
+    "左右",
+    "一些",
+    "若干",
+    "随意",
+)
+
 
 class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
     """Strict JSON-schema provider adapter for OpenAI-compatible chat endpoints."""
@@ -497,6 +514,24 @@ class RuleCompiler:
             )
             for item in spec.ambiguities
         )
+        matched_markers = tuple(
+            marker for marker in _VAGUE_MARKERS if marker in chinese_modification
+        )
+        if not questions and matched_markers:
+            # The model compiled a concrete spec from deliberately vague text;
+            # deterministic heuristic forces explicit confirmation before the
+            # invented defaults can be frozen.
+            questions = (
+                ConfirmationQuestion(
+                    question_id="vague-rule-text",
+                    field_path="chinese_modification",
+                    question=(
+                        "规则文本包含模糊表述（"
+                        + "、".join(matched_markers)
+                        + "），编译出的默认值未必符合你的意图；请修改文本或确认接受当前编译结果。"
+                    ),
+                ),
+            )
         return CompileResult(
             status=(CompileStatus.NEEDS_CONFIRMATION if questions else CompileStatus.COMPILED),
             template_id=template_id,

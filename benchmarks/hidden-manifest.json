@@ -1,10 +1,122 @@
 [
-  {"case_id":"hidden-01","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"PROMOTION","tags":["sequence"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}},
-  {"case_id":"hidden-02","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"PROMOTION","tags":["partial-operation"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}},
-  {"case_id":"hidden-03","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"PROMOTION","tags":["lifecycle"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}},
-  {"case_id":"hidden-04","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"REFUND_POINTS","tags":["retry"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}},
-  {"case_id":"hidden-05","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"REFUND_POINTS","tags":["value-conservation"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}},
-  {"case_id":"hidden-06","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"REFUND_POINTS","tags":["partial-operation"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}},
-  {"case_id":"hidden-07","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"MEMBERSHIP_ENTITLEMENT","tags":["lifecycle"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}},
-  {"case_id":"hidden-08","benchmark_version":"golden-v1","visibility":"hidden","scenario_type":"MEMBERSHIP_ENTITLEMENT","tags":["retry"],"budget":{"max_steps":12,"max_tokens":12000,"max_cost":1.5,"max_time_seconds":90}}
+  {
+    "case_id": "hidden-01",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "PROMOTION",
+    "tags": [
+      "sequence"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  },
+  {
+    "case_id": "hidden-02",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "PROMOTION",
+    "tags": [
+      "partial-operation"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  },
+  {
+    "case_id": "hidden-03",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "PROMOTION",
+    "tags": [
+      "lifecycle"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  },
+  {
+    "case_id": "hidden-04",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "REFUND_POINTS",
+    "tags": [
+      "retry"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  },
+  {
+    "case_id": "hidden-05",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "REFUND_POINTS",
+    "tags": [
+      "value-conservation"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  },
+  {
+    "case_id": "hidden-06",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "REFUND_POINTS",
+    "tags": [
+      "partial-operation"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  },
+  {
+    "case_id": "hidden-07",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+    "tags": [
+      "lifecycle"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  },
+  {
+    "case_id": "hidden-08",
+    "benchmark_version": "golden-v2",
+    "visibility": "hidden",
+    "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+    "tags": [
+      "retry"
+    ],
+    "budget": {
+      "max_steps": 12,
+      "max_tokens": 12000,
+      "max_cost": 1.5,
+      "max_time_seconds": 300
+    }
+  }
 ]

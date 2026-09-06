@@ -194,7 +194,13 @@ class StrategyAgent:
         self.adapter = adapter
         self.role_name = role_name or strategy_type.value
 
-    async def propose(self, context: AgentContext, *, rejection: str | None = None) -> Proposal:
+    async def propose(
+        self,
+        context: AgentContext,
+        *,
+        rejection: str | None = None,
+        runtime_notice: str | None = None,
+    ) -> Proposal:
         if context.strategy_type is not self.strategy_type:
             raise ProposalRejected("strategy context mismatch")
         system = (
@@ -230,6 +236,8 @@ class StrategyAgent:
                 + rejection
                 + " Choose an action_type from legal_actions with the exact argument names."
             )
+        if runtime_notice:
+            untrusted += chr(10) * 2 + "[RUNTIME NOTICE] " + runtime_notice
         last_error: Exception | None = None
         corrective = (
             "Reply with ONLY one JSON object with EXACTLY one of these shapes: "

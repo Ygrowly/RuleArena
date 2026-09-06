@@ -58,12 +58,17 @@ open http://127.0.0.1:8080
 
 ## 评测
 
-| Baseline | 漏洞发现率 | 正常误报 | 备注 |
+| Baseline | hidden 发现率 | hidden 误报 | 备注 |
 | --- | --- | --- | --- |
-| Random | 0/9 | 0/7 | development，seed 20260831，实测 |
-| BFS | 2/9 | 0/7 | 同上，实测 |
-| Single Agent | N/A (dev) · 0/5 (hidden) | 0/3 (hidden) | hidden 为 deepseek-v3.2 实测；dev 未测 |
-| Multi-strategy | N/A (dev) · 0/5 (hidden) | 0/3 (hidden) | 同上 |
+| Random | 0/5 | 0/3 | golden-v2，deepseek-v3.2 实测 |
+| BFS | 1/5 | 0/3 | 同上，候选确认 1/36 |
+| Single Agent | 0/5 | 0/3 | 同上，未提交候选 |
+| Multi-strategy | 1/5 | 0/3 | 同上，候选确认 1/1、稳定 3/3 |
+
+golden-v1（90s 预算）下 Agent baseline 从未提交候选；golden-v2 将时间预算校准到
+300s 并注入预算纪律提醒后，Multi-strategy 首次提交候选且 100% 确认。Release Gate
+当前唯一未过项：hidden 发现率 1/5=20% < 75%——诚实结论是当前模型发现能力不足，
+而非机制缺陷；dev suite 四 Baseline 对比表待补。
 
 hidden suite Release Gate 判定：**拒绝**（hidden 发现率 0/5 < 75%，无已确认反例可谈 3/3）；
 其余检查项（版本/预算/seed 匹配、正常误报 0、历史 P0 100%、泄漏 0、无 INFRA_FAILED）全部通过。

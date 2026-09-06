@@ -442,8 +442,17 @@ class AttackWorker:
                     item.value for item in _SCENARIO_INVARIANTS[rule_spec.scenario_type]
                 ),
             )
+            steps_left = strategy.budget.max_steps - usage.steps
+            runtime_notice: str | None = None
+            if steps_left <= 2:
+                runtime_notice = (
+                    f"Only {steps_left} step(s) remain in this strategy's budget. You MUST "
+                    "return a STOP proposal now; set candidate_invariant to the "
+                    "candidate_invariants entry your executed path most likely violates, or "
+                    "null if none. Do not return another ACTION."
+                )
             proposal = await self.agents[strategy.strategy_type].propose(
-                context, rejection=rejection
+                context, rejection=rejection, runtime_notice=runtime_notice
             )
             rejection = None
             call_records = self.agents[strategy.strategy_type].adapter.drain_call_records()
