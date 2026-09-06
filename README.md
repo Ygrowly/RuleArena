@@ -60,10 +60,15 @@ open http://127.0.0.1:8080
 
 | Baseline | 漏洞发现率 | 正常误报 | 备注 |
 | --- | --- | --- | --- |
-| Random | 0/9 | 0/7 | development 16 Case，seed 20260831，实测 |
+| Random | 0/9 | 0/7 | development，seed 20260831，实测 |
 | BFS | 2/9 | 0/7 | 同上，实测 |
-| Single Agent | N/A | N/A | 需真实 LLM，未执行 |
-| Multi-strategy | N/A | N/A | 需真实 LLM，未执行 |
+| Single Agent | N/A (dev) · 0/5 (hidden) | 0/3 (hidden) | hidden 为 deepseek-v3.2 实测；dev 未测 |
+| Multi-strategy | N/A (dev) · 0/5 (hidden) | 0/3 (hidden) | 同上 |
+
+hidden suite Release Gate 判定：**拒绝**（hidden 发现率 0/5 < 75%，无已确认反例可谈 3/3）；
+其余检查项（版本/预算/seed 匹配、正常误报 0、历史 P0 100%、泄漏 0、无 INFRA_FAILED）全部通过。
+真实模型 Agent 在 90 秒预算内未提交任何候选即预算耗尽——这是当前主要的模型侧短板，详见
+`docs/exec/04-eval-observability-report.md` 与本次审查报告。
 
 复现：`uv run rulearena benchmark --suite development --baselines random,bfs`。
 无数据的格子标 N/A，不填估计值。完整口径见 `docs/exec/04-eval-observability-report.md`。
@@ -71,8 +76,9 @@ open http://127.0.0.1:8080
 ## 边界与诚实声明
 
 - 本项目**不是形式化证明**。搜索受预算约束，「预算内未发现违规」不等于「规则安全」。
-- 当前 LLM 凭据无有效订阅：Single/Multi Agent 实测 NOT VERIFIED，
-  Release Gate 保持未通过（`benchmark verify` 可复核）。
+- 真实模型（deepseek-v3.2）已完成 hidden suite 四 Baseline 实测：
+  Release Gate 如实拒绝（发现率 0/5 < 75%）。发布保持未通过状态，
+  `benchmark verify --latest` 可复核。
 - hidden 私有载荷与真实模型凭据属部署侧资产；公共仓库只有无答案 manifest，
   Runtime 无读取路径。
 - 攻击面与信任边界见 [安全模型](docs/security-model.md)。
