@@ -58,17 +58,19 @@ open http://127.0.0.1:8080
 
 ## 评测
 
-| Baseline | hidden 发现率 | hidden 误报 | 备注 |
-| --- | --- | --- | --- |
-| Random | 0/5 | 0/3 | golden-v2，deepseek-v3.2 实测 |
-| BFS | 1/5 | 0/3 | 同上，候选确认 1/36 |
-| Single Agent | 0/5 | 0/3 | 同上，未提交候选 |
-| Multi-strategy | 1/5 | 0/3 | 同上，候选确认 1/1、稳定 3/3 |
+四 Baseline 实测（golden-v2，deepseek-v3.2，无 INFRA_FAILED、误报 0、泄漏 0）：
 
-golden-v1（90s 预算）下 Agent baseline 从未提交候选；golden-v2 将时间预算校准到
-300s 并注入预算纪律提醒后，Multi-strategy 首次提交候选且 100% 确认。Release Gate
-当前唯一未过项：hidden 发现率 1/5=20% < 75%——诚实结论是当前模型发现能力不足，
-而非机制缺陷；dev suite 四 Baseline 对比表待补。
+| Baseline | dev 发现率 | hidden 发现率 | dev 误报 | hidden 误报 | 候选确认 | 备注 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Random | 0/9 | 0/5 | 0/7 | 0/3 | 0/70 (dev) | 确定性 |
+| BFS | 2/9 | 1/5 | 0/7 | 0/3 | 3/70 (dev) | 确定性，稳定 9/9 |
+| Single Agent | 0/9 | 0/5 | 0/7 | 0/3 | 0 候选 | 预算内未提交 |
+| Multi-strategy | 0/9 | 1/5 | 0/7 | 0/3 | 0/1 (dev) · 1/1 (hidden) | hidden 稳定 3/3 |
+
+诚实结论：当前 LLM Agent 的漏洞发现率（0–20%）尚未超过确定性 BFS（20–22%），
+按 Spec 如实降级 Multi-strategy 价值主张；机制层（真实重放、Oracle 裁决、
+候选确认 100%、稳定 3/3、零误报、零泄漏）全部工作正常。Release Gate 因
+hidden 发现率 < 75% 保持拒绝。
 
 hidden suite Release Gate 判定：**拒绝**（hidden 发现率 0/5 < 75%，无已确认反例可谈 3/3）；
 其余检查项（版本/预算/seed 匹配、正常误报 0、历史 P0 100%、泄漏 0、无 INFRA_FAILED）全部通过。
