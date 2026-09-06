@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import sys
 from datetime import UTC, datetime
 from typing import Protocol
 
@@ -44,11 +46,14 @@ class BenchmarkRunner:
         repetitions: int,
         random_seed: int,
         historical_p0_pass_rate: float | None = None,
+        concurrency: int = 1,
     ) -> BenchmarkRun:
         if not cases:
             raise ValueError("benchmark suite cannot be empty")
         if repetitions < 1:
             raise ValueError("repetitions must be positive")
+        if concurrency < 1:
+            raise ValueError("concurrency must be positive")
         suite = cases[0].visibility
         budget = cases[0].budget
         if any(case.visibility is not suite for case in cases):
@@ -69,23 +74,52 @@ class BenchmarkRunner:
                 )
 
         started = datetime.now(UTC)
+
+        async def execute_cell(case: BenchmarkCase, repetition: int) -> RawCaseRun:
+            print(
+                f"[{baseline.value}] {case.case_id} rep{repetition} start",
+                file=sys.stderr,
+                flush=True,
+            )
+            fact = await self.executor.execute(
+                case,
+                baseline=baseline,
+                repetition=repetition,
+                random_seed=random_seed + repetition - 1,
+            )
+            if (
+                fact.case_id != case.case_id
+                or fact.visibility is not suite
+                or fact.baseline is not baseline
+                or fact.repetition != repetition
+            ):
+                raise ValueError("executor returned a fact for a different benchmark cell")
+            print(
+                f"[{baseline.value}] {case.case_id} rep{repetition} done "
+                f"outcome={fact.outcome.value} failure={fact.failure_kind.value} "
+                f"steps={fact.usage.steps} elapsed={fact.usage.elapsed_seconds:.1f}s",
+                file=sys.stderr,
+                flush=True,
+            )
+            return fact
+
         raw: list[RawCaseRun] = []
-        for case in cases:
-            for repetition in range(1, repetitions + 1):
-                fact = await self.executor.execute(
-                    case,
-                    baseline=baseline,
-                    repetition=repetition,
-                    random_seed=random_seed + repetition - 1,
+        if concurrency <= 1:
+            for case in cases:
+                for repetition in range(1, repetitions + 1):
+                    raw.append(await execute_cell(case, repetition))
+        else:
+            semaphore = asyncio.Semaphore(concurrency)
+
+            async def bounded(case: BenchmarkCase, repetition: int) -> RawCaseRun:
+                async with semaphore:
+                    return await execute_cell(case, repetition)
+
+            raw = list(
+                await asyncio.gather(
+                    *(bounded(case, rep) for case in cases for rep in range(1, repetitions + 1))
                 )
-                if (
-                    fact.case_id != case.case_id
-                    or fact.visibility is not suite
-                    or fact.baseline is not baseline
-                    or fact.repetition != repetition
-                ):
-                    raise ValueError("executor returned a fact for a different benchmark cell")
-                raw.append(fact)
+            )
         leakage_findings = scan_ground_truth_leakage(
             [fact.model_dump(mode="json") for fact in raw], hidden_cases=cases
         )

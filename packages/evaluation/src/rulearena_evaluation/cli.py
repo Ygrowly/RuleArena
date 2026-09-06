@@ -117,6 +117,7 @@ async def _run(args: argparse.Namespace) -> int:
                 repetitions=args.repetitions,
                 random_seed=args.seed,
                 historical_p0_pass_rate=regression_rate,
+                concurrency=args.concurrency,
             )
             print(
                 json.dumps(
@@ -175,6 +176,13 @@ def _parser() -> argparse.ArgumentParser:
         "--baselines", default="random,bfs,single_agent,multi_strategy"
     )
     benchmark.add_argument("--repetitions", type=int, default=1)
+    benchmark.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="cases run in parallel when >1; wall-clock budgets stay per-case but "
+        "provider contention may inflate latencies, so 1 keeps budget fairness strict",
+    )
     return parser
 
 
