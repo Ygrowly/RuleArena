@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
@@ -270,7 +271,14 @@ class AgentBaselineExecutor:
             await AttackWorker(store, self.replay, agents, trace_sink=trace_store).run(
                 run.run_id, case.rule_spec
             )
-        except Exception:
+        except Exception as error:
+            # Honest infra accounting: keep the failure visible with its cause.
+            print(
+                f"[{baseline.value}] {case.case_id} rep{repetition} INFRA_FAILED: "
+                f"{type(error).__name__}: {error}",
+                file=sys.stderr,
+                flush=True,
+            )
             _assert_no_leakage(captured_payloads, case)
             finished = datetime.now(UTC)
             return RawCaseRun(

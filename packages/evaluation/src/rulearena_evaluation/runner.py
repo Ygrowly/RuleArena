@@ -5,6 +5,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Protocol
 
+from rulearena_attack_runtime import AttackOutcome
 from rulearena_policy_schema import ScenarioType
 
 from .metrics import compute_metrics
@@ -13,6 +14,7 @@ from .models import (
     BenchmarkCase,
     BenchmarkRun,
     BenchmarkStatus,
+    FailureKind,
     RawCaseRun,
     VersionTuple,
     Visibility,
@@ -81,12 +83,31 @@ class BenchmarkRunner:
                 file=sys.stderr,
                 flush=True,
             )
-            fact = await self.executor.execute(
-                case,
-                baseline=baseline,
-                repetition=repetition,
-                random_seed=random_seed + repetition - 1,
-            )
+            try:
+                fact = await self.executor.execute(
+                    case,
+                    baseline=baseline,
+                    repetition=repetition,
+                    random_seed=random_seed + repetition - 1,
+                )
+            except Exception as error:
+                # One broken cell must not abort the whole benchmark; it is
+                # accounted honestly as INFRA_FAILED (excluded from metrics
+                # denominators) with its cause on stderr.
+                print(
+                    f"[{baseline.value}] {case.case_id} rep{repetition} INFRA_FAILED: "
+                    f"{type(error).__name__}: {error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                fact = RawCaseRun(
+                    case_id=case.case_id,
+                    visibility=suite,
+                    baseline=baseline,
+                    repetition=repetition,
+                    outcome=AttackOutcome.INFRA_FAILED,
+                    failure_kind=FailureKind.INFRA_FAILED,
+                )
             if (
                 fact.case_id != case.case_id
                 or fact.visibility is not suite

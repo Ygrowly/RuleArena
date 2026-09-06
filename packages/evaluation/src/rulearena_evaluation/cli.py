@@ -38,6 +38,48 @@ def _required(name: str) -> str:
     return value
 
 
+async def _resolve_model() -> str:
+    """Pick the first healthy model from LLM_MODEL + LLM_FALLBACK_MODELS.
+
+    The whole benchmark run then uses exactly one model, so model_config_hash
+    attribution stays honest; the probe is one tiny structured call per model.
+    """
+    primary = _required("LLM_MODEL")
+    candidates = [primary]
+    for item in os.getenv("LLM_FALLBACK_MODELS", "").split(","):
+        candidate = item.strip()
+        if candidate and candidate != primary and candidate not in candidates:
+            candidates.append(candidate)
+    for model in candidates:
+        adapter = OpenAICompatibleLLMAdapter(
+            base_url=_required("LLM_BASE_URL"),
+            api_key=_required("LLM_API_KEY"),
+            model=model,
+            timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120),
+            response_schema={
+                "type": "object",
+                "properties": {"status": {"const": "probe_ok"}},
+                "required": ["status"],
+                "additionalProperties": False,
+            },
+            schema_name="rulearena_health_probe",
+        )
+        try:
+            response = await adapter.complete_structured(
+                system='Reply with exactly {"status":"probe_ok"}.',
+                untrusted_input="health probe",
+                max_output_tokens=512,
+            )
+            payload = json.loads(response.content)
+            if isinstance(payload, dict) and payload.get("status") == "probe_ok":
+                if model != primary:
+                    print(f"LLM primary model unhealthy; selected fallback: {model}", flush=True)
+                return model
+        except Exception as error:  # noqa: BLE001 - probe must survive any failure
+            print(f"LLM model probe failed for {model}: {error}", flush=True)
+    raise RuntimeError("no healthy LLM model among LLM_MODEL and LLM_FALLBACK_MODELS")
+
+
 def _versions(args: argparse.Namespace) -> VersionTuple:
     model_descriptor = (
         f"{os.getenv('LLM_BASE_URL', 'none')}:{os.getenv('LLM_MODEL', 'none')}:"
@@ -68,6 +110,8 @@ def _common(parser: argparse.ArgumentParser) -> None:
 
 
 async def _run(args: argparse.Namespace) -> int:
+    selected_model = await _resolve_model()
+    os.environ["LLM_MODEL"] = selected_model
     root = Path(__file__).resolve().parents[4]
     cases = (
         DevelopmentCaseLoader(root / "benchmarks" / "development-v1.json").load()
@@ -92,7 +136,7 @@ async def _run(args: argparse.Namespace) -> int:
         return OpenAICompatibleLLMAdapter(
             base_url=_required("LLM_BASE_URL"),
             api_key=_required("LLM_API_KEY"),
-            model=_required("LLM_MODEL"),
+            model=selected_model,
             temperature=args.temperature,
             prompt_version=prompt_version,
             response_schema=proposal_json_schema(),
