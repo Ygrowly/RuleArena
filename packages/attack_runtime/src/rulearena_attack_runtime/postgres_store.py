@@ -485,19 +485,32 @@ class PostgresRuntimeStore:
     def save_checkpoint(
         self, strategy_run_id: str, state: dict[str, Any], *, expected_version: int
     ) -> Checkpoint:
-        statement = sa.text(
+        # Versioned CAS: insert when expected is empty, otherwise update only
+        # the row whose version matches. (An INSERT..SELECT with a WHERE that
+        # filters every row never reaches ON CONFLICT, so the update path must
+        # be a real UPDATE statement.)
+        insert_statement = sa.text(
             """
             INSERT INTO control.checkpoint(strategy_run_id, version, state, created_at)
             SELECT CAST(:id AS uuid), 1, :state, now()
-             WHERE :expected = 0
-            ON CONFLICT (strategy_run_id) DO UPDATE
-                SET version = control.checkpoint.version + 1, state = EXCLUDED.state,
-                    created_at = now()
-              WHERE control.checkpoint.version = :expected
+            ON CONFLICT (strategy_run_id) DO NOTHING
             RETURNING strategy_run_id, version, state, created_at
             """
-        ).bindparams(sa.bindparam("state", type_=JSONB))
+        )
+        update_statement = sa.text(
+            """
+            UPDATE control.checkpoint
+               SET version = version + 1, state = :state, created_at = now()
+             WHERE strategy_run_id = CAST(:id AS uuid) AND version = :expected
+            RETURNING strategy_run_id, version, state, created_at
+            """
+        )
         with self.engine.begin() as connection:
+            statement = (
+                insert_statement.bindparams(sa.bindparam("state", type_=JSONB))
+                if expected_version == 0
+                else update_statement.bindparams(sa.bindparam("state", type_=JSONB))
+            )
             row = connection.execute(
                 statement,
                 {"id": strategy_run_id, "expected": expected_version, "state": state},

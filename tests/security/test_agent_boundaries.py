@@ -105,3 +105,30 @@ def test_runtime_rejects_duplicate_action_before_simulation() -> None:
             BudgetUsage(),
             Budget(max_steps=2, max_tokens=10, max_cost=1, max_time_seconds=1),
         )
+
+
+@pytest.mark.asyncio
+async def test_agent_retries_once_on_invalid_json_and_worker_sees_both_attempts() -> None:
+    import json as jsonlib
+
+    from rulearena_attack_runtime import FakeLLMAdapter
+
+    good = jsonlib.dumps(
+        {"proposal_type": "STOP", "reason": "valid stop"},
+    )
+    adapter = FakeLLMAdapter(['{"proposal_type": "DANCE"}', good])
+    agent = StrategyAgent(StrategyType.VALUE_FLOW, adapter)
+    context = build_agent_context(
+        strategy_type=StrategyType.VALUE_FLOW,
+        rule_spec=rule_spec(ScenarioType.PROMOTION),
+        normalized_state={},
+        legal_actions=(),
+        own_history=(),
+        remaining_budget=Budget(max_steps=2, max_tokens=10, max_cost=1, max_time_seconds=1),
+        confirmed_counterexample_ids=(),
+    )
+    proposal = await agent.propose(context)
+    assert proposal.proposal_type == "STOP"
+    records = adapter.drain_call_records()
+    assert len(records) == 2
+    assert all(record.response_hash for record in records)

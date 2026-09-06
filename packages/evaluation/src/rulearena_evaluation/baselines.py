@@ -197,6 +197,9 @@ class _CapturingLLMAdapter:
     def last_call(self) -> LLMCallRecord | None:
         return self._inner.last_call
 
+    def drain_call_records(self) -> tuple[LLMCallRecord, ...]:
+        return self._inner.drain_call_records()
+
 
 def _assert_no_leakage(payloads: Sequence[str], case: BenchmarkCase) -> None:
     findings = scan_ground_truth_leakage(payloads, hidden_cases=(case,))

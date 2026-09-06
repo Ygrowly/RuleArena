@@ -99,6 +99,7 @@ async def _run(args: argparse.Namespace) -> int:
             schema_name="rulearena_agent_proposal",
             input_cost_per_million_tokens=float(os.getenv("LLM_INPUT_COST_PER_MTOKEN", "0") or 0),
             output_cost_per_million_tokens=float(os.getenv("LLM_OUTPUT_COST_PER_MTOKEN", "0") or 0),
+            timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120),
         )
 
     executor = DelegatingCaseExecutor(

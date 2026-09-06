@@ -403,6 +403,8 @@ class AttackWorker:
             {"action_key": action.canonical_key(), "status": "APPLIED"} for action in actions
         )
         usage = strategy.usage
+        rejection: str | None = None
+        illegal_retries = 0
         strategy = strategy.model_copy(update={"status": StrategyStatus.SEARCHING})
         self.store.update_strategy(strategy)
         checkpoint_version = checkpoint.version if checkpoint else 0
@@ -436,9 +438,18 @@ class AttackWorker:
                 confirmed_counterexample_ids=tuple(
                     item.counterexample_id for item in self.store.counterexamples(run_id)
                 ),
+                candidate_invariants=tuple(
+                    item.value for item in _SCENARIO_INVARIANTS[rule_spec.scenario_type]
+                ),
             )
-            proposal = await self.agents[strategy.strategy_type].propose(context)
-            call = self.agents[strategy.strategy_type].adapter.last_call
+            proposal = await self.agents[strategy.strategy_type].propose(
+                context, rejection=rejection
+            )
+            rejection = None
+            call_records = self.agents[strategy.strategy_type].adapter.drain_call_records()
+            call = call_records[-1] if call_records else self.agents[
+                strategy.strategy_type
+            ].adapter.last_call
             model_config_hash = hashlib.sha256(
                 (
                     f"{call.provider}:{call.model}:{call.temperature}"
@@ -458,15 +469,24 @@ class AttackWorker:
                     "response_hash": call.response_hash if call else None,
                     "proposal_type": proposal.proposal_type,
                 },
-                latency_ms=call.latency_ms if call else 0,
-                input_tokens=call.input_tokens if call else 0,
-                output_tokens=call.output_tokens if call else 0,
-                cost=call.cost if call else 0,
+                latency_ms=sum(item.latency_ms for item in call_records),
+                input_tokens=sum(item.input_tokens for item in call_records),
+                output_tokens=sum(item.output_tokens for item in call_records),
+                cost=sum(item.cost for item in call_records),
+                retry_count=max(0, len(call_records) - 1),
                 status="RECEIVED",
             )
             self.trace_sink.append_trace(llm_trace)
-            call_tokens = (call.input_tokens + call.output_tokens) if call else 0
-            call_cost = call.cost if call else 0
+            call_tokens = (
+                sum(item.input_tokens + item.output_tokens for item in call_records)
+                if call_records
+                else (call.input_tokens + call.output_tokens if call else 0)
+            )
+            call_cost = (
+                sum(item.cost for item in call_records)
+                if call_records
+                else (call.cost if call else 0)
+            )
             next_usage = usage.model_copy(
                 update={"tokens": usage.tokens + call_tokens, "cost": usage.cost + call_cost}
             )
@@ -482,29 +502,48 @@ class AttackWorker:
                     if proposal.candidate_invariant not in _SCENARIO_INVARIANTS[
                         rule_spec.scenario_type
                     ]:
-                        raise ProposalRejected(
-                            "candidate invariant does not belong to the selected scenario"
+                        # A candidate outside the scenario whitelist is a model
+                        # error; the Runtime rejects it and the strategy ends
+                        # without a candidate instead of failing the whole run.
+                        proposal = StopProposal(
+                            proposal_type="STOP", reason=proposal.reason, candidate_invariant=None
                         )
-                    checkpoint = self.store.load_checkpoint(strategy.strategy_run_id)
-                    if checkpoint is None:
-                        raise RuntimeError("candidate must have a durable checkpoint")
-                    candidate_state = dict(checkpoint.state)
-                    candidate_state["candidate_invariant"] = (
-                        proposal.candidate_invariant.value
-                    )
-                    self.store.save_checkpoint(
-                        strategy.strategy_run_id,
-                        candidate_state,
-                        expected_version=checkpoint.version,
-                    )
-                    self.store.update_strategy(
-                        strategy.model_copy(update={"status": StrategyStatus.COMPLETED})
-                    )
-                    return tuple(actions), proposal.candidate_invariant
+                    else:
+                        checkpoint = self.store.load_checkpoint(strategy.strategy_run_id)
+                        if checkpoint is None:
+                            raise RuntimeError("candidate must have a durable checkpoint")
+                        candidate_state = dict(checkpoint.state)
+                        candidate_state["candidate_invariant"] = (
+                            proposal.candidate_invariant.value
+                        )
+                        self.store.save_checkpoint(
+                            strategy.strategy_run_id,
+                            candidate_state,
+                            expected_version=checkpoint.version,
+                        )
+                        self.store.update_strategy(
+                            strategy.model_copy(update={"status": StrategyStatus.COMPLETED})
+                        )
+                        return tuple(actions), proposal.candidate_invariant
                 break
             if not isinstance(proposal, ActionProposal):
-                raise ProposalRejected("unknown proposal type")
-            action = validate_action_proposal(proposal, legal, history, usage, strategy.budget)
+                proposal = StopProposal(reason="unknown proposal type")
+                continue
+            try:
+                action = validate_action_proposal(
+                    proposal, legal, history, usage, strategy.budget
+                )
+            except ProposalRejected as exc:
+                # Illegal exploration is a normal model mistake: feed the
+                # rejection back and let the agent re-propose within budget
+                # instead of failing the whole run.
+                if illegal_retries >= 2 or not next_usage.within(strategy.budget):
+                    strategy = strategy.model_copy(update={"usage": usage})
+                    self.store.update_strategy(strategy)
+                    break
+                illegal_retries += 1
+                rejection = f"{exc}; you proposed {proposal.action_type.value}."
+                continue
             stable_action = SimAction(
                 action_type=action.action_type,
                 actor_id=action.actor_id,

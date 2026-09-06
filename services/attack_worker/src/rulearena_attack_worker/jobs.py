@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Protocol, TypedDict, cast
 
 from rulearena_attack_runtime import AttackWorker
@@ -21,5 +22,11 @@ async def execute_attack(
     """ARQ entrypoint with queue and Runtime idempotency gates."""
 
     runtime = cast(AttackWorker, context["runtime"])
-    rule_spec = RuleSpec.model_validate(rule_spec_json)
+    # ARQ serializes the payload as JSON (Decimal -> string), so the payload
+    # must be validated in JSON mode, not Python mode.
+    rule_spec = (
+        RuleSpec.model_validate_json(json.dumps(rule_spec_json))
+        if not isinstance(rule_spec_json, RuleSpec)
+        else rule_spec_json
+    )
     await runtime.run(run_id, rule_spec)

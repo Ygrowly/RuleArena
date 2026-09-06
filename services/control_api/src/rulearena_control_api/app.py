@@ -70,6 +70,7 @@ def create_app(
                 base_url=resolved.llm_base_url,
                 api_key=resolved.llm_api_key.get_secret_value(),
                 model=resolved.llm_model,
+                timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120),
             )
         else:
             adapter = UnavailableLLMAdapter()

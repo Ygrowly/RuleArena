@@ -34,6 +34,7 @@ async def startup(context: dict[str, Any]) -> None:
     model = _required("LLM_MODEL")
     input_cost = float(os.getenv("LLM_INPUT_COST_PER_MTOKEN", "0") or 0)
     output_cost = float(os.getenv("LLM_OUTPUT_COST_PER_MTOKEN", "0") or 0)
+    timeout_seconds = float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120)
     store = PostgresRuntimeStore(database_url)
     trace_store = PostgresTraceStore(database_url)
     agents = {
@@ -48,6 +49,7 @@ async def startup(context: dict[str, Any]) -> None:
                 schema_name="rulearena_agent_proposal",
                 input_cost_per_million_tokens=input_cost,
                 output_cost_per_million_tokens=output_cost,
+                timeout_seconds=timeout_seconds,
             ),
         )
         for strategy in StrategyType

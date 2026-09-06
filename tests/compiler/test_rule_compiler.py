@@ -66,7 +66,9 @@ async def test_ambiguity_requires_explicit_resolution() -> None:
     ],
 )
 async def test_invalid_structured_responses_are_rejected(raw: str) -> None:
-    result = await RuleCompiler(FakeLLMAdapter([raw])).compile(
+    # The compiler retries with validation feedback up to 3 attempts; a model
+    # that keeps replying with the same invalid payload is still rejected.
+    result = await RuleCompiler(FakeLLMAdapter([raw, raw, raw])).compile(
         "membership-entitlement", "会员费 50 元，包含两次权益。"
     )
     assert result.status is CompileStatus.REJECTED

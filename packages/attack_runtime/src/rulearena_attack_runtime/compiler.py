@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
+import re
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import uuid4
 
 import httpx
@@ -69,6 +71,10 @@ class LLMAdapter(Protocol):
     @property
     def last_call(self) -> LLMCallRecord | None: ...
 
+    def drain_call_records(self) -> tuple[LLMCallRecord, ...]:
+        """All call records since the last drain; enables honest multi-attempt accounting."""
+        ...
+
 
 ProviderCall = Callable[[str, str, int | None], Awaitable[LLMResponse]]
 
@@ -95,10 +101,20 @@ class RecordedLLMAdapter:
         self.prompt_version = prompt_version
         self.schema_version = schema_version
         self._last_call: LLMCallRecord | None = None
+        self._pending_calls: list[LLMCallRecord] = []
 
     @property
     def last_call(self) -> LLMCallRecord | None:
         return self._last_call
+
+    def drain_call_records(self) -> tuple[LLMCallRecord, ...]:
+        drained = tuple(self._pending_calls)
+        self._pending_calls.clear()
+        return drained
+
+    def _record(self, record: LLMCallRecord) -> None:
+        self._last_call = record
+        self._pending_calls.append(record)
 
     async def complete_structured(
         self, *, system: str, untrusted_input: str, max_output_tokens: int | None = None
@@ -107,7 +123,7 @@ class RecordedLLMAdapter:
         try:
             response = await self._call(system, untrusted_input, max_output_tokens)
         except Exception:
-            self._last_call = LLMCallRecord(
+            self._record(LLMCallRecord(
                 call_id=str(uuid4()),
                 provider=self.provider,
                 model=self.model,
@@ -120,9 +136,9 @@ class RecordedLLMAdapter:
                 latency_ms=max(0, round((time.monotonic() - started) * 1000)),
                 cost=0,
                 response_hash=hashlib.sha256(b"").hexdigest(),
-            )
+            ))
             raise
-        self._last_call = LLMCallRecord(
+        self._record(LLMCallRecord(
             call_id=str(uuid4()),
             provider=self.provider,
             model=self.model,
@@ -135,7 +151,7 @@ class RecordedLLMAdapter:
             latency_ms=max(0, round((time.monotonic() - started) * 1000)),
             cost=response.usage.cost,
             response_hash=hashlib.sha256(response.content.encode()).hexdigest(),
-        )
+        ))
         return response
 
 
@@ -147,6 +163,9 @@ class FakeLLMAdapter(RecordedLLMAdapter):
             return LLMResponse(content=next(self._responses))
 
         super().__init__(call, provider="fake", model="fake-structured")
+
+
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
@@ -166,8 +185,17 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
         transport: httpx.AsyncBaseTransport | None = None,
         input_cost_per_million_tokens: float = 0.0,
         output_cost_per_million_tokens: float = 0.0,
+        timeout_seconds: float = 30.0,
     ) -> None:
         structured_schema = dict(response_schema or RuleSpec.model_json_schema())
+        # The model must be able to SEE the contract: some providers (MiniMax)
+        # accept response_format but never enforce it.
+        schema_hint = (
+            chr(10) * 2
+            + "The JSON object MUST conform to this schema:"
+            + chr(10)
+            + json.dumps(structured_schema, ensure_ascii=False)
+        )
 
         async def call(
             system: str, untrusted_input: str, max_output_tokens: int | None
@@ -176,31 +204,64 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
                 "model": model,
                 "temperature": temperature,
                 "messages": [
-                    {"role": "system", "content": system},
+                    {"role": "system", "content": system + schema_hint},
                     {"role": "user", "content": untrusted_input},
                 ],
-                "response_format": {
+            }
+            # Providers such as MiniMax reject schemas without a top-level
+            # "type" (discriminated unions) and do not strictly enforce the
+            # constraint anyway; caller-side validation plus retries is the
+            # enforced boundary, response_format is only an optimization.
+            if "type" in structured_schema:
+                payload["response_format"] = {
                     "type": "json_schema",
                     "json_schema": {
                         "name": schema_name,
                         "strict": True,
                         "schema": structured_schema,
                     },
-                },
-            }
+                }
             if seed is not None:
                 payload["seed"] = seed
             if max_output_tokens is not None:
                 payload["max_tokens"] = max_output_tokens
-            async with httpx.AsyncClient(
-                base_url=base_url.rstrip("/"),
-                headers={"Authorization": f"Bearer {api_key}"},
-                timeout=30,
-                transport=transport,
-            ) as client:
-                response = await client.post("/chat/completions", json=payload)
-                response.raise_for_status()
-                data = response.json()
+            # Two egress routes: direct first, then the environment proxy.
+            # Both have exhibited intermittent failures (proxy drops long TLS
+            # connections; direct egress occasionally times out), so a single
+            # failed route retries once over the other. Custom transport still
+            # takes precedence.
+            data: Any = None
+            last_transport_failure: httpx.TransportError | None = None
+            route_trust_env: tuple[bool, ...] = (
+                (True,) if transport is not None else (False, True)
+            )
+            for use_env_proxy in route_trust_env:
+                client_kwargs: dict[str, Any] = {
+                    "base_url": base_url.rstrip("/"),
+                    "headers": {"Authorization": f"Bearer {api_key}"},
+                    "timeout": timeout_seconds,
+                    "trust_env": use_env_proxy,
+                }
+                if transport is not None:
+                    client_kwargs["transport"] = transport
+                try:
+                    async with httpx.AsyncClient(**client_kwargs) as client:
+                        response = await client.post("/chat/completions", json=payload)
+                    if response.status_code >= 400:
+                        detail = response.text[:300]
+                        raise httpx.HTTPStatusError(
+                            f"provider returned {response.status_code}: {detail}",
+                            request=response.request,
+                            response=response,
+                        )
+                    response.raise_for_status()
+                    data = response.json()
+                    break
+                except httpx.TransportError as exc:
+                    last_transport_failure = exc
+            if data is None:
+                assert last_transport_failure is not None
+                raise last_transport_failure
             try:
                 content = data["choices"][0]["message"]["content"]
                 usage = data.get("usage", {})
@@ -208,6 +269,16 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
                     raise TypeError
             except (KeyError, IndexError, TypeError) as exc:
                 raise ValueError("provider response did not match the adapter contract") from exc
+            # Some providers (e.g. MiniMax-M2) inline reasoning as a <think>
+            # block inside `content`, and may wrap JSON in code fences; the
+            # strict-JSON contract starts after both.
+            content = _THINK_BLOCK.sub("", content).strip()
+            if content.startswith("```"):
+                nl = chr(10)
+                content = content.split(nl, 1)[1] if nl in content else content
+                if content.rstrip().endswith("```"):
+                    content = content.rstrip()[:-3]
+                content = content.strip()
             input_tokens = int(usage.get("prompt_tokens", 0))
             output_tokens = int(usage.get("completion_tokens", 0))
             provider_cost = float(usage.get("cost", 0) or 0)
@@ -307,6 +378,27 @@ def validate_rule_spec(spec: RuleSpec, expected_scenario: ScenarioType) -> tuple
     return tuple(errors)
 
 
+def _aggregate_call_records(records: tuple[LLMCallRecord, ...]) -> LLMCallRecord | None:
+    """Honest audit for one logical request that needed multiple attempts."""
+    if not records:
+        return None
+    first = records[0]
+    return LLMCallRecord(
+        call_id=first.call_id,
+        provider=first.provider,
+        model=first.model,
+        temperature=first.temperature,
+        seed=first.seed,
+        prompt_version=first.prompt_version,
+        schema_version=first.schema_version,
+        input_tokens=sum(item.input_tokens for item in records),
+        output_tokens=sum(item.output_tokens for item in records),
+        latency_ms=sum(item.latency_ms for item in records),
+        cost=sum(item.cost for item in records),
+        response_hash=records[-1].response_hash,
+    )
+
+
 class RuleCompiler:
     def __init__(
         self,
@@ -336,36 +428,66 @@ class RuleCompiler:
             "defaults. "
             f"The selected scenario_type is {scenario.value}."
         )
-        try:
-            response = await self.adapter.complete_structured(
-                system=system,
-                untrusted_input=f"<UNTRUSTED_RULE>\n{chinese_modification}\n</UNTRUSTED_RULE>",
+        untrusted = f"<UNTRUSTED_RULE>\n{chinese_modification}\n</UNTRUSTED_RULE>"
+        # Providers may not enforce the JSON schema; bounded validation-with-
+        # feedback retries keep the deterministic boundary in charge.
+        errors: tuple[str, ...] = ()
+        spec: RuleSpec | None = None
+        last_transport_error: httpx.HTTPError | None = None
+        for _attempt in range(3):
+            feedback = (
+                ""
+                if not errors
+                else (
+                    " Your previous reply was rejected. Fix exactly these deterministic"
+                    f" validation errors and reply with one conforming JSON object: {errors}"
+                )
             )
-            payload = json.loads(response.content)
-            if not isinstance(payload, dict):
-                raise ValueError("structured response must be an object")
-            spec = RuleSpec.model_validate_json(response.content)
-        except (json.JSONDecodeError, ValidationError, TypeError, ValueError) as exc:
+            try:
+                response = await self.adapter.complete_structured(
+                    system=system + feedback,
+                    untrusted_input=untrusted,
+                )
+                payload = json.loads(response.content)
+                if not isinstance(payload, dict):
+                    raise ValueError("structured response must be an object")
+                spec = RuleSpec.model_validate_json(response.content)
+            except (json.JSONDecodeError, ValidationError, TypeError, ValueError) as exc:
+                errors = (str(exc),)
+                continue
+            except httpx.TransportError as exc:
+                if _attempt == 2:
+                    return CompileResult(
+                        status=CompileStatus.REJECTED,
+                        template_id=template_id,
+                        errors=("model provider unavailable",),
+                        llm_call=_aggregate_call_records(self.adapter.drain_call_records()),
+                    )
+                last_transport_error = exc
+                await asyncio.sleep(min(8.0, 2.0**_attempt))
+                continue
+            except httpx.HTTPError:
+                return CompileResult(
+                    status=CompileStatus.REJECTED,
+                    template_id=template_id,
+                    errors=("model provider unavailable",),
+                    llm_call=_aggregate_call_records(self.adapter.drain_call_records()),
+                )
+            assert spec is not None
+            errors = validate_rule_spec(spec, scenario)
+            if not errors:
+                break
+        if spec is None or errors:
             return CompileResult(
                 status=CompileStatus.REJECTED,
                 template_id=template_id,
-                errors=(str(exc),),
-                llm_call=self.adapter.last_call,
-            )
-        except httpx.HTTPError:
-            return CompileResult(
-                status=CompileStatus.REJECTED,
-                template_id=template_id,
-                errors=("model provider unavailable",),
-                llm_call=self.adapter.last_call,
-            )
-        errors = validate_rule_spec(spec, scenario)
-        if errors:
-            return CompileResult(
-                status=CompileStatus.REJECTED,
-                template_id=template_id,
-                errors=errors,
-                llm_call=self.adapter.last_call,
+                errors=errors
+                or (
+                    ["model provider unavailable"]
+                    if last_transport_error
+                    else ["model returned no conforming RuleSpec"]
+                ),
+                llm_call=_aggregate_call_records(self.adapter.drain_call_records()),
             )
         questions = tuple(
             ConfirmationQuestion(
@@ -380,7 +502,7 @@ class RuleCompiler:
             template_id=template_id,
             rule_spec=spec,
             questions=questions,
-            llm_call=self.adapter.last_call,
+            llm_call=_aggregate_call_records(self.adapter.drain_call_records()),
         )
 
 

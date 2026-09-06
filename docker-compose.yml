@@ -36,6 +36,9 @@ services:
         SERVICE_MODULE: rulearena_control_api
     environment:
       CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:${CONTROL_DB_PASSWORD}@postgres:5432/rulearena
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
       REDIS_URL: redis://redis:6379/0
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN}
       PORT: "8000"
