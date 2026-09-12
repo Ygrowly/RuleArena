@@ -108,6 +108,30 @@ v2 下因 hidden 发现率 < 75% 保持拒绝，且在 v2 配置下**不可能�
 
 [演示脚本](docs/demo-script.md)。
 
+### 直接看：单文件演示（无需任何依赖）
+
+`frontend/dist-standalone/rulearena-demo.html` —— **双击即可在浏览器打开，不需要
+Docker、不需要后端、不需要模型**。
+
+它是一份真实完成运行的快照：动作序列由真实模型提出，经真实 Commerce Sandbox HTTP
+重放，快照/回执/领域事件全部来自真实服务，是否构成违规由确定性 Oracle 判定，反例
+经 Delta Debugging 压到 4 步，并在独立干净数据空间中重放 3/3 稳定；同一路径切到
+Fixed v2 后不再成立。页面顶部 `provenance.honesty` 如实写明路径由谁提出、裁决由谁做出。
+
+该文件由脚本生成并**随仓库提交**（它是交付物，不是普通构建产物）：
+
+```bash
+pnpm --dir frontend run build && uv run python scripts/build_standalone_demo.py
+```
+
+前者构建前端，后者把构建产物与冻结运行快照内联成单文件（同时输出一个不含文档外壳的
+fragment 版本，供自带 `<body>` 的托管方使用）。
+
+### 完整栈（含限额 Live Run）
+
+`docker compose up -d --build` → `http://127.0.0.1:8080`。除冻结案例外还提供限额
+实时运行（需要模型配置）。
+
 ## 本地开发与质量检查
 
 ```bash
