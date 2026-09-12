@@ -19,3 +19,10 @@ export const INVARIANT_TITLES_ZH: Record<string, string> = {
 export function invariantTitle(id: string): string {
   return INVARIANT_TITLES_ZH[id] ?? id;
 }
+
+export const ORACLE_STATUS_LABELS_ZH: Record<string, string> = {
+  VIOLATED: "违规",
+  SATISFIED: "通过",
+  NOT_APPLICABLE: "不适用",
+  INSUFFICIENT_EVIDENCE: "证据不足",
+};

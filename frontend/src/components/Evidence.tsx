@@ -1,5 +1,5 @@
 import { ACTION_LABELS_ZH, actionLabel, diffSnapshots } from "../domain/diff";
-import { invariantTitle } from "../domain/invariants";
+import { ORACLE_STATUS_LABELS_ZH, invariantTitle } from "../domain/invariants";
 import { describeStatus } from "../domain/outcome";
 import type {
   CounterexampleRecord,
@@ -7,6 +7,18 @@ import type {
   FrozenReplay,
   OracleFinding,
 } from "../api/types";
+
+/** The Oracle's coverage, stated as a count so a reader sees it without expanding. */
+function findingsSummary(findings: OracleFinding[]): string {
+  const counts = findings.reduce<Record<string, number>>((accumulated, finding) => {
+    accumulated[finding.status] = (accumulated[finding.status] ?? 0) + 1;
+    return accumulated;
+  }, {});
+  const parts = Object.entries(counts)
+    .map(([status, count]) => `${count} ${ORACLE_STATUS_LABELS_ZH[status] ?? status}`)
+    .join(" / ");
+  return `Oracle 检查的全部 ${findings.length} 条不变量（${parts}）`;
+}
 
 /**
  * The Oracle's own statement of what broke, quoted rather than paraphrased.
@@ -137,6 +149,25 @@ export function CounterexampleEvidence({
         )}
       </p>
       <OracleVerdict findings={replay.findings} target={replay.target_invariant} />
+      {replay.findings && replay.findings.length > 0 && (
+        <details className="technical">
+          <summary>{findingsSummary(replay.findings)}</summary>
+          <ul className="findings">
+            {replay.findings.map((finding) => (
+              <li
+                key={finding.invariant}
+                className={finding.status === "VIOLATED" ? "violated" : undefined}
+              >
+                <span className="finding-status">
+                  {ORACLE_STATUS_LABELS_ZH[finding.status] ?? finding.status}
+                </span>
+                <span>{invariantTitle(finding.invariant)}</span>
+                <code>{finding.invariant}</code>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <h3>最小动作序列（Delta Minimization）</h3>
       <ActionPath actions={replay.actions} />
       <h3>每步状态 Diff（真实 Sandbox 快照）</h3>

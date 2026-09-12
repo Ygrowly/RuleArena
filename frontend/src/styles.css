@@ -367,3 +367,36 @@ table.trace-table tr.totals td {
   font-weight: 600;
   border-top: 2px solid var(--line);
 }
+
+/* The Oracle's coverage: what it checked, not only what it found. */
+ul.findings {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+ul.findings li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+ul.findings li code {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.finding-status {
+  flex: none;
+  min-width: 3.5em;
+  color: var(--muted);
+}
+
+ul.findings li.violated .finding-status {
+  color: var(--danger);
+  font-weight: 600;
+}
