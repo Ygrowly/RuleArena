@@ -351,3 +351,19 @@ details.technical summary {
 table.diff td.changed.violating {
   color: var(--danger);
 }
+
+/* Evidence tables scroll inside their own container so the page never scrolls sideways. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+table.trace-table td,
+table.trace-table th {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+table.trace-table tr.totals td {
+  font-weight: 600;
+  border-top: 2px solid var(--line);
+}
