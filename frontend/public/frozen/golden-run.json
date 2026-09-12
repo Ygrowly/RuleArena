@@ -1,8 +1,8 @@
 {
   "provenance": {
     "generated_by": "scripts/export_frozen_demo.py",
-    "search_mode": "scripted",
-    "honesty": "真实运行：Commerce Sandbox 通过真实 HTTP API 重放，快照/回执/事件来自真实服务，Oracle 为确定性裁决，最小化使用 Delta Debugging。策略动议由确定性脚本（FakeLLM）驱动，未调用真实模型。",
+    "search_mode": "live_model",
+    "honesty": "真实运行：Commerce Sandbox 通过真实 HTTP API 重放，快照/回执/事件来自真实服务，Oracle 为确定性裁决，最小化使用 Delta Debugging。动作序列由真实模型 deepseek-v4.1-flash 提出，模型只负责提议路径，是否构成违规由 Oracle 判定。",
     "sandbox_versions": [
       "vulnerable",
       "fixed"
@@ -12,7 +12,7 @@
   "rule": {
     "template_id": "refund-points",
     "chinese_modification": "每消费 1 元获得 1 积分，退款时按退款金额撤销积分。",
-    "version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+    "version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
     "rule_spec": {
       "schema_version": "1.0",
       "scenario_type": "REFUND_POINTS",
@@ -39,28 +39,28 @@
     }
   },
   "run": {
-    "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+    "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
     "job_key": "frozen-demo",
-    "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+    "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
     "scenario_version_id": "refund-points-v1",
     "sandbox_version": "vulnerable",
     "oracle_version": "1.0",
     "status": "COMPLETED",
     "outcome": "CONFIRMED_VIOLATION",
     "budget": {
-      "max_steps": 18,
+      "max_steps": 36,
       "max_tokens": 100000,
       "max_cost": 1.5,
       "max_time_seconds": 300.0
     },
     "random_seed": 20260830,
-    "created_at": "2026-09-12T13:17:55.530408Z"
+    "created_at": "2026-09-12T13:27:09.303849Z"
   },
   "counterexamples": [
     {
-      "counterexample_id": "10109a3c-a03d-476b-a27b-6f29fbb62041",
-      "attack_run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "candidate_key": "POINTS_VALUE_CONSERVATION:28fbb22ebfb6ca66d78e36412ca70cdd2851c9f861cf203c0a4a3c06392d68e8",
+      "counterexample_id": "3f36bb1c-dae2-4fa3-a804-a9976b556376",
+      "attack_run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "candidate_key": "POINTS_VALUE_CONSERVATION:3d529a4e08372beacc493128f5565da62ac6d5adf74c8d8c473c1f8549ad077c",
       "invariant_id": "POINTS_VALUE_CONSERVATION",
       "original_actions": [
         {
@@ -70,32 +70,68 @@
           "arguments": {
             "initial_balance": "500.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1"
         },
         {
           "action_type": "CREATE_ORDER",
           "actor_id": "user-1",
           "target_id": "user-1",
           "arguments": {
-            "amount": "100.00"
+            "amount": "200.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2"
         },
         {
           "action_type": "PAY_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
           "arguments": {},
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3"
         },
         {
           "action_type": "REFUND_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
           "arguments": {
-            "amount": "50.00"
+            "amount": "200.01"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:4"
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "200.00"
+          },
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:5"
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "0.01"
+          },
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:6"
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "actor_id": "user-1",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "200.00"
+          },
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7"
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "actor_id": "user-1",
+          "target_id": "user-1",
+          "arguments": {
+            "amount": "200.00"
+          },
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:8"
         }
       ],
       "minimized_actions": [
@@ -106,36 +142,36 @@
           "arguments": {
             "initial_balance": "500.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1"
         },
         {
           "action_type": "CREATE_ORDER",
           "actor_id": "user-1",
           "target_id": "user-1",
           "arguments": {
-            "amount": "100.00"
+            "amount": "200.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2"
         },
         {
           "action_type": "PAY_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
           "arguments": {},
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3"
         },
         {
           "action_type": "REFUND_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
           "arguments": {
-            "amount": "50.00"
+            "amount": "200.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7"
         }
       ],
-      "replay_run_id": "2731573f-8c2b-40a7-868b-a27eee814e07",
-      "created_at": "2026-09-12T13:18:35.147708Z"
+      "replay_run_id": "8c2d2a04-9424-4d4d-b0bc-63c9b949cf33",
+      "created_at": "2026-09-12T13:30:20.422562Z"
     }
   ],
   "evidence": {
@@ -147,7 +183,7 @@
           "action_type": "CREATE_USER",
           "actor_id": "user-1",
           "target_id": null,
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1",
           "arguments": {
             "initial_balance": "500.00"
           }
@@ -156,32 +192,32 @@
           "action_type": "CREATE_ORDER",
           "actor_id": "user-1",
           "target_id": "user-1",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2",
           "arguments": {
-            "amount": "100.00"
+            "amount": "200.00"
           }
         },
         {
           "action_type": "PAY_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
           "arguments": {}
         },
         {
           "action_type": "REFUND_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
           "arguments": {
-            "amount": "50.00"
+            "amount": "200.00"
           }
         }
       ],
       "snapshots": [
         {
           "schema_version": "1.0",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "snapshot_version": 0,
           "state_hash": "c33a64202c746aa67480b3d66028c40fdf2d494c02e4e4d7c8573bc7d579f70f",
           "state": {
@@ -191,11 +227,11 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:37.499941+00:00"
+          "captured_at": "2026-09-12T13:30:22.769426+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "snapshot_version": 1,
           "state_hash": "34c2d9c811e6941d042ffffc9972c198a22f9bbc57899e95f15cf6d33b75e57e",
           "state": {
@@ -214,13 +250,13 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:37.553368+00:00"
+          "captured_at": "2026-09-12T13:30:22.806699+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "snapshot_version": 2,
-          "state_hash": "d92a1fd053f85eea877a666820912966f676ddcec44ab5335df155ac3a64da94",
+          "state_hash": "3594f5b3096ab6b12c65f74e40a7247e9adc8ec97170052cd85f28b8e02a1c23",
           "state": {
             "users": [
               {
@@ -237,7 +273,7 @@
               {
                 "id": "order-1",
                 "user_id": "user-1",
-                "original_amount": "100.00",
+                "original_amount": "200.00",
                 "discount_amount": "0.00",
                 "paid_amount": "0.00",
                 "refunded_amount": "0.00",
@@ -250,20 +286,20 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:37.587743+00:00"
+          "captured_at": "2026-09-12T13:30:22.841620+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "snapshot_version": 3,
-          "state_hash": "91f25bf89aeaef2f5c59f4625ccad9672147270d90d1b97c726cdcb5312c258e",
+          "state_hash": "1b8963acb2fa524637e8290f7a3576eaf1c44f6c88d709b78ed4121ec6fe1b81",
           "state": {
             "users": [
               {
                 "id": "user-1",
-                "balance": "400.00",
+                "balance": "300.00",
                 "currency": "CNY",
-                "points_balance": 100,
+                "points_balance": 200,
                 "is_new_user": true,
                 "membership_status": "INACTIVE"
               }
@@ -273,11 +309,11 @@
               {
                 "id": "order-1",
                 "user_id": "user-1",
-                "original_amount": "100.00",
+                "original_amount": "200.00",
                 "discount_amount": "0.00",
-                "paid_amount": "100.00",
+                "paid_amount": "200.00",
                 "refunded_amount": "0.00",
-                "points_granted": 100,
+                "points_granted": 200,
                 "currency": "CNY",
                 "status": "PAID",
                 "coupon_id": null
@@ -286,20 +322,20 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:37.629333+00:00"
+          "captured_at": "2026-09-12T13:30:22.880215+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "snapshot_version": 4,
-          "state_hash": "94a03b64e6e4a188968f61dd7642eddea1973d419f685587919fd2c70c13b743",
+          "state_hash": "07a2d3ded4257cde97f90bfa841a57c71612ded2581899a691196e4e18475b41",
           "state": {
             "users": [
               {
                 "id": "user-1",
-                "balance": "450.00",
+                "balance": "500.00",
                 "currency": "CNY",
-                "points_balance": 150,
+                "points_balance": 400,
                 "is_new_user": true,
                 "membership_status": "INACTIVE"
               }
@@ -309,28 +345,28 @@
               {
                 "id": "order-1",
                 "user_id": "user-1",
-                "original_amount": "100.00",
+                "original_amount": "200.00",
                 "discount_amount": "0.00",
-                "paid_amount": "100.00",
-                "refunded_amount": "50.00",
-                "points_granted": 100,
+                "paid_amount": "200.00",
+                "refunded_amount": "200.00",
+                "points_granted": 200,
                 "currency": "CNY",
-                "status": "PARTIALLY_REFUNDED",
+                "status": "REFUNDED",
                 "coupon_id": null
               }
             ],
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:37.665469+00:00"
+          "captured_at": "2026-09-12T13:30:22.920310+00:00"
         }
       ],
       "receipts": [
         {
           "schema_version": "1.0",
-          "receipt_id": "e47a7de7-7a99-4838-9154-83d4af1ae9b8",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1",
+          "receipt_id": "0f795d7a-e935-498d-91ab-55f088897d5e",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1",
           "action_type": "CREATE_USER",
           "status": "SUCCEEDED",
           "monetary_effects": [
@@ -344,77 +380,77 @@
             "balance": "500.00"
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:37.530456Z"
+          "occurred_at": "2026-09-12T13:30:22.786842Z"
         },
         {
           "schema_version": "1.0",
-          "receipt_id": "77a2d96c-a4f0-404f-98a8-02a4a98be2f7",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2",
+          "receipt_id": "a8a46e68-192b-4bc6-a895-9b96f633e771",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2",
           "action_type": "CREATE_ORDER",
           "status": "SUCCEEDED",
           "monetary_effects": [
             {
               "currency": "CNY",
-              "amount": "100.00"
+              "amount": "200.00"
             }
           ],
           "result": {
             "order_id": "order-1",
-            "amount": "100.00"
+            "amount": "200.00"
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:37.568990Z"
+          "occurred_at": "2026-09-12T13:30:22.822522Z"
         },
         {
           "schema_version": "1.0",
-          "receipt_id": "c250c8b1-7b01-4350-80a9-2e331f1e6e53",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
+          "receipt_id": "112a2953-37ec-4dfe-9834-f2684558535d",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
           "action_type": "PAY_ORDER",
           "status": "SUCCEEDED",
           "monetary_effects": [
             {
               "currency": "CNY",
-              "amount": "100.00"
+              "amount": "200.00"
             }
           ],
           "result": {
             "order_id": "order-1",
-            "paid_amount": "100.00",
-            "points_granted": 100
+            "paid_amount": "200.00",
+            "points_granted": 200
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:37.607534Z"
+          "occurred_at": "2026-09-12T13:30:22.861237Z"
         },
         {
           "schema_version": "1.0",
-          "receipt_id": "8fa1a32e-a1e2-4227-af9d-74a5483321f3",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
+          "receipt_id": "b9e02f42-1d2f-45e9-8800-3c1c9f67b816",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
           "action_type": "REFUND_ORDER",
           "status": "SUCCEEDED",
           "monetary_effects": [
             {
               "currency": "CNY",
-              "amount": "50.00"
+              "amount": "200.00"
             }
           ],
           "result": {
             "refund_id": "refund-1",
             "order_id": "order-1",
-            "refunded_amount": "50.00",
-            "order_refunded_total": "50.00"
+            "refunded_amount": "200.00",
+            "order_refunded_total": "200.00"
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:37.645896Z"
+          "occurred_at": "2026-09-12T13:30:22.901527Z"
         }
       ],
       "events": [
         {
           "schema_version": "1.0",
-          "event_id": "1711ac04-c088-49e9-9ea3-02424218f39f",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "event_id": "e4c31e78-a480-4134-a0e2-69b6a378b0bb",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "sequence": 1,
           "aggregate_type": "USER",
           "aggregate_id": "user-1",
@@ -422,13 +458,13 @@
           "payload": {
             "user_id": "user-1"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1",
-          "occurred_at": "2026-09-12T13:18:37.527329+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1",
+          "occurred_at": "2026-09-12T13:30:22.784786+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "7a2ca022-1455-4588-9699-70f4775f0a36",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "event_id": "5aa18486-b980-4167-851d-4621c72fa639",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "sequence": 2,
           "aggregate_type": "ORDER",
           "aggregate_id": "order-1",
@@ -437,28 +473,28 @@
             "order_id": "order-1",
             "user_id": "user-1"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2",
-          "occurred_at": "2026-09-12T13:18:37.567079+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2",
+          "occurred_at": "2026-09-12T13:30:22.819884+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "1b03749d-03ee-49bd-b169-74832ff38e15",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "event_id": "50ce057e-c187-4687-99b9-1ace99957f53",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "sequence": 3,
           "aggregate_type": "ORDER",
           "aggregate_id": "order-1",
           "event_type": "PAYMENT_CAPTURED",
           "payload": {
             "order_id": "order-1",
-            "paid_amount": "100.00"
+            "paid_amount": "200.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
-          "occurred_at": "2026-09-12T13:18:37.603638+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
+          "occurred_at": "2026-09-12T13:30:22.856280+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "029ec459-794f-4073-bba4-a8f15a63a8f8",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "event_id": "15393d7f-dfd3-4cf1-ab3a-eb884bef7666",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "sequence": 4,
           "aggregate_type": "USER",
           "aggregate_id": "user-1",
@@ -466,30 +502,30 @@
           "payload": {
             "user_id": "user-1",
             "order_id": "order-1",
-            "amount": 100
+            "amount": 200
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
-          "occurred_at": "2026-09-12T13:18:37.605290+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
+          "occurred_at": "2026-09-12T13:30:22.858211+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "96b9413d-1ebe-4bfd-b5e7-438e64144d7c",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "event_id": "014fd54b-1229-4258-a7ad-8b1665131ee9",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "sequence": 5,
           "aggregate_type": "ORDER",
           "aggregate_id": "order-1",
           "event_type": "REFUND_ISSUED",
           "payload": {
             "order_id": "order-1",
-            "amount": "50.00"
+            "amount": "200.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
-          "occurred_at": "2026-09-12T13:18:37.641247+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
+          "occurred_at": "2026-09-12T13:30:22.894544+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "27774241-d6fb-490e-93ff-98b16cd1af8b",
-          "run_id": "1168c0b4-148e-4106-9fb2-c5dff12afff2",
+          "event_id": "a2a72396-4ef6-44e7-ad53-28f68b966062",
+          "run_id": "a74e7b8b-07bc-40b4-9551-418dfb852816",
           "sequence": 6,
           "aggregate_type": "USER",
           "aggregate_id": "user-1",
@@ -497,10 +533,10 @@
           "payload": {
             "user_id": "user-1",
             "order_id": "order-1",
-            "amount": 50
+            "amount": 200
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
-          "occurred_at": "2026-09-12T13:18:37.644042+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
+          "occurred_at": "2026-09-12T13:30:22.899211+00:00"
         }
       ],
       "findings": [
@@ -534,13 +570,13 @@
             "mismatches": [
               {
                 "order_id": "order-1",
-                "expected_grant": 100,
-                "state_grant": 100,
-                "event_grant": 150
+                "expected_grant": 200,
+                "state_grant": 200,
+                "event_grant": 400
               },
               {
                 "order_id": "order-1",
-                "expected_revoke": 50,
+                "expected_revoke": 200,
                 "event_revoke": 0
               }
             ]
@@ -584,7 +620,7 @@
           "action_type": "CREATE_USER",
           "actor_id": "user-1",
           "target_id": null,
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1",
           "arguments": {
             "initial_balance": "500.00"
           }
@@ -593,32 +629,32 @@
           "action_type": "CREATE_ORDER",
           "actor_id": "user-1",
           "target_id": "user-1",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2",
           "arguments": {
-            "amount": "100.00"
+            "amount": "200.00"
           }
         },
         {
           "action_type": "PAY_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
           "arguments": {}
         },
         {
           "action_type": "REFUND_ORDER",
           "actor_id": "user-1",
           "target_id": "order-1",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
           "arguments": {
-            "amount": "50.00"
+            "amount": "200.00"
           }
         }
       ],
       "snapshots": [
         {
           "schema_version": "1.0",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "snapshot_version": 0,
           "state_hash": "c33a64202c746aa67480b3d66028c40fdf2d494c02e4e4d7c8573bc7d579f70f",
           "state": {
@@ -628,11 +664,11 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:39.979812+00:00"
+          "captured_at": "2026-09-12T13:30:25.294622+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "snapshot_version": 1,
           "state_hash": "34c2d9c811e6941d042ffffc9972c198a22f9bbc57899e95f15cf6d33b75e57e",
           "state": {
@@ -651,13 +687,13 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:40.033670+00:00"
+          "captured_at": "2026-09-12T13:30:25.340415+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "snapshot_version": 2,
-          "state_hash": "d92a1fd053f85eea877a666820912966f676ddcec44ab5335df155ac3a64da94",
+          "state_hash": "3594f5b3096ab6b12c65f74e40a7247e9adc8ec97170052cd85f28b8e02a1c23",
           "state": {
             "users": [
               {
@@ -674,7 +710,7 @@
               {
                 "id": "order-1",
                 "user_id": "user-1",
-                "original_amount": "100.00",
+                "original_amount": "200.00",
                 "discount_amount": "0.00",
                 "paid_amount": "0.00",
                 "refunded_amount": "0.00",
@@ -687,20 +723,20 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:40.068963+00:00"
+          "captured_at": "2026-09-12T13:30:25.372601+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "snapshot_version": 3,
-          "state_hash": "91f25bf89aeaef2f5c59f4625ccad9672147270d90d1b97c726cdcb5312c258e",
+          "state_hash": "1b8963acb2fa524637e8290f7a3576eaf1c44f6c88d709b78ed4121ec6fe1b81",
           "state": {
             "users": [
               {
                 "id": "user-1",
-                "balance": "400.00",
+                "balance": "300.00",
                 "currency": "CNY",
-                "points_balance": 100,
+                "points_balance": 200,
                 "is_new_user": true,
                 "membership_status": "INACTIVE"
               }
@@ -710,11 +746,11 @@
               {
                 "id": "order-1",
                 "user_id": "user-1",
-                "original_amount": "100.00",
+                "original_amount": "200.00",
                 "discount_amount": "0.00",
-                "paid_amount": "100.00",
+                "paid_amount": "200.00",
                 "refunded_amount": "0.00",
-                "points_granted": 100,
+                "points_granted": 200,
                 "currency": "CNY",
                 "status": "PAID",
                 "coupon_id": null
@@ -723,20 +759,20 @@
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:40.103040+00:00"
+          "captured_at": "2026-09-12T13:30:25.403908+00:00"
         },
         {
           "schema_version": "1.0",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "snapshot_version": 4,
-          "state_hash": "d0a82c4f81d36e0439f5aeb36883be0665ff4beb6654b586a95b27f18e210bfa",
+          "state_hash": "c78f0f4b0fe07f26c831dcf6eac859b0f8e30a2106b902544e29a146aef8eb58",
           "state": {
             "users": [
               {
                 "id": "user-1",
-                "balance": "450.00",
+                "balance": "500.00",
                 "currency": "CNY",
-                "points_balance": 50,
+                "points_balance": 0,
                 "is_new_user": true,
                 "membership_status": "INACTIVE"
               }
@@ -746,28 +782,28 @@
               {
                 "id": "order-1",
                 "user_id": "user-1",
-                "original_amount": "100.00",
+                "original_amount": "200.00",
                 "discount_amount": "0.00",
-                "paid_amount": "100.00",
-                "refunded_amount": "50.00",
-                "points_granted": 100,
+                "paid_amount": "200.00",
+                "refunded_amount": "200.00",
+                "points_granted": 200,
                 "currency": "CNY",
-                "status": "PARTIALLY_REFUNDED",
+                "status": "REFUNDED",
                 "coupon_id": null
               }
             ],
             "memberships": [],
             "entitlements": []
           },
-          "captured_at": "2026-09-12T13:18:40.146781+00:00"
+          "captured_at": "2026-09-12T13:30:25.438786+00:00"
         }
       ],
       "receipts": [
         {
           "schema_version": "1.0",
-          "receipt_id": "a9a3503e-fe28-490f-b888-56e4afb2610b",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1",
+          "receipt_id": "88a519af-7563-4013-9a75-dcea6577ca1e",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1",
           "action_type": "CREATE_USER",
           "status": "SUCCEEDED",
           "monetary_effects": [
@@ -781,77 +817,77 @@
             "balance": "500.00"
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:40.008299Z"
+          "occurred_at": "2026-09-12T13:30:25.322601Z"
         },
         {
           "schema_version": "1.0",
-          "receipt_id": "6d091592-634e-47d5-97d9-ebd632a2a991",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2",
+          "receipt_id": "f2a29981-f033-4589-89ea-33c33f65ea96",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2",
           "action_type": "CREATE_ORDER",
           "status": "SUCCEEDED",
           "monetary_effects": [
             {
               "currency": "CNY",
-              "amount": "100.00"
+              "amount": "200.00"
             }
           ],
           "result": {
             "order_id": "order-1",
-            "amount": "100.00"
+            "amount": "200.00"
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:40.047138Z"
+          "occurred_at": "2026-09-12T13:30:25.357459Z"
         },
         {
           "schema_version": "1.0",
-          "receipt_id": "e61a730c-1472-4ac4-9d27-68ab16e5d346",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
+          "receipt_id": "6aee3e7e-14b9-4c9f-8161-08b2b88f3d33",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
           "action_type": "PAY_ORDER",
           "status": "SUCCEEDED",
           "monetary_effects": [
             {
               "currency": "CNY",
-              "amount": "100.00"
+              "amount": "200.00"
             }
           ],
           "result": {
             "order_id": "order-1",
-            "paid_amount": "100.00",
-            "points_granted": 100
+            "paid_amount": "200.00",
+            "points_granted": 200
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:40.084251Z"
+          "occurred_at": "2026-09-12T13:30:25.387884Z"
         },
         {
           "schema_version": "1.0",
-          "receipt_id": "7f909112-7076-4579-9ba8-85a7c0038979",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
+          "receipt_id": "5692a528-12cc-4026-89e0-4ce8e9e3e8ab",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
           "action_type": "REFUND_ORDER",
           "status": "SUCCEEDED",
           "monetary_effects": [
             {
               "currency": "CNY",
-              "amount": "50.00"
+              "amount": "200.00"
             }
           ],
           "result": {
             "refund_id": "refund-1",
             "order_id": "order-1",
-            "refunded_amount": "50.00",
-            "order_refunded_total": "50.00"
+            "refunded_amount": "200.00",
+            "order_refunded_total": "200.00"
           },
           "error": null,
-          "occurred_at": "2026-09-12T13:18:40.127577Z"
+          "occurred_at": "2026-09-12T13:30:25.424046Z"
         }
       ],
       "events": [
         {
           "schema_version": "1.0",
-          "event_id": "ccd08802-758d-4da0-b3c8-8642e38b4b17",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "event_id": "a9800e83-5e58-4bf6-b9da-d7d0bec1d72a",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "sequence": 1,
           "aggregate_type": "USER",
           "aggregate_id": "user-1",
@@ -859,13 +895,13 @@
           "payload": {
             "user_id": "user-1"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:1",
-          "occurred_at": "2026-09-12T13:18:40.005791+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:1",
+          "occurred_at": "2026-09-12T13:30:25.319691+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "d1b22b42-888b-4ffe-acd7-352bb00e5a45",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "event_id": "757df6c9-2652-4f76-b2a4-340ee82350f4",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "sequence": 2,
           "aggregate_type": "ORDER",
           "aggregate_id": "order-1",
@@ -874,28 +910,28 @@
             "order_id": "order-1",
             "user_id": "user-1"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:2",
-          "occurred_at": "2026-09-12T13:18:40.044879+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:2",
+          "occurred_at": "2026-09-12T13:30:25.354455+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "f474256b-4c2d-49da-8a98-5cea55fe0dda",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "event_id": "5f6edcae-7cab-4c89-9ed5-98b22e88ce0f",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "sequence": 3,
           "aggregate_type": "ORDER",
           "aggregate_id": "order-1",
           "event_type": "PAYMENT_CAPTURED",
           "payload": {
             "order_id": "order-1",
-            "paid_amount": "100.00"
+            "paid_amount": "200.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
-          "occurred_at": "2026-09-12T13:18:40.079082+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
+          "occurred_at": "2026-09-12T13:30:25.383443+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "fff5bf9b-e020-4963-954f-446201307eb3",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "event_id": "3d96454f-b476-49bf-bd9d-2adcda7552ed",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "sequence": 4,
           "aggregate_type": "USER",
           "aggregate_id": "user-1",
@@ -903,30 +939,30 @@
           "payload": {
             "user_id": "user-1",
             "order_id": "order-1",
-            "amount": 100
+            "amount": 200
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:3",
-          "occurred_at": "2026-09-12T13:18:40.080807+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:3",
+          "occurred_at": "2026-09-12T13:30:25.385677+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "960e7c86-ee0c-42d8-8576-2a2d033b996c",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "event_id": "60d7dde3-297c-48a2-b610-aa59cf33059e",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "sequence": 5,
           "aggregate_type": "ORDER",
           "aggregate_id": "order-1",
           "event_type": "REFUND_ISSUED",
           "payload": {
             "order_id": "order-1",
-            "amount": "50.00"
+            "amount": "200.00"
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
-          "occurred_at": "2026-09-12T13:18:40.114599+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
+          "occurred_at": "2026-09-12T13:30:25.414861+00:00"
         },
         {
           "schema_version": "1.0",
-          "event_id": "ab6831a8-dda5-46f5-aa20-1fb3b2b92d70",
-          "run_id": "345baba1-100a-4980-885d-692c803e8540",
+          "event_id": "85b099b0-0b6a-4b27-9450-5c66faf6f501",
+          "run_id": "ae39d1ff-c8b5-4b47-98dc-2dd530983cb1",
           "sequence": 6,
           "aggregate_type": "USER",
           "aggregate_id": "user-1",
@@ -934,10 +970,10 @@
           "payload": {
             "user_id": "user-1",
             "order_id": "order-1",
-            "amount": 50
+            "amount": 200
           },
-          "idempotency_key": "2bff61e3-4a21-4235-a481-c33d169bec35:7d3f03f4-992c-4343-88c3-5da0dd42b3ab:step:4",
-          "occurred_at": "2026-09-12T13:18:40.124591+00:00"
+          "idempotency_key": "47d92779-4def-4316-a4ac-16a1e96cc437:e231e628-0f0f-408d-a5f9-53a4b3f532d4:step:7",
+          "occurred_at": "2026-09-12T13:30:25.421014+00:00"
         }
       ],
       "findings": [
@@ -1004,68 +1040,68 @@
   },
   "trace": [
     {
-      "trace_id": "73de3e72-c515-48d8-9c2e-7fc68e7c5972",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "c68dd371-9f91-4438-b20b-29cd0187b101",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 1,
       "kind": "LLM_CALL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {},
       "tool_result_summary": {
-        "response_hash": "4466580e5419fc7c0967618cd3e8ba70c29ae48b3873e0030c740d0e91341b4f",
+        "response_hash": "95d592e9c3b7174adb8ca90e0a9405e4ddc654a5fb30a51c9f2340c7010304de",
         "proposal_type": "ACTION"
       },
       "before_state_hash": null,
       "after_state_hash": null,
-      "latency_ms": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cost": 0.0,
+      "latency_ms": 4328,
+      "input_tokens": 1246,
+      "output_tokens": 193,
+      "cost": 0.0006054,
       "retry_count": 0,
       "status": "RECEIVED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:55.531408Z"
+      "created_at": "2026-09-12T13:27:13.643864Z"
     },
     {
-      "trace_id": "45f149f3-837c-4a50-ad72-aacb389327c4",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "b32764b8-01d0-44c7-bcfb-f53fd19a379a",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 1,
       "kind": "ACTION_PROPOSAL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {
         "action_type": "CREATE_USER",
         "target_id": null,
         "argument_names": [
           "initial_balance"
         ],
-        "response_hash": "4466580e5419fc7c0967618cd3e8ba70c29ae48b3873e0030c740d0e91341b4f"
+        "response_hash": "95d592e9c3b7174adb8ca90e0a9405e4ddc654a5fb30a51c9f2340c7010304de"
       },
       "tool_result_summary": {},
       "before_state_hash": null,
       "after_state_hash": null,
       "latency_ms": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cost": 0.0,
+      "input_tokens": 1246,
+      "output_tokens": 193,
+      "cost": 0.0006054,
       "retry_count": 0,
       "status": "ACCEPTED",
       "error_type": null,
-      "parent_trace_id": "73de3e72-c515-48d8-9c2e-7fc68e7c5972",
-      "created_at": "2026-09-12T13:17:55.531408Z"
+      "parent_trace_id": "c68dd371-9f91-4438-b20b-29cd0187b101",
+      "created_at": "2026-09-12T13:27:13.644879Z"
     },
     {
-      "trace_id": "e3836b3d-04d3-4b9a-a138-9c7c9cf47dcf",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "8e338326-a7bc-41ca-a7c1-1c26d4b52535",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 1,
       "kind": "SIMULATION",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1078,7 +1114,7 @@
         ]
       },
       "before_state_hash": "a1212c1778c84a6470e970031fc5cbd994d42ac3bae06a245002d286cb032d15",
-      "after_state_hash": "e976876425aa0df2f1475ce4fe9eea69a1b8cf231dd871bc3d0853e46c2abbad",
+      "after_state_hash": "6abdd8cd09bc463be839114f45d7f1d5b9aff9970b7c0106cce08293cadc5eca",
       "latency_ms": 0,
       "input_tokens": 0,
       "output_tokens": 0,
@@ -1086,72 +1122,72 @@
       "retry_count": 0,
       "status": "APPLIED",
       "error_type": null,
-      "parent_trace_id": "45f149f3-837c-4a50-ad72-aacb389327c4",
-      "created_at": "2026-09-12T13:17:55.531408Z"
+      "parent_trace_id": "b32764b8-01d0-44c7-bcfb-f53fd19a379a",
+      "created_at": "2026-09-12T13:27:13.644879Z"
     },
     {
-      "trace_id": "0b121682-afbd-433c-a0bb-475f6f62b402",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "209924ab-3ccf-488a-8155-0cbe790d5b42",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 2,
       "kind": "LLM_CALL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {},
       "tool_result_summary": {
-        "response_hash": "bc6882d46c17bf8ec7d04c883cd3b12acf49261b24209b8ab7f5c2a2692394aa",
+        "response_hash": "fe802a80ae5747543ac141169a3bc7715c6d617a9d0f36c747f3c6eade5d49d7",
         "proposal_type": "ACTION"
       },
       "before_state_hash": null,
       "after_state_hash": null,
-      "latency_ms": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cost": 0.0,
+      "latency_ms": 4969,
+      "input_tokens": 1494,
+      "output_tokens": 406,
+      "cost": 0.0009354,
       "retry_count": 0,
       "status": "RECEIVED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:55.532408Z"
+      "created_at": "2026-09-12T13:27:18.621262Z"
     },
     {
-      "trace_id": "2bb27492-b2ea-4c5c-9e67-271200dff5d1",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "9576fa0d-4787-40eb-8fdf-6f737b165d2f",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 2,
       "kind": "ACTION_PROPOSAL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {
         "action_type": "CREATE_ORDER",
         "target_id": "user-1",
         "argument_names": [
           "amount"
         ],
-        "response_hash": "bc6882d46c17bf8ec7d04c883cd3b12acf49261b24209b8ab7f5c2a2692394aa"
+        "response_hash": "fe802a80ae5747543ac141169a3bc7715c6d617a9d0f36c747f3c6eade5d49d7"
       },
       "tool_result_summary": {},
       "before_state_hash": null,
       "after_state_hash": null,
       "latency_ms": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cost": 0.0,
+      "input_tokens": 1494,
+      "output_tokens": 406,
+      "cost": 0.0009354,
       "retry_count": 0,
       "status": "ACCEPTED",
       "error_type": null,
-      "parent_trace_id": "0b121682-afbd-433c-a0bb-475f6f62b402",
-      "created_at": "2026-09-12T13:17:55.532408Z"
+      "parent_trace_id": "209924ab-3ccf-488a-8155-0cbe790d5b42",
+      "created_at": "2026-09-12T13:27:18.621262Z"
     },
     {
-      "trace_id": "0fcbaa97-d3ae-44f0-8773-9366251d5691",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "73ce99a1-65af-4b42-a28f-d7c48f7c8688",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 2,
       "kind": "SIMULATION",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1163,8 +1199,8 @@
           "ORDER_CREATED"
         ]
       },
-      "before_state_hash": "e976876425aa0df2f1475ce4fe9eea69a1b8cf231dd871bc3d0853e46c2abbad",
-      "after_state_hash": "7c0d38a381a17a07bb57c9137c34f129086e8b3b7c00d51db84e842cd32eab0e",
+      "before_state_hash": "6abdd8cd09bc463be839114f45d7f1d5b9aff9970b7c0106cce08293cadc5eca",
+      "after_state_hash": "4b088461497eb87e2f736c721f7f4f94219e2af4737ba841701cf8ffc298c5f6",
       "latency_ms": 0,
       "input_tokens": 0,
       "output_tokens": 0,
@@ -1172,70 +1208,70 @@
       "retry_count": 0,
       "status": "APPLIED",
       "error_type": null,
-      "parent_trace_id": "2bb27492-b2ea-4c5c-9e67-271200dff5d1",
-      "created_at": "2026-09-12T13:17:55.533408Z"
+      "parent_trace_id": "9576fa0d-4787-40eb-8fdf-6f737b165d2f",
+      "created_at": "2026-09-12T13:27:18.622262Z"
     },
     {
-      "trace_id": "2111d144-f1e4-4e73-86d8-98813166fd73",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "bfb812e0-a57e-401c-83ce-7fccca3cce75",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 3,
       "kind": "LLM_CALL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {},
       "tool_result_summary": {
-        "response_hash": "ce0690bafc237041ac88bf5c7caccb90e8217f023bc4fb917ced838d76c28b19",
+        "response_hash": "f8ee1b5c0ff2e3f9f2fee1c2f9b774ca38423541aeaefefd827fcc2760a0df8f",
         "proposal_type": "ACTION"
       },
       "before_state_hash": null,
       "after_state_hash": null,
-      "latency_ms": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cost": 0.0,
+      "latency_ms": 5812,
+      "input_tokens": 1732,
+      "output_tokens": 344,
+      "cost": 0.0009323999999999999,
       "retry_count": 0,
       "status": "RECEIVED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:55.535911Z"
+      "created_at": "2026-09-12T13:27:24.438205Z"
     },
     {
-      "trace_id": "c2c4a018-60c2-4381-a167-3b95c89fe742",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "b6d6c226-732c-422a-ba12-237e25c9e689",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 3,
       "kind": "ACTION_PROPOSAL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {
         "action_type": "PAY_ORDER",
         "target_id": "order-1",
         "argument_names": [],
-        "response_hash": "ce0690bafc237041ac88bf5c7caccb90e8217f023bc4fb917ced838d76c28b19"
+        "response_hash": "f8ee1b5c0ff2e3f9f2fee1c2f9b774ca38423541aeaefefd827fcc2760a0df8f"
       },
       "tool_result_summary": {},
       "before_state_hash": null,
       "after_state_hash": null,
       "latency_ms": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cost": 0.0,
+      "input_tokens": 1732,
+      "output_tokens": 344,
+      "cost": 0.0009323999999999999,
       "retry_count": 0,
       "status": "ACCEPTED",
       "error_type": null,
-      "parent_trace_id": "2111d144-f1e4-4e73-86d8-98813166fd73",
-      "created_at": "2026-09-12T13:17:55.536218Z"
+      "parent_trace_id": "bfb812e0-a57e-401c-83ce-7fccca3cce75",
+      "created_at": "2026-09-12T13:27:24.438205Z"
     },
     {
-      "trace_id": "77ad6321-f932-451c-8cc5-aa274dc43309",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "c3608270-3129-47c0-928f-3dd26abaeacc",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 3,
       "kind": "SIMULATION",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1248,8 +1284,8 @@
           "POINTS_GRANTED"
         ]
       },
-      "before_state_hash": "7c0d38a381a17a07bb57c9137c34f129086e8b3b7c00d51db84e842cd32eab0e",
-      "after_state_hash": "ab0891e253a5e113c3556d6aa4039a9910484c15433126ee7bf7cfe3138d9e05",
+      "before_state_hash": "4b088461497eb87e2f736c721f7f4f94219e2af4737ba841701cf8ffc298c5f6",
+      "after_state_hash": "0b33608110dbe5a466a3f07fabcb2c0e9d832419792ce831da19edc53799626b",
       "latency_ms": 0,
       "input_tokens": 0,
       "output_tokens": 0,
@@ -1257,72 +1293,156 @@
       "retry_count": 0,
       "status": "APPLIED",
       "error_type": null,
-      "parent_trace_id": "c2c4a018-60c2-4381-a167-3b95c89fe742",
-      "created_at": "2026-09-12T13:17:55.536218Z"
+      "parent_trace_id": "b6d6c226-732c-422a-ba12-237e25c9e689",
+      "created_at": "2026-09-12T13:27:24.438205Z"
     },
     {
-      "trace_id": "77621eb9-8abf-451e-90ec-d12bf1f15ab9",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "204b7fdd-7441-45d0-a4fc-966caa1b20d0",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 4,
       "kind": "LLM_CALL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {},
       "tool_result_summary": {
-        "response_hash": "b2db6a77b6a8885c350cf7f74ba695b61ca04b73f477fd8917a07e34a2ffb8b1",
+        "response_hash": "f228767ac7abdf1e76b33b256be9e08a61c0ccf96bb1bcdd76394252ec5aecf3",
         "proposal_type": "ACTION"
       },
       "before_state_hash": null,
       "after_state_hash": null,
-      "latency_ms": 0,
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cost": 0.0,
+      "latency_ms": 27750,
+      "input_tokens": 1940,
+      "output_tokens": 4964,
+      "cost": 0.006538799999999999,
       "retry_count": 0,
       "status": "RECEIVED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:55.537869Z"
+      "created_at": "2026-09-12T13:27:52.189172Z"
     },
     {
-      "trace_id": "35736255-2c95-4c51-8c22-886b6d82780a",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
+      "trace_id": "03d742b7-bf59-449d-adad-0275b2e358c9",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
       "step_id": 4,
       "kind": "ACTION_PROPOSAL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {
         "action_type": "REFUND_ORDER",
         "target_id": "order-1",
         "argument_names": [
           "amount"
         ],
-        "response_hash": "b2db6a77b6a8885c350cf7f74ba695b61ca04b73f477fd8917a07e34a2ffb8b1"
+        "response_hash": "f228767ac7abdf1e76b33b256be9e08a61c0ccf96bb1bcdd76394252ec5aecf3"
       },
       "tool_result_summary": {},
       "before_state_hash": null,
       "after_state_hash": null,
       "latency_ms": 0,
+      "input_tokens": 1940,
+      "output_tokens": 4964,
+      "cost": 0.006538799999999999,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "204b7fdd-7441-45d0-a4fc-966caa1b20d0",
+      "created_at": "2026-09-12T13:27:52.189696Z"
+    },
+    {
+      "trace_id": "f3b8df5a-6c23-44a9-88e2-29e86f861079",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 4,
+      "kind": "SIMULATION",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER"
+      },
+      "tool_result_summary": {
+        "transition_status": "REJECTED",
+        "event_types": []
+      },
+      "before_state_hash": "0b33608110dbe5a466a3f07fabcb2c0e9d832419792ce831da19edc53799626b",
+      "after_state_hash": "0b33608110dbe5a466a3f07fabcb2c0e9d832419792ce831da19edc53799626b",
+      "latency_ms": 0,
       "input_tokens": 0,
       "output_tokens": 0,
       "cost": 0.0,
       "retry_count": 0,
-      "status": "ACCEPTED",
+      "status": "REJECTED",
       "error_type": null,
-      "parent_trace_id": "77621eb9-8abf-451e-90ec-d12bf1f15ab9",
-      "created_at": "2026-09-12T13:17:55.538378Z"
+      "parent_trace_id": "03d742b7-bf59-449d-adad-0275b2e358c9",
+      "created_at": "2026-09-12T13:27:52.189696Z"
     },
     {
-      "trace_id": "8e4072c4-18b2-4340-9fbc-f62d60317d6c",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
-      "step_id": 4,
+      "trace_id": "53425627-c934-4eb2-bfb7-d219f4feee23",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 5,
+      "kind": "LLM_CALL",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "db9621513a4df97221ac61e36f22a4a9db2b75ae64d3ddf6f7242aa80471226d",
+        "proposal_type": "ACTION"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 34203,
+      "input_tokens": 2009,
+      "output_tokens": 6976,
+      "cost": 0.0089739,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-12T13:28:26.391757Z"
+    },
+    {
+      "trace_id": "96226077-1326-4057-8608-eed39bf4cc0a",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 5,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ],
+        "response_hash": "db9621513a4df97221ac61e36f22a4a9db2b75ae64d3ddf6f7242aa80471226d"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 2009,
+      "output_tokens": 6976,
+      "cost": 0.0089739,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "53425627-c934-4eb2-bfb7-d219f4feee23",
+      "created_at": "2026-09-12T13:28:26.393264Z"
+    },
+    {
+      "trace_id": "7e86556a-f438-41bd-8813-4460aee941b5",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 5,
       "kind": "SIMULATION",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1335,8 +1455,8 @@
           "POINTS_REVOKED"
         ]
       },
-      "before_state_hash": "ab0891e253a5e113c3556d6aa4039a9910484c15433126ee7bf7cfe3138d9e05",
-      "after_state_hash": "1ffd476269b0c663ea1e6edc656a43f8b7e3a398ea9d190eee9f9d043ff388a2",
+      "before_state_hash": "0b33608110dbe5a466a3f07fabcb2c0e9d832419792ce831da19edc53799626b",
+      "after_state_hash": "82f3f56835e1d13942b311363523452d4d66e0401617892aac76f5c77c378e31",
       "latency_ms": 0,
       "input_tokens": 0,
       "output_tokens": 0,
@@ -1344,42 +1464,270 @@
       "retry_count": 0,
       "status": "APPLIED",
       "error_type": null,
-      "parent_trace_id": "35736255-2c95-4c51-8c22-886b6d82780a",
-      "created_at": "2026-09-12T13:17:55.538378Z"
+      "parent_trace_id": "96226077-1326-4057-8608-eed39bf4cc0a",
+      "created_at": "2026-09-12T13:28:26.393264Z"
     },
     {
-      "trace_id": "b51b5924-b5af-48b5-8822-fb711225e6b5",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
-      "strategy_id": "7d3f03f4-992c-4343-88c3-5da0dd42b3ab",
-      "step_id": 5,
+      "trace_id": "3a207799-f413-440b-b8f1-924fc172b9a5",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 6,
       "kind": "LLM_CALL",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
-      "model_config_hash": "631b3b9833f55b54ee7636241df07e629d89d6a0927b1f328349e670b42d00b5",
-      "prompt_version": "compiler-v1",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
       "action_summary": {},
       "tool_result_summary": {
-        "response_hash": "387413e57aedbe4d781474747084d89f47972b134a35a4391f0b648199bfbfe2",
-        "proposal_type": "STOP"
+        "response_hash": "33f8b9bf25dd88ef100203a52889eb84f8727a75494f794123a2745b2e12c835",
+        "proposal_type": "ACTION"
       },
       "before_state_hash": null,
       "after_state_hash": null,
+      "latency_ms": 7579,
+      "input_tokens": 2140,
+      "output_tokens": 1042,
+      "cost": 0.0018923999999999998,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-12T13:28:33.980982Z"
+    },
+    {
+      "trace_id": "2d0c0451-072c-4e2b-bc38-7c73b66e3c76",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 6,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ],
+        "response_hash": "33f8b9bf25dd88ef100203a52889eb84f8727a75494f794123a2745b2e12c835"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 2140,
+      "output_tokens": 1042,
+      "cost": 0.0018923999999999998,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "3a207799-f413-440b-b8f1-924fc172b9a5",
+      "created_at": "2026-09-12T13:28:33.981507Z"
+    },
+    {
+      "trace_id": "01865ae3-f0d4-427a-8cea-55dc56c06099",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 6,
+      "kind": "SIMULATION",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER"
+      },
+      "tool_result_summary": {
+        "transition_status": "REJECTED",
+        "event_types": []
+      },
+      "before_state_hash": "82f3f56835e1d13942b311363523452d4d66e0401617892aac76f5c77c378e31",
+      "after_state_hash": "82f3f56835e1d13942b311363523452d4d66e0401617892aac76f5c77c378e31",
       "latency_ms": 0,
       "input_tokens": 0,
       "output_tokens": 0,
       "cost": 0.0,
       "retry_count": 0,
+      "status": "REJECTED",
+      "error_type": null,
+      "parent_trace_id": "2d0c0451-072c-4e2b-bc38-7c73b66e3c76",
+      "created_at": "2026-09-12T13:28:33.981507Z"
+    },
+    {
+      "trace_id": "6d1df255-7b5b-416a-9bba-632cdb5485c8",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 7,
+      "kind": "LLM_CALL",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "3fc741cc8d5f1465906e5e318fd5835942f67776f0d8817413645bf326b25d9f",
+        "proposal_type": "ACTION"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 5000,
+      "input_tokens": 2210,
+      "output_tokens": 430,
+      "cost": 0.001179,
+      "retry_count": 0,
       "status": "RECEIVED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:55.538378Z"
+      "created_at": "2026-09-12T13:28:38.992195Z"
     },
     {
-      "trace_id": "05a99687-9458-4a07-b1e9-78db13977088",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "trace_id": "9766340e-a497-4c7b-ba62-d6c6b7519cce",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 7,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ],
+        "response_hash": "3fc741cc8d5f1465906e5e318fd5835942f67776f0d8817413645bf326b25d9f"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 2210,
+      "output_tokens": 430,
+      "cost": 0.001179,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "6d1df255-7b5b-416a-9bba-632cdb5485c8",
+      "created_at": "2026-09-12T13:28:38.992195Z"
+    },
+    {
+      "trace_id": "20cd2455-b234-4a24-af21-99e11860b85a",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 7,
+      "kind": "SIMULATION",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER"
+      },
+      "tool_result_summary": {
+        "transition_status": "REJECTED",
+        "event_types": []
+      },
+      "before_state_hash": "82f3f56835e1d13942b311363523452d4d66e0401617892aac76f5c77c378e31",
+      "after_state_hash": "82f3f56835e1d13942b311363523452d4d66e0401617892aac76f5c77c378e31",
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "REJECTED",
+      "error_type": null,
+      "parent_trace_id": "9766340e-a497-4c7b-ba62-d6c6b7519cce",
+      "created_at": "2026-09-12T13:28:38.992195Z"
+    },
+    {
+      "trace_id": "335b7647-1dd1-4c62-9d84-22bd00cf4f02",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 8,
+      "kind": "LLM_CALL",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
+      "action_summary": {},
+      "tool_result_summary": {
+        "response_hash": "19e45622f283596a8842778d0b81cd23b8fda826051202313185dd09124e9547",
+        "proposal_type": "ACTION"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 20313,
+      "input_tokens": 2280,
+      "output_tokens": 3668,
+      "cost": 0.005085599999999999,
+      "retry_count": 0,
+      "status": "RECEIVED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-12T13:28:59.302033Z"
+    },
+    {
+      "trace_id": "9b577d37-ad73-41c1-9b1c-b5c09914d7a4",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 8,
+      "kind": "ACTION_PROPOSAL",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": "c8b0d156bdf23692939d5088de4030d128fbeef4c82224bdf74a715797fb9575",
+      "prompt_version": "value-flow-v1",
+      "action_summary": {
+        "action_type": "CREATE_ORDER",
+        "target_id": "user-1",
+        "argument_names": [
+          "amount"
+        ],
+        "response_hash": "19e45622f283596a8842778d0b81cd23b8fda826051202313185dd09124e9547"
+      },
+      "tool_result_summary": {},
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 2280,
+      "output_tokens": 3668,
+      "cost": 0.005085599999999999,
+      "retry_count": 0,
+      "status": "ACCEPTED",
+      "error_type": null,
+      "parent_trace_id": "335b7647-1dd1-4c62-9d84-22bd00cf4f02",
+      "created_at": "2026-09-12T13:28:59.304028Z"
+    },
+    {
+      "trace_id": "ef1ecc7b-e865-4133-b36b-a53d4c196dbf",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": "e231e628-0f0f-408d-a5f9-53a4b3f532d4",
+      "step_id": 8,
+      "kind": "SIMULATION",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "CREATE_ORDER"
+      },
+      "tool_result_summary": {
+        "transition_status": "APPLIED",
+        "event_types": [
+          "ORDER_CREATED"
+        ]
+      },
+      "before_state_hash": "82f3f56835e1d13942b311363523452d4d66e0401617892aac76f5c77c378e31",
+      "after_state_hash": "b5cd238095e96cb870d5f80ad9a7ef1eb518add922094c66f28fca1c0fd0760c",
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "APPLIED",
+      "error_type": null,
+      "parent_trace_id": "9b577d37-ad73-41c1-9b1c-b5c09914d7a4",
+      "created_at": "2026-09-12T13:28:59.304028Z"
+    },
+    {
+      "trace_id": "acbfde3d-f639-4760-9b81-8dd0866a570a",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "strategy_id": null,
       "step_id": 1,
       "kind": "SANDBOX_HTTP",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1390,7 +1738,7 @@
         ]
       },
       "tool_result_summary": {
-        "receipt_id": "6e4dc654-11d0-45d4-8e13-7ebc95a528b7",
+        "receipt_id": "255592fa-ebe3-4cbb-b7e2-4ef51de3d292",
         "status": "SUCCEEDED"
       },
       "before_state_hash": null,
@@ -1403,15 +1751,15 @@
       "status": "SUCCEEDED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:57.450056Z"
+      "created_at": "2026-09-12T13:29:02.105537Z"
     },
     {
-      "trace_id": "f39a7f5b-cb49-4871-a2d0-2b31b96d5548",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "trace_id": "869202c1-41e8-494c-ae66-790f3c88495d",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "strategy_id": null,
       "step_id": 2,
       "kind": "SANDBOX_HTTP",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1422,7 +1770,7 @@
         ]
       },
       "tool_result_summary": {
-        "receipt_id": "232ad46b-cd78-4b68-aef4-57955b932378",
+        "receipt_id": "51f3b1e7-6ae0-4dbe-8c77-6711fdedd142",
         "status": "SUCCEEDED"
       },
       "before_state_hash": null,
@@ -1435,15 +1783,15 @@
       "status": "SUCCEEDED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:57.450569Z"
+      "created_at": "2026-09-12T13:29:02.105537Z"
     },
     {
-      "trace_id": "bc5cd1c9-e8c2-496a-afe6-f2e2e04e52e6",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "trace_id": "68fe5293-e2b2-46f0-8ec0-db2081649c3c",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "strategy_id": null,
       "step_id": 3,
       "kind": "SANDBOX_HTTP",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1452,7 +1800,7 @@
         "argument_names": []
       },
       "tool_result_summary": {
-        "receipt_id": "fc1cb8a0-5994-45f1-9a1b-b794516299e6",
+        "receipt_id": "ecd0c00d-510f-4db3-9a23-14e9e21135f3",
         "status": "SUCCEEDED"
       },
       "before_state_hash": null,
@@ -1465,15 +1813,15 @@
       "status": "SUCCEEDED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:57.450569Z"
+      "created_at": "2026-09-12T13:29:02.105537Z"
     },
     {
-      "trace_id": "5397c804-29c4-437a-88dc-66de2442bf39",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "trace_id": "410e18c0-eaa3-4b14-8efc-45d22ea8c380",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "strategy_id": null,
       "step_id": 4,
       "kind": "SANDBOX_HTTP",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {
@@ -1484,7 +1832,39 @@
         ]
       },
       "tool_result_summary": {
-        "receipt_id": "72d53b78-552c-437a-892b-6017ac7dd40a",
+        "receipt_id": "20d6e135-5cdf-4006-a5a8-82b1d84ee416",
+        "status": "REJECTED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "REJECTED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-12T13:29:02.106552Z"
+    },
+    {
+      "trace_id": "5b24b35f-8e3d-4145-9e58-45a2cba3a187",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": null,
+      "step_id": 5,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ]
+      },
+      "tool_result_summary": {
+        "receipt_id": "1d03cdba-4337-4ffd-a7ef-177e079e97f0",
         "status": "SUCCEEDED"
       },
       "before_state_hash": null,
@@ -1497,21 +1877,117 @@
       "status": "SUCCEEDED",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:57.450569Z"
+      "created_at": "2026-09-12T13:29:02.106552Z"
     },
     {
-      "trace_id": "d580e122-74a2-407c-8c87-806f63f8687d",
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "trace_id": "96f7cde9-a900-45b1-84df-67325ba4283d",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "strategy_id": null,
-      "step_id": 4,
+      "step_id": 6,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ]
+      },
+      "tool_result_summary": {
+        "receipt_id": "1cbec67b-8861-4262-b2e7-973d1bd8bc1a",
+        "status": "REJECTED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "REJECTED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-12T13:29:02.106552Z"
+    },
+    {
+      "trace_id": "720151c1-f479-4d03-96c7-0fbf8e04ca50",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": null,
+      "step_id": 7,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "REFUND_ORDER",
+        "target_id": "order-1",
+        "argument_names": [
+          "amount"
+        ]
+      },
+      "tool_result_summary": {
+        "receipt_id": "c885fa97-469f-474f-b06c-7cbd680c2493",
+        "status": "REJECTED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "REJECTED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-12T13:29:02.106552Z"
+    },
+    {
+      "trace_id": "700b286f-06be-4dbd-9140-643c135b90f6",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": null,
+      "step_id": 8,
+      "kind": "SANDBOX_HTTP",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
+      "model_config_hash": null,
+      "prompt_version": null,
+      "action_summary": {
+        "action_type": "CREATE_ORDER",
+        "target_id": "user-1",
+        "argument_names": [
+          "amount"
+        ]
+      },
+      "tool_result_summary": {
+        "receipt_id": "15f8cda7-7295-4c1a-bbbc-55bf0d17ba03",
+        "status": "SUCCEEDED"
+      },
+      "before_state_hash": null,
+      "after_state_hash": null,
+      "latency_ms": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost": 0.0,
+      "retry_count": 0,
+      "status": "SUCCEEDED",
+      "error_type": null,
+      "parent_trace_id": null,
+      "created_at": "2026-09-12T13:29:02.106552Z"
+    },
+    {
+      "trace_id": "2f9e57db-04ba-4030-8562-2d3bfa7f6f4f",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
+      "strategy_id": null,
+      "step_id": 8,
       "kind": "ORACLE_CHECK",
-      "rule_version_id": "2d94e496-2b8d-4ec5-bfcf-a050230e7224",
+      "rule_version_id": "d2cd14ef-132a-4b15-9a05-2f4e71cc7470",
       "model_config_hash": null,
       "prompt_version": null,
       "action_summary": {},
       "tool_result_summary": {
-        "target_invariant": "POINTS_VALUE_CONSERVATION",
-        "classification": "CONFIRMED_VIOLATION",
+        "target_invariant": "ORDER_TERMINAL_MONOTONICITY",
+        "classification": "MODEL_DIVERGENCE",
         "finding_statuses": [
           {
             "invariant": "NET_PAID_NON_NEGATIVE",
@@ -1546,7 +2022,7 @@
             "status": "SATISFIED"
           }
         ],
-        "replay_run_id": "2731573f-8c2b-40a7-868b-a27eee814e07"
+        "replay_run_id": "8c2d2a04-9424-4d4d-b0bc-63c9b949cf33"
       },
       "before_state_hash": null,
       "after_state_hash": null,
@@ -1555,72 +2031,72 @@
       "output_tokens": 0,
       "cost": 0.0,
       "retry_count": 0,
-      "status": "CONFIRMED_VIOLATION",
+      "status": "MODEL_DIVERGENCE",
       "error_type": null,
       "parent_trace_id": null,
-      "created_at": "2026-09-12T13:17:57.450569Z"
+      "created_at": "2026-09-12T13:29:02.106552Z"
     }
   ],
   "events": [
     {
       "cursor": 1,
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "event_type": "RUN_CREATED",
       "data": {
         "status": "READY"
       },
-      "created_at": "2026-09-12T13:17:55.530408Z"
+      "created_at": "2026-09-12T13:27:09.304848Z"
     },
     {
       "cursor": 2,
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "event_type": "STATUS_CHANGED",
       "data": {
         "from": "READY",
         "to": "SEARCHING",
         "outcome": null
       },
-      "created_at": "2026-09-12T13:17:55.530408Z"
+      "created_at": "2026-09-12T13:27:09.306951Z"
     },
     {
       "cursor": 3,
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "event_type": "STRATEGY_TERMINATED",
       "data": {
         "strategy_type": "VALUE_FLOW",
         "terminal_reason": "CANDIDATE_FOUND",
         "usage": {
-          "steps": 4,
-          "tokens": 0,
-          "cost": 0.0,
-          "elapsed_seconds": 0.01600000000325963
+          "steps": 8,
+          "tokens": 33074,
+          "cost": 0.026142899999999997,
+          "elapsed_seconds": 89.68700000000536
         },
         "rejected_proposals": {},
         "candidates_submitted": 1
       },
-      "created_at": "2026-09-12T13:17:55.539383Z"
+      "created_at": "2026-09-12T13:28:59.306541Z"
     },
     {
       "cursor": 4,
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "event_type": "STATUS_CHANGED",
       "data": {
         "from": "SEARCHING",
         "to": "REPLAYING",
         "outcome": null
       },
-      "created_at": "2026-09-12T13:17:55.539383Z"
+      "created_at": "2026-09-12T13:28:59.309779Z"
     },
     {
       "cursor": 5,
-      "run_id": "2bff61e3-4a21-4235-a481-c33d169bec35",
+      "run_id": "47d92779-4def-4316-a4ac-16a1e96cc437",
       "event_type": "STATUS_CHANGED",
       "data": {
         "from": "REPLAYING",
         "to": "COMPLETED",
         "outcome": "CONFIRMED_VIOLATION"
       },
-      "created_at": "2026-09-12T13:18:35.148239Z"
+      "created_at": "2026-09-12T13:30:20.424155Z"
     }
   ]
 }

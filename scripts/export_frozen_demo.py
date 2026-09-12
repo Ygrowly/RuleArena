@@ -174,6 +174,13 @@ async def main() -> int:
         action="store_true",
         help="drive the search with the configured model instead of a scripted FakeLLM",
     )
+    parser.add_argument(
+        "--steps",
+        type=int,
+        default=36,
+        help="run step budget; the run budget is split across the three strategies, so "
+        "this is three times the per-strategy room a search actually gets",
+    )
     args = parser.parse_args()
     load_dotenv(override=False)
 
@@ -188,9 +195,11 @@ async def main() -> int:
     version = RuleVersionStore().confirm("frozen-demo-policy", compiled)
     store = InMemoryRuntimeStore()
     # The run budget is split across the three strategies, so the scripted five-step walk
-    # needs at least 5 x 3 steps to fit, and the live mode wants the benchmark's room on
-    # top of that. A budget that looks generous per run can still starve each strategy.
-    budget = Budget(max_steps=18, max_tokens=100000, max_cost=1.5, max_time_seconds=300)
+    # needs at least 5 x 3 steps to fit, and a live search wants more room still. A budget
+    # that looks generous per run can still starve each strategy.
+    budget = Budget(
+        max_steps=args.steps, max_tokens=100000, max_cost=1.5, max_time_seconds=300
+    )
     run = store.create_run(
         job_key="frozen-demo",
         rule_version_id=version.version_id,
@@ -266,6 +275,12 @@ async def main() -> int:
     )
     completed = store.get_run(run.run_id)
     if completed.outcome is not AttackOutcome.CONFIRMED_VIOLATION:
+        # Say what the search actually did rather than only that it failed, so a bad demo
+        # export is diagnosable without re-running it.
+        for event in store.events_after(run.run_id):
+            if event.event_type == "STRATEGY_TERMINATED":
+                print(f"  strategy: {json.dumps(event.data, ensure_ascii=False)}")
+        print(f"  outcome: {completed.outcome}")
         raise RuntimeError(f"frozen demo run did not confirm: {completed.outcome}")
     counterexamples = store.counterexamples(run.run_id)
     if not counterexamples:
