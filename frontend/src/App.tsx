@@ -7,12 +7,25 @@ type View = "frozen" | "live";
 
 const STEPS = ["选择规则", "确认规则", "Arena 运行", "查看证据", "修复回归"];
 
+/**
+ * The frozen run, inlined by scripts/build_standalone_demo.py so the demo can be one
+ * self-contained file. Absent in the normal build, where it is fetched instead.
+ */
+declare global {
+  interface Window {
+    __FROZEN_DEMO__?: FrozenDemo;
+  }
+}
+
 export function App() {
   const [view, setView] = useState<View>("frozen");
-  const [demo, setDemo] = useState<FrozenDemo | null>(null);
+  const [demo, setDemo] = useState<FrozenDemo | null>(() => window.__FROZEN_DEMO__ ?? null);
   const [demoError, setDemoError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (demo) {
+      return;
+    }
     fetch("/frozen/golden-run.json")
       .then((response) => {
         if (!response.ok) throw new Error(`frozen demo unavailable (${response.status})`);
@@ -20,7 +33,7 @@ export function App() {
       })
       .then(setDemo)
       .catch((cause: unknown) => setDemoError(String(cause)));
-  }, []);
+  }, [demo]);
 
   return (
     <>
