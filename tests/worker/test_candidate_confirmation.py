@@ -14,7 +14,7 @@ from rulearena_attack_runtime import (
     StrategyAgent,
     StrategyType,
 )
-from rulearena_oracle import OracleFinding, OracleReport, OracleStatus
+from rulearena_oracle import InvariantId, OracleFinding, OracleReport, OracleStatus
 from rulearena_policy_schema import ScenarioType
 
 from tests.phase2_factories import rule_spec
@@ -113,6 +113,75 @@ def _run(store: InMemoryRuntimeStore) -> str:
         budget=Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10),
         random_seed=1,
     ).run_id
+
+
+class MisnamedInvariantReplay:
+    """The Oracle finds a violation the model did not name."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def replay(
+        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+    ) -> ReplayResult:
+        self.calls += 1
+        report = OracleReport(
+            findings=(
+                OracleFinding(
+                    invariant_id=target_invariant,
+                    status=OracleStatus.SATISFIED,
+                    explanation="the named invariant held",
+                ),
+                OracleFinding(
+                    invariant_id=InvariantId.POINTS_VALUE_CONSERVATION,
+                    status=OracleStatus.VIOLATED,
+                    explanation="a different invariant broke",
+                ),
+            )
+        )
+        return ReplayResult(
+            classification=ReplayClassification.MODEL_DIVERGENCE,
+            target_invariant=target_invariant,
+            run_id=f"sandbox-{self.calls}",
+            actions=tuple(actions),
+            report=report,
+            snapshots=(),
+            receipts=(),
+            events=(),
+        )
+
+    async def minimize(
+        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+    ) -> MinimizationResult:
+        values: tuple[Any, ...] = tuple(actions)
+        return MinimizationResult(
+            invariant_id=target_invariant,
+            original_length=len(values),
+            minimized_actions=values,
+            trials=1,
+            one_minimal=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_counterexample_records_the_invariant_the_oracle_actually_violated() -> None:
+    """The model's named invariant is a hint; the Oracle decides what broke.
+
+    Confirming against the guess alone discarded paths the Oracle had already verified
+    whenever the guess named a different invariant, which scored three real membership
+    violations as no discovery at all.
+    """
+    store = InMemoryRuntimeStore()
+    replay = MisnamedInvariantReplay()
+    run_id = _run(store)
+    await AttackWorker(store, replay, _agents()).run(
+        run_id, rule_spec(ScenarioType.PROMOTION)
+    )
+
+    counterexamples = store.counterexamples(run_id)
+    assert len(counterexamples) == 1
+    assert counterexamples[0].invariant_id == InvariantId.POINTS_VALUE_CONSERVATION.value
+    assert store.get_run(run_id).outcome is AttackOutcome.CONFIRMED_VIOLATION
 
 
 @pytest.mark.asyncio

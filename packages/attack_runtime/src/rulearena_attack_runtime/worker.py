@@ -26,7 +26,7 @@ from .agents import (
     build_agent_context,
     validate_action_proposal,
 )
-from .models import MinimizationResult, ReplayClassification, ReplayResult
+from .models import MinimizationResult, ReplayResult
 from .workflow import (
     AttackOutcome,
     AttackRun,
@@ -432,27 +432,41 @@ class AttackWorker:
                     )
                 )
                 self._fault(FaultPoint.BEFORE_ORACLE_PERSIST)
-                if replayed.classification is ReplayClassification.CONFIRMED_VIOLATION:
-                    minimized = await self.replay.minimize(
-                        rule_spec,
-                        actions,
-                        invariant,
-                        sandbox_version=run.sandbox_version,
-                    )
-                    self.store.save_counterexample(
-                        CounterexampleRecord(
-                            counterexample_id=str(uuid4()),
-                            attack_run_id=run_id,
-                            candidate_key=candidate_key,
-                            invariant_id=invariant.value,
-                            original_actions=tuple(_serialize_action(item) for item in actions),
-                            minimized_actions=tuple(
-                                _serialize_action(item) for item in minimized.minimized_actions
-                            ),
-                            replay_run_id=replayed.run_id,
-                            created_at=datetime.now(UTC),
+                # The Oracle decides which invariants broke; the invariant the model named
+                # is only a hint. Confirming against the guess alone discarded paths the
+                # Oracle had already verified whenever the guess named a *different*
+                # invariant -- which is how three confirmed membership violations came
+                # back as no discovery at all.
+                confirmed = [
+                    finding.invariant_id
+                    for finding in replayed.report.findings
+                    if finding.status is OracleStatus.VIOLATED
+                ]
+                if confirmed:
+                    for invariant_id in confirmed:
+                        minimized = await self.replay.minimize(
+                            rule_spec,
+                            actions,
+                            invariant_id,
+                            sandbox_version=run.sandbox_version,
                         )
-                    )
+                        self.store.save_counterexample(
+                            CounterexampleRecord(
+                                counterexample_id=str(uuid4()),
+                                attack_run_id=run_id,
+                                candidate_key=_candidate_key(actions, invariant_id),
+                                invariant_id=invariant_id.value,
+                                original_actions=tuple(
+                                    _serialize_action(item) for item in actions
+                                ),
+                                minimized_actions=tuple(
+                                    _serialize_action(item)
+                                    for item in minimized.minimized_actions
+                                ),
+                                replay_run_id=replayed.run_id,
+                                created_at=datetime.now(UTC),
+                            )
+                        )
                     self._fault(FaultPoint.AFTER_ORACLE_PERSIST)
                     self.store.compare_and_set_status(
                         run_id,
