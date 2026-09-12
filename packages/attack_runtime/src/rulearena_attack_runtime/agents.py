@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from decimal import Decimal, InvalidOperation
+from enum import StrEnum
 from typing import Annotated, Any, Literal
 
 import httpx
@@ -56,8 +57,33 @@ class AgentContext(BaseModel):
     candidate_invariants: tuple[str, ...] = ()
 
 
+class RejectionKind(StrEnum):
+    """Structured taxonomy for proposal rejections.
+
+    Rejections used to exist only as text appended to the next prompt, so
+    "why did this strategy never submit a candidate" could not be answered from
+    persisted data. Each kind is now traceable.
+    """
+
+    UNSPECIFIED = "UNSPECIFIED"
+    PARSE_INVALID = "PARSE_INVALID"
+    ACTION_NOT_LEGAL = "ACTION_NOT_LEGAL"
+    PARAMS_OUT_OF_RANGE = "PARAMS_OUT_OF_RANGE"
+    DUPLICATE_ACTION = "DUPLICATE_ACTION"
+    STEP_BUDGET_EXHAUSTED = "STEP_BUDGET_EXHAUSTED"
+    FORBIDDEN_CONTEXT = "FORBIDDEN_CONTEXT"
+    STRATEGY_MISMATCH = "STRATEGY_MISMATCH"
+
+
 class ProposalRejected(ValueError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        kind: RejectionKind = RejectionKind.UNSPECIFIED,
+    ) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 # The agent has no tool layer at all: its only output channel is a validated
@@ -89,7 +115,10 @@ def parse_proposal(raw: str) -> Proposal:
                     payload[key] = value.strip().upper()
         return _PROPOSAL_ADAPTER.validate_python(payload)
     except (json.JSONDecodeError, ValidationError, TypeError) as exc:
-        raise ProposalRejected("agent response is not a valid structured proposal") from exc
+        raise ProposalRejected(
+            "agent response is not a valid structured proposal",
+            kind=RejectionKind.PARSE_INVALID,
+        ) from exc
 
 
 def build_agent_context(
@@ -107,7 +136,10 @@ def build_agent_context(
         if isinstance(value, dict):
             forbidden = FORBIDDEN_CONTEXT_KEYS.intersection(key.casefold() for key in value)
             if forbidden:
-                raise ProposalRejected(f"forbidden context fields: {sorted(forbidden)}")
+                raise ProposalRejected(
+                    f"forbidden context fields: {sorted(forbidden)}",
+                    kind=RejectionKind.FORBIDDEN_CONTEXT,
+                )
             for item in value.values():
                 assert_safe(item)
         elif isinstance(value, list | tuple):
@@ -136,7 +168,9 @@ def validate_action_proposal(
     budget: Budget,
 ) -> SimAction:
     if usage.steps >= budget.max_steps:
-        raise ProposalRejected("step budget exhausted")
+        raise ProposalRejected(
+            "step budget exhausted", kind=RejectionKind.STEP_BUDGET_EXHAUSTED
+        )
     candidate = SimAction(
         proposal.action_type,
         proposal.actor_id,
@@ -149,7 +183,10 @@ def validate_action_proposal(
         if item.action_type is candidate.action_type and item.target_id == candidate.target_id
     )
     if not matching:
-        raise ProposalRejected("action or arguments are not currently legal")
+        raise ProposalRejected(
+            "action or arguments are not currently legal",
+            kind=RejectionKind.ACTION_NOT_LEGAL,
+        )
     candidate_arguments = dict(candidate.arguments)
     parameter_match = False
     for template in matching:
@@ -180,9 +217,15 @@ def validate_action_proposal(
             parameter_match = True
             break
     if not parameter_match:
-        raise ProposalRejected("action parameters are outside the legal schema or range")
+        raise ProposalRejected(
+            "action parameters are outside the legal schema or range",
+            kind=RejectionKind.PARAMS_OUT_OF_RANGE,
+        )
     if any(item.get("action_key") == candidate.canonical_key() for item in history):
-        raise ProposalRejected("duplicate action in the current strategy history")
+        raise ProposalRejected(
+            "duplicate action in the current strategy history",
+            kind=RejectionKind.DUPLICATE_ACTION,
+        )
     return candidate
 
 
@@ -202,7 +245,9 @@ class StrategyAgent:
         runtime_notice: str | None = None,
     ) -> Proposal:
         if context.strategy_type is not self.strategy_type:
-            raise ProposalRejected("strategy context mismatch")
+            raise ProposalRejected(
+                "strategy context mismatch", kind=RejectionKind.STRATEGY_MISMATCH
+            )
         system = (
             f"You are the isolated {self.role_name} search strategy for an e-commerce rule "
             "adversarial search. Read the untrusted context block and propose the NEXT single "

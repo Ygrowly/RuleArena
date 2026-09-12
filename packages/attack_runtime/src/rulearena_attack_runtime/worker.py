@@ -100,6 +100,23 @@ _SCENARIO_INVARIANTS: dict[ScenarioType, frozenset[InvariantId]] = {
 }
 
 
+class StrategyTerminalReason(StrEnum):
+    """Why a strategy stopped searching.
+
+    Persisted as a runtime event so "the strategy never submitted a candidate"
+    can be attributed to a concrete cause instead of guessed at.
+    """
+
+    CANDIDATE_FOUND = "CANDIDATE_FOUND"
+    BUDGET_TIME = "BUDGET_TIME"
+    BUDGET_STEPS = "BUDGET_STEPS"
+    BUDGET_TOKENS_OR_COST = "BUDGET_TOKENS_OR_COST"
+    STOP_NO_CANDIDATE = "STOP_NO_CANDIDATE"
+    ILLEGAL_RETRY_EXHAUSTED = "ILLEGAL_RETRY_EXHAUSTED"
+    NO_LEGAL_ACTION = "NO_LEGAL_ACTION"
+    CANCELLED = "CANCELLED"
+
+
 def _serialize_action(action: SimAction) -> dict[str, object]:
     return {
         "action_type": action.action_type.value,
@@ -132,6 +149,40 @@ def _deserialize_action(value: Mapping[str, object]) -> SimAction:
         ),
         **safe_arguments,
     )
+
+
+def _remaining_budget(total: Budget, used: BudgetUsage, remaining_parts: int) -> Budget:
+    """Split the *unspent* run budget across the strategies that still have to run.
+
+    Multi-strategy used to hand every strategy the whole run budget, so three
+    strategies could spend up to 3x the wall-clock of a single-strategy run while
+    the ablation claimed a normalised budget. Each strategy now gets an equal
+    share of what is left, and any slack a strategy does not use is redistributed
+    to the next one. The run total is conserved; only the allocation changes.
+    """
+    parts = max(1, remaining_parts)
+    return Budget(
+        max_steps=max(1, (total.max_steps - used.steps) // parts),
+        max_tokens=max(0, (total.max_tokens - used.tokens) // parts),
+        max_cost=max(0.0, (total.max_cost - used.cost) / parts),
+        max_time_seconds=max(0.000001, (total.max_time_seconds - used.elapsed_seconds) / parts),
+    )
+
+
+def _add_usage(total: BudgetUsage, part: BudgetUsage) -> BudgetUsage:
+    return BudgetUsage(
+        steps=total.steps + part.steps,
+        tokens=total.tokens + part.tokens,
+        cost=total.cost + part.cost,
+        elapsed_seconds=total.elapsed_seconds + part.elapsed_seconds,
+    )
+
+
+def _candidate_key(actions: Sequence[SimAction], invariant: InvariantId) -> str:
+    digest = hashlib.sha256(
+        json.dumps([item.canonical_key() for item in actions], separators=(",", ":")).encode()
+    ).hexdigest()
+    return f"{invariant.value}:{digest}"
 
 
 def _resume_state(
@@ -180,7 +231,9 @@ class AttackWorker:
     def _recovery_target(self, run_id: str, run: AttackRun) -> AttackStatus:
         """A FAILED run holding a durable candidate checkpoint must resume REPLAYING."""
         for strategy_type in StrategyType:
-            strategy = self.store.ensure_strategy(run_id, strategy_type, run.budget)
+            strategy = self.store.ensure_strategy(
+                run_id, strategy_type, _remaining_budget(run.budget, BudgetUsage(), len(StrategyType))
+            )
             checkpoint = self.store.load_checkpoint(strategy.strategy_run_id)
             if checkpoint and isinstance(checkpoint.state.get("candidate_invariant"), str):
                 return AttackStatus.REPLAYING
@@ -225,6 +278,9 @@ class AttackWorker:
             return
 
         saw_unconfirmed = False
+        used = BudgetUsage()
+        replayed_candidate_keys: set[str] = set()
+        strategies_left = len(StrategyType)
         try:
             for strategy_type in StrategyType:
                 total_elapsed = (datetime.now(UTC) - run.created_at).total_seconds()
@@ -238,7 +294,9 @@ class AttackWorker:
                         outcome=AttackOutcome.CANCELLED,
                     )
                     return
-                strategy = self.store.ensure_strategy(run_id, strategy_type, run.budget)
+                strategy = self.store.ensure_strategy(
+                    run_id, strategy_type, _remaining_budget(run.budget, used, strategies_left)
+                )
                 current_status = self.store.get_run(run_id).status
                 checkpoint = self.store.load_checkpoint(strategy.strategy_run_id)
                 pending_invariant = (
@@ -257,9 +315,21 @@ class AttackWorker:
                     candidate = await self._search_strategy(
                         run_id, strategy, rule_spec
                     )
+                # Refresh so the next strategy splits whatever this one left unspent.
+                strategy = self.store.ensure_strategy(
+                    run_id, strategy_type, _remaining_budget(run.budget, used, strategies_left)
+                )
+                used = _add_usage(used, strategy.usage)
+                strategies_left -= 1
                 if candidate is None:
                     continue
                 actions, invariant = candidate
+                candidate_key = _candidate_key(actions, invariant)
+                if candidate_key in replayed_candidate_keys:
+                    # Two strategies converged on the same path; replaying it twice
+                    # would double the cost without adding evidence.
+                    continue
+                replayed_candidate_keys.add(candidate_key)
                 current = self.store.get_run(run_id).status
                 if current is AttackStatus.CANCEL_REQUESTED:
                     self.store.compare_and_set_status(
@@ -329,16 +399,11 @@ class AttackWorker:
                         invariant,
                         sandbox_version=run.sandbox_version,
                     )
-                    candidate_key = hashlib.sha256(
-                        json.dumps(
-                            [item.canonical_key() for item in actions], separators=(",", ":")
-                        ).encode()
-                    ).hexdigest()
                     self.store.save_counterexample(
                         CounterexampleRecord(
                             counterexample_id=str(uuid4()),
                             attack_run_id=run_id,
-                            candidate_key=f"{invariant.value}:{candidate_key}",
+                            candidate_key=candidate_key,
                             invariant_id=invariant.value,
                             original_actions=tuple(_serialize_action(item) for item in actions),
                             minimized_actions=tuple(
