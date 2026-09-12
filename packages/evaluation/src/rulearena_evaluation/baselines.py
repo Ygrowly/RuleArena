@@ -22,7 +22,7 @@ from rulearena_attack_runtime import (
     max_output_tokens_from_environment,
 )
 from rulearena_domain_contracts import ActionType
-from rulearena_observability import InMemoryTraceStore, TraceKind
+from rulearena_observability import InMemoryTraceStore, TraceKind, TraceRecord
 from rulearena_oracle import InvariantId
 from rulearena_policy_schema import ScenarioType
 from rulearena_reference_simulator import (
@@ -177,6 +177,19 @@ class SearchBaselineExecutor:
 
 
 AdapterFactory = Callable[[str], LLMAdapter]
+
+
+def _invariants_checked(record: TraceRecord) -> int:
+    """How many (path, invariant) pairs one replay attempt covered.
+
+    The search baselines replay a path once per invariant and count each as an attempt.
+    An agent replay evaluates the whole invariant set in one HTTP replay, so counting
+    attempts as replays would divide by a smaller number -- and once a single path can
+    confirm several invariants, the confirmed count can exceed it, which the RawCaseRun
+    coherence check rejects outright.
+    """
+    statuses = record.tool_result_summary.get("finding_statuses")
+    return len(statuses) if isinstance(statuses, list) and statuses else 1
 
 
 def _strategy_diagnostics(
@@ -381,8 +394,9 @@ class AgentBaselineExecutor:
                 InvariantId(item.invariant_id) for item in counterexamples
             ),
             replayed_candidates=sum(
-                record.kind is TraceKind.ORACLE_CHECK
+                _invariants_checked(record)
                 for record in trace_store.traces_for_run(run.run_id)
+                if record.kind is TraceKind.ORACLE_CHECK
             ),
             confirmed_candidates=len(counterexamples),
             replay_attempts=stability_attempts,

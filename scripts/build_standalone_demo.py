@@ -70,7 +70,7 @@ def main() -> int:
     fragment = f"""<title>RuleArena</title>
 <meta
   name="description"
-  content="AI 搜索电商规则的异常操作组合，真实 API 重放，确定性 Oracle 裁决：模型找到的反例与证据链。"
+  content="AI 搜索电商规则的异常操作组合，真实 API 重放，确定性 Oracle 裁决：模型找到的反例。"
 />
 <style>{css}</style>
 <div id="root"></div>
