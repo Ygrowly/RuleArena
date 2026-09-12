@@ -1,13 +1,19 @@
 """Export one real confirmed run as the frozen golden demo.
 
-The pipeline is the production one: a real PostgreSQL-backed Commerce Sandbox over
-HTTP, real receipts/snapshots/events, the deterministic Oracle, and Delta
-minimization. Strategy proposals are driven by a scripted FakeLLM so the export is
-deterministic and free; the JSON records this honestly in `provenance`.
+Two modes, both running the production pipeline end to end: a real PostgreSQL-backed
+Commerce Sandbox over HTTP, real receipts/snapshots/events, the deterministic Oracle,
+and Delta minimization.
+
+- default: strategy proposals come from a scripted FakeLLM, so the export is
+  deterministic and free.
+- ``--live``: the search is driven by the configured model, so the frozen demo shows a
+  path the model actually proposed rather than one a script dictated. The payload
+  records which mode produced it in ``provenance``.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -16,6 +22,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from rulearena_attack_runtime import (
     AttackOutcome,
     AttackWorker,
@@ -23,12 +30,16 @@ from rulearena_attack_runtime import (
     CompileStatus,
     FakeLLMAdapter,
     InMemoryRuntimeStore,
+    OpenAICompatibleLLMAdapter,
     ReplayClassification,
     RuleCompiler,
     RuleVersionStore,
     SandboxReplayRunner,
     StrategyAgent,
     StrategyType,
+    max_output_tokens_from_environment,
+    proposal_json_schema,
+    structured_response_format_enabled,
 )
 from rulearena_domain_contracts import ActionType
 from rulearena_observability import InMemoryTraceStore
@@ -113,10 +124,14 @@ def deserialize_actions(serialized: tuple[dict[str, Any], ...]) -> list[Any]:
 
 
 async def run_replay(
-    replay: SandboxReplayRunner, spec: RuleSpec, actions: list[Any], sandbox_version: str
+    replay: SandboxReplayRunner,
+    spec: RuleSpec,
+    actions: list[Any],
+    sandbox_version: str,
+    invariant: InvariantId = InvariantId.POINTS_VALUE_CONSERVATION,
 ) -> dict[str, Any]:
     result = await replay.replay(
-        spec, tuple(actions), InvariantId.POINTS_VALUE_CONSERVATION, sandbox_version=sandbox_version
+        spec, tuple(actions), invariant, sandbox_version=sandbox_version
     )
     # Normalize the HTTP payload shape ({"action": "create_user"}) into the
     # UI contract ({"action_type": "CREATE_USER"}) so the frozen demo renders
@@ -133,15 +148,35 @@ async def run_replay(
     ]
     return {
         "classification": result.classification.value,
-        "target_invariant": "POINTS_VALUE_CONSERVATION",
+        "target_invariant": invariant.value,
         "actions": normalized,
         "snapshots": list(result.snapshots),
         "receipts": list(result.receipts),
         "events": list(result.events),
+        # The Oracle's own reasoning, so the demo can show *why* the numbers constitute a
+        # violation instead of leaving the reader to infer it from a diff.
+        "findings": [
+            {
+                "invariant": finding.invariant_id.value,
+                "status": finding.status.value,
+                "explanation": finding.explanation,
+                "evidence": finding.evidence,
+            }
+            for finding in result.report.findings
+        ],
     }
 
 
 async def main() -> int:
+    parser = argparse.ArgumentParser(description="Export the frozen golden demo run.")
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="drive the search with the configured model instead of a scripted FakeLLM",
+    )
+    args = parser.parse_args()
+    load_dotenv(override=False)
+
     url = os.environ["SANDBOX_HTTP_URL"]
     token = os.environ["INTERNAL_SERVICE_TOKEN"]
     spec = rule_spec()
@@ -152,37 +187,75 @@ async def main() -> int:
         raise RuntimeError("frozen demo rule must compile cleanly")
     version = RuleVersionStore().confirm("frozen-demo-policy", compiled)
     store = InMemoryRuntimeStore()
+    # The run budget is split across the three strategies, so the scripted five-step walk
+    # needs at least 5 x 3 steps to fit, and the live mode wants the benchmark's room on
+    # top of that. A budget that looks generous per run can still starve each strategy.
+    budget = Budget(max_steps=18, max_tokens=100000, max_cost=1.5, max_time_seconds=300)
     run = store.create_run(
         job_key="frozen-demo",
         rule_version_id=version.version_id,
         scenario_version_id="refund-points-v1",
         sandbox_version="vulnerable",
         oracle_version="1.0",
-        budget=Budget(max_steps=8, max_tokens=1000, max_cost=1, max_time_seconds=30),
+        budget=budget,
         random_seed=20260830,
     )
-    value_flow = [
-        proposal("ACTION", action_type="CREATE_USER", arguments={"initial_balance": "500.00"}),
-        proposal(
-            "ACTION",
-            action_type="CREATE_ORDER",
-            target_id="user-1",
-            arguments={"amount": "100.00"},
-        ),
-        proposal("ACTION", action_type="PAY_ORDER", target_id="order-1"),
-        proposal(
-            "ACTION",
-            action_type="REFUND_ORDER",
-            target_id="order-1",
-            arguments={"amount": "50.00"},
-        ),
-        proposal("STOP", candidate_invariant="POINTS_VALUE_CONSERVATION"),
-    ]
     stop = [proposal("STOP")]
+    if args.live:
+
+        def adapter_factory(prompt_version: str) -> OpenAICompatibleLLMAdapter:
+            return OpenAICompatibleLLMAdapter(
+                base_url=os.environ["LLM_BASE_URL"],
+                api_key=os.environ["LLM_API_KEY"],
+                model=os.environ["LLM_MODEL"],
+                prompt_version=prompt_version,
+                response_schema=proposal_json_schema(),
+                schema_name="rulearena_agent_proposal",
+                input_cost_per_million_tokens=float(
+                    os.getenv("LLM_INPUT_COST_PER_MTOKEN", "0") or 0
+                ),
+                output_cost_per_million_tokens=float(
+                    os.getenv("LLM_OUTPUT_COST_PER_MTOKEN", "0") or 0
+                ),
+                timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120),
+                session_header=os.getenv("LLM_SESSION_HEADER") or None,
+                use_response_format=structured_response_format_enabled(),
+            )
+
+        value_flow_agent = StrategyAgent(
+            StrategyType.VALUE_FLOW,
+            adapter_factory("value-flow-v1"),
+            max_output_tokens=max_output_tokens_from_environment(),
+        )
+    else:
+        value_flow_agent = StrategyAgent(
+            StrategyType.VALUE_FLOW,
+            FakeLLMAdapter(
+                [
+                    proposal(
+                        "ACTION",
+                        action_type="CREATE_USER",
+                        arguments={"initial_balance": "500.00"},
+                    ),
+                    proposal(
+                        "ACTION",
+                        action_type="CREATE_ORDER",
+                        target_id="user-1",
+                        arguments={"amount": "100.00"},
+                    ),
+                    proposal("ACTION", action_type="PAY_ORDER", target_id="order-1"),
+                    proposal(
+                        "ACTION",
+                        action_type="REFUND_ORDER",
+                        target_id="order-1",
+                        arguments={"amount": "50.00"},
+                    ),
+                    proposal("STOP", candidate_invariant="POINTS_VALUE_CONSERVATION"),
+                ]
+            ),
+        )
     agents = {
-        StrategyType.VALUE_FLOW: StrategyAgent(
-            StrategyType.VALUE_FLOW, FakeLLMAdapter(value_flow)
-        ),
+        StrategyType.VALUE_FLOW: value_flow_agent,
         StrategyType.LIFECYCLE: StrategyAgent(StrategyType.LIFECYCLE, FakeLLMAdapter(stop.copy())),
         StrategyType.BOUNDARY: StrategyAgent(StrategyType.BOUNDARY, FakeLLMAdapter(stop.copy())),
     }
@@ -195,23 +268,48 @@ async def main() -> int:
     if completed.outcome is not AttackOutcome.CONFIRMED_VIOLATION:
         raise RuntimeError(f"frozen demo run did not confirm: {completed.outcome}")
     counterexamples = store.counterexamples(run.run_id)
-    if len(counterexamples) != 1:
-        raise RuntimeError("frozen demo expects exactly one counterexample")
+    if not counterexamples:
+        raise RuntimeError("frozen demo run produced no counterexample")
 
-    minimal_actions = deserialize_actions(counterexamples[0].minimized_actions)
-    vulnerable_evidence = await run_replay(replay, version.rule_spec, minimal_actions, "vulnerable")
+    # One path can break several invariants at once; the demo narrates the refund/points
+    # one when it is among them.
+    primary = next(
+        (
+            item
+            for item in counterexamples
+            if item.invariant_id == InvariantId.POINTS_VALUE_CONSERVATION.value
+        ),
+        counterexamples[0],
+    )
+    invariant = InvariantId(primary.invariant_id)
+    minimal_actions = deserialize_actions(primary.minimized_actions)
+    vulnerable_evidence = await run_replay(
+        replay, version.rule_spec, minimal_actions, "vulnerable", invariant
+    )
     if vulnerable_evidence["classification"] != ReplayClassification.CONFIRMED_VIOLATION.value:
         raise RuntimeError("vulnerable replay must still confirm")
-    fixed_evidence = await run_replay(replay, version.rule_spec, minimal_actions, "fixed")
+    fixed_evidence = await run_replay(
+        replay, version.rule_spec, minimal_actions, "fixed", invariant
+    )
+    if fixed_evidence["classification"] == ReplayClassification.CONFIRMED_VIOLATION.value:
+        raise RuntimeError("the fixed profile must not confirm the same path")
+
+    honesty = (
+        "真实运行：Commerce Sandbox 通过真实 HTTP API 重放，快照/回执/事件来自真实服务，"
+        "Oracle 为确定性裁决，最小化使用 Delta Debugging。动作序列由真实模型 "
+        f"{os.environ.get('LLM_MODEL', 'unknown')} 提出，模型只负责提议路径，"
+        "是否构成违规由 Oracle 判定。"
+        if args.live
+        else "真实运行：Commerce Sandbox 通过真实 HTTP API 重放，快照/回执/事件来自真实服务，"
+        "Oracle 为确定性裁决，最小化使用 Delta Debugging。策略动议由确定性脚本（FakeLLM）"
+        "驱动，未调用真实模型。"
+    )
 
     payload = {
         "provenance": {
             "generated_by": "scripts/export_frozen_demo.py",
-            "honesty": (
-                "真实运行：Commerce Sandbox 通过真实 HTTP API 重放，快照/回执/事件来自真实服务，"
-                "Oracle 为确定性裁决，最小化使用 Delta Debugging。策略动议由确定性脚本（FakeLLM）"
-                "驱动，未调用真实模型。"
-            ),
+            "search_mode": "live_model" if args.live else "scripted",
+            "honesty": honesty,
             "sandbox_versions": ["vulnerable", "fixed"],
             "oracle_version": "1.0",
         },

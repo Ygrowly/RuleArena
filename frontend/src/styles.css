@@ -281,3 +281,73 @@ details.technical summary {
   color: var(--danger);
   font-size: 14px;
 }
+
+/* The page's answer, stated once before any detail, so a reader who scrolls no further
+   still learns what was found and how it was proven. */
+.result-hero {
+  border-left: 4px solid var(--ok);
+}
+
+.result-kicker {
+  margin: 0 0 6px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.result-headline {
+  margin: 0 0 12px;
+  font-size: 23px;
+  line-height: 1.4;
+}
+
+.result-facts {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* The Oracle's verdict, quoted rather than paraphrased: the search proposes, this decides. */
+.verdict {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: #f8fafc;
+  border-radius: 0 8px 8px 0;
+}
+
+.verdict-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.verdict-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* The step that actually trips the invariant, marked so the anomaly is not hunted for. */
+.step-diff.violating {
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 4px 12px 12px;
+  background: #fff7f7;
+}
+
+.violation-tag {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--danger);
+}
+
+table.diff td.changed.violating {
+  color: var(--danger);
+}

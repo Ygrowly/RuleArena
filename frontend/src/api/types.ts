@@ -181,6 +181,13 @@ export interface FrozenSnapshot {
   };
 }
 
+export interface OracleFinding {
+  invariant: string;
+  status: string;
+  explanation: string;
+  evidence?: Record<string, unknown>;
+}
+
 export interface FrozenReplay {
   classification: string;
   target_invariant: string;
@@ -188,12 +195,15 @@ export interface FrozenReplay {
   snapshots: FrozenSnapshot[];
   receipts: Array<Record<string, unknown>>;
   events: Array<Record<string, unknown>>;
+  /** The Oracle's own reasoning per invariant; older exports omit it. */
+  findings?: OracleFinding[];
 }
 
 export interface FrozenDemo {
   provenance: {
     generated_by: string;
     honesty: string;
+    search_mode?: "live_model" | "scripted";
     sandbox_versions: string[];
     oracle_version: string;
   };

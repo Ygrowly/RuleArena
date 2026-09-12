@@ -1,6 +1,39 @@
 import { ACTION_LABELS_ZH, actionLabel, diffSnapshots } from "../domain/diff";
+import { invariantTitle } from "../domain/invariants";
 import { describeStatus } from "../domain/outcome";
-import type { CounterexampleRecord, FrozenAction, FrozenReplay } from "../api/types";
+import type {
+  CounterexampleRecord,
+  FrozenAction,
+  FrozenReplay,
+  OracleFinding,
+} from "../api/types";
+
+/**
+ * The Oracle's own statement of what broke, quoted rather than paraphrased.
+ *
+ * The path came from a search; this is the part that is not an opinion, so it is shown
+ * as the verdict rather than summarised by the UI.
+ */
+export function OracleVerdict({
+  findings,
+  target,
+}: {
+  findings?: OracleFinding[];
+  target: string;
+}) {
+  const finding = findings?.find((item) => item.invariant === target) ?? findings?.[0];
+  if (!finding) {
+    return null;
+  }
+  return (
+    <blockquote className="verdict">
+      <p className="verdict-label">
+        {`Oracle 裁决 · ${invariantTitle(finding.invariant)} · ${finding.status}`}
+      </p>
+      <p className="verdict-text">{finding.explanation}</p>
+    </blockquote>
+  );
+}
 
 export function ActionPath({ actions }: { actions: FrozenAction[] }) {
   return (
@@ -22,8 +55,10 @@ export function ActionPath({ actions }: { actions: FrozenAction[] }) {
 
 export function StateDiff({
   snapshots,
+  violatingStep,
 }: {
   snapshots: { state_hash: string; state: FrozenReplay["snapshots"][number]["state"] }[];
+  violatingStep?: number;
 }) {
   if (snapshots.length < 2) {
     return <p className="muted">没有可展示的状态变化。</p>;
@@ -36,31 +71,39 @@ export function StateDiff({
     }));
   return (
     <div>
-      {rows.map(({ step, rows: stepRows }) => (
-        <div key={step}>
-          <h3>{`第 ${step} 步之后`}</h3>
-          <table className="diff">
-            <thead>
-              <tr>
-                <th scope="col">资产 / 指标</th>
-                <th scope="col">变化前</th>
-                <th scope="col">变化后</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stepRows
-                .filter((row) => row.changed)
-                .map((row) => (
-                  <tr key={row.label}>
-                    <td>{row.label}</td>
-                    <td>{row.before}</td>
-                    <td className="changed">{row.after}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+      {rows.map(({ step, rows: stepRows }) => {
+        const violating = step === violatingStep;
+        return (
+          <div key={step} className={violating ? "step-diff violating" : "step-diff"}>
+            <h3>
+              {`第 ${step} 步之后`}
+              {violating && <span className="violation-tag">违规发生在此步</span>}
+            </h3>
+            <table className="diff">
+              <thead>
+                <tr>
+                  <th scope="col">资产 / 指标</th>
+                  <th scope="col">变化前</th>
+                  <th scope="col">变化后</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stepRows
+                  .filter((row) => row.changed)
+                  .map((row) => (
+                    <tr key={row.label}>
+                      <td>{row.label}</td>
+                      <td>{row.before}</td>
+                      <td className={violating ? "changed violating" : "changed"}>
+                        {row.after}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -81,7 +124,7 @@ export function CounterexampleEvidence({
     fixedReplay.classification !== "CONFIRMED_VIOLATION";
   return (
     <section className="panel" aria-label="反例证据">
-      <h2>证据：最小反例 {counterexample.invariant_id}</h2>
+      <h2>{`证据：最小反例 ${counterexample.invariant_id}`}</h2>
       <p>
         <span className="chip ok">{`重放稳定性 ${replayStability}`}</span>
         <span className="chip">{`Oracle: ${replay.target_invariant}`}</span>
@@ -93,10 +136,11 @@ export function CounterexampleEvidence({
           </span>
         )}
       </p>
+      <OracleVerdict findings={replay.findings} target={replay.target_invariant} />
       <h3>最小动作序列（Delta Minimization）</h3>
       <ActionPath actions={replay.actions} />
       <h3>每步状态 Diff（真实 Sandbox 快照）</h3>
-      <StateDiff snapshots={replay.snapshots} />
+      <StateDiff snapshots={replay.snapshots} violatingStep={replay.actions.length} />
       <h3>回执与事件</h3>
       <ul className="muted">
         {replay.receipts.slice(0, 6).map((receipt, index) => (
