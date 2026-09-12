@@ -173,6 +173,7 @@ uv run pytest -q          # 真实服务验收需 SANDBOX_HTTP_URL / TEST_*_DATA
 pnpm --dir frontend install
 pnpm --dir frontend test                # vitest
 pnpm --dir frontend test:e2e            # Playwright（复用系统 Chrome，E2E_BASE_URL 默认 8080）
+                                        # 加 E2E_LIVE_MODEL=1 可跑「真实后端 + 真实模型」的实时运行端到端
 pnpm --dir frontend run lint && pnpm --dir frontend run typecheck && pnpm --dir frontend run build
 docker compose config
 ```
