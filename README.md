@@ -128,6 +128,13 @@ pnpm --dir frontend run build && uv run python scripts/build_standalone_demo.py
 前者构建前端，后者把构建产物与冻结运行快照内联成单文件（同时输出一个不含文档外壳的
 fragment 版本，供自带 `<body>` 的托管方使用）。
 
+**怎么把它变成一条可分享的链接**（单文件无需构建、无需后端，所以任选其一）：
+
+- **Netlify Drop**：打开 `app.netlify.com/drop`，把 `rulearena-demo.html` 拖进去，立刻得到 URL。
+- **GitHub Pages**：把文件放进仓库，Settings → Pages 指向该目录（或改名为 `index.html`）。
+- **任意静态托管 / 对象存储**：直接上传该 HTML，公开读即可。
+- **零托管**：把文件本身发给对方，双击打开——不联网也能看。
+
 ### 完整栈（含限额 Live Run）
 
 `docker compose up -d --build` → `http://127.0.0.1:8080`。除冻结案例外还提供限额
