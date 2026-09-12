@@ -21,9 +21,14 @@ import { describeStatus, STRATEGY_META } from "../domain/outcome";
 import { OutcomeBanner } from "./Evidence";
 import { StrategyTrace } from "./TechnicalTrace";
 
+// Must stay within the service's PUBLIC_RUN_BUDGET_CAP. The token allowance is sized
+// from the measured cost per search step: the run budget is split across three
+// strategies and a strategy needs several steps before it can hand anything to the
+// replay boundary, so a smaller allowance leaves the search structurally unable to
+// submit. The 90-second wall clock is what actually bounds a public run's cost.
 const DEFAULT_BUDGET = {
   max_steps: 12,
-  max_tokens: 12000,
+  max_tokens: 100000,
   max_cost: 1.5,
   max_time_seconds: 90,
 };

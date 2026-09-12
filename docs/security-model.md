@@ -37,7 +37,11 @@
 
 ## 公共成本攻击
 
-- Live Run 预算硬上限：12 步 / 12k tokens / $1.5 / 90 秒（Worker 强制，非 UI 约束）。
+- Live Run 预算硬上限：12 步 / 100k tokens / $1.5 / 90 秒，由 Control API 在
+  `CreateRunRequest` 上**服务端钳制**：越界请求直接 422 拒绝。该预算由请求体传入，
+  早先只靠 UI 自律——IP 限流限制的是请求**次数**，不限制单次运行的成本，因此公开
+  部署必须由服务端兜住。90 秒墙上时间是单次成本的实际边界（步数与 token 额度按实测
+  每步成本设定，使搜索真的能走到提交候选那一步）。
 - `POST /api/runs` 按 IP 固定窗口限流（默认 10 次 / 5 分钟，429 响应）。
 - 单次 LLM 调用带 `max_tokens`（剩余 token 预算）；cost 预算按 token 定价估算
   （`LLM_INPUT/OUTPUT_COST_PER_MTOKEN`）或 provider 自报。

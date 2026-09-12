@@ -51,10 +51,11 @@ open http://127.0.0.1:8080
 
 - 冻结黄金案例：无需模型即可浏览。数据来自真实持久化 Run
   （`frontend/public/frozen/golden-run.json`，由 `scripts/export_frozen_demo.py`
-  通过真实 Sandbox HTTP 重放 + 确定性 Oracle 导出，动议由确定性脚本驱动并在
-  `provenance.honesty` 中如实声明）。
-- 实时运行：限额 Live Run（默认 12 步 / 12k tokens / $1.5 / 90s，IP 限流
-  10 次 / 5 分钟）。LLM/Worker 不可用时显示真实失败状态；冻结案例始终可浏览。
+  通过真实 Sandbox HTTP 重放 + 确定性 Oracle 导出；动作序列由真实模型提出、是否
+  构成违规由 Oracle 判定，`provenance.honesty` 如实声明这一区别）。
+- 实时运行：限额 Live Run（默认 12 步 / 100k tokens / $1.5 / 90s，IP 限流
+  10 次 / 5 分钟）。预算由服务端钳制（越界 422），90 秒是单次成本的实际边界。
+  LLM/Worker 不可用时显示真实失败状态；冻结案例始终可浏览。
 
 ## 评测
 

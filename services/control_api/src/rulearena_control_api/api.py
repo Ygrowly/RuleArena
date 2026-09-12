@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from rulearena_attack_runtime import (
     AttackStatus,
     Budget,
@@ -41,6 +41,17 @@ class ConfirmRequest(BaseModel):
     confirmed_rule_spec: RuleSpec | None = None
 
 
+# The largest run a public caller may ask for. Steps and tokens are sized so a search
+# can actually reach a counterexample (the field is split across three strategies), and
+# the wall clock is the cost guardrail: it bounds what one request can spend.
+PUBLIC_RUN_BUDGET_CAP = Budget(
+    max_steps=12,
+    max_tokens=100_000,
+    max_cost=1.5,
+    max_time_seconds=90,
+)
+
+
 class CreateRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -50,6 +61,23 @@ class CreateRunRequest(BaseModel):
     oracle_version: str = "1.0"
     budget: Budget
     random_seed: int = 0
+
+    @model_validator(mode="after")
+    def budget_within_public_cap(self) -> CreateRunRequest:
+        """Refuse a budget larger than the published public cap.
+
+        The budget arrives in the request body, so without this a caller could ask for
+        an arbitrarily large run and spend the operator's model credits; the IP limiter
+        bounds how many runs are requested, not what each one costs.
+        """
+        for field in ("max_steps", "max_tokens", "max_cost", "max_time_seconds"):
+            requested = getattr(self.budget, field)
+            allowed = getattr(PUBLIC_RUN_BUDGET_CAP, field)
+            if requested > allowed:
+                raise ValueError(
+                    f"budget.{field}={requested} exceeds the public run cap {allowed}"
+                )
+        return self
 
 
 class RunEnqueuer(Protocol):

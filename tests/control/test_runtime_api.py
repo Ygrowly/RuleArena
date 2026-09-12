@@ -19,6 +19,62 @@ class RecordingEnqueuer:
         self.items.append((run_id, spec))
 
 
+def test_public_run_budget_is_capped_server_side(control_settings: object) -> None:
+    """The budget arrives in the request body, so the cap has to be enforced here.
+
+    Without it a caller can ask for an arbitrarily large run and spend the operator's
+    model credits: the IP limiter bounds how many runs are requested, not what each one
+    costs.
+    """
+    spec = rule_spec(ScenarioType.PROMOTION)
+
+    async def ready() -> None:
+        return None
+
+    app = create_app(
+        control_settings,  # type: ignore[arg-type]
+        ready,
+        compiler=RuleCompiler(FakeLLMAdapter([spec.model_dump_json()])),
+        runtime_store=InMemoryRuntimeStore(),
+        version_store=RuleVersionStore(),
+        run_enqueuer=RecordingEnqueuer(),
+    )
+    with TestClient(app) as client:
+        compiled = client.post(
+            "/api/policies/compile",
+            json={"template_id": "promotion", "chinese_modification": "满 150 减 50。"},
+        )
+        version_id = client.post(
+            f"/api/policies/{compiled.json()['policy_id']}/confirm", json={}
+        ).json()["version_id"]
+        base = {
+            "rule_version_id": version_id,
+            "scenario_version_id": "scenario-1",
+            "budget": {
+                "max_steps": 12,
+                "max_tokens": 100_000,
+                "max_cost": 1.5,
+                "max_time_seconds": 90,
+            },
+        }
+        allowed = client.post(
+            "/api/runs", json=base, headers={"Idempotency-Key": "cap-within"}
+        )
+        assert allowed.status_code == 201
+        for field, value in (
+            ("max_steps", 999),
+            ("max_tokens", 10**9),
+            ("max_cost", 50.0),
+            ("max_time_seconds", 86_400),
+        ):
+            response = client.post(
+                "/api/runs",
+                json={**base, "budget": {**base["budget"], field: value}},
+                headers={"Idempotency-Key": f"cap-{field}"},
+            )
+            assert response.status_code == 422, (field, response.status_code)
+
+
 def test_compile_confirm_create_idempotent_run_and_resume_sse(control_settings: object) -> None:
     spec = rule_spec(ScenarioType.PROMOTION)
     runtime = InMemoryRuntimeStore()
