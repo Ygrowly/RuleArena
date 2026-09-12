@@ -58,7 +58,15 @@ open http://127.0.0.1:8080
 
 ## 评测
 
-四 Baseline 实测（golden-v2，deepseek-v3.2，无 INFRA_FAILED、误报 0、泄漏 0）：
+> **golden-v2 结果已作废，旧数字不可与 v3 混排。** 复核时实测发现：配置里
+> `max_tokens=12000` 只够走 `12000 / 2267 ≈ 5.3` 步，而同一份配置声明的是 12 步——
+> **两个数字本身互相矛盾**，任何策略都走不到声明的步数。`golden-v3` 只改这一个变量
+> （12000 → 100000，按实测每步 p95 2735 tokens 校准），Case 内容、期望答案与门禁阈值
+> 不变。同时修正了动作空间表达力：原先 9 个开发漏洞里有 6 个的 ground truth 在 Agent
+> 的动作模型里**根本无法被提出**，发现率上界只有 5/9（hidden 3/5），现已达到 100%。
+> 下表 v2 数字保留仅作历史记录，依据见 `benchmarks/README.md` 版本历史。
+
+四 Baseline 实测（**golden-v2，已作废**，deepseek-v3.2，无 INFRA_FAILED、误报 0、泄漏 0）：
 
 | Baseline | dev 发现率 | hidden 发现率 | dev 误报 | hidden 误报 | 候选确认 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -67,15 +75,16 @@ open http://127.0.0.1:8080
 | Single Agent | 0/9 | 0/5 | 0/7 | 0/3 | 0 候选 | 预算内未提交 |
 | Multi-strategy | 0/9 | 1/5 | 0/7 | 0/3 | 0/1 (dev) · 1/1 (hidden) | hidden 稳定 3/3 |
 
-诚实结论：当前 LLM Agent 的漏洞发现率（0–20%）尚未超过确定性 BFS（20–22%），
-按 Spec 如实降级 Multi-strategy 价值主张；机制层（真实重放、Oracle 裁决、
-候选确认 100%、稳定 3/3、零误报、零泄漏）全部工作正常。Release Gate 因
-hidden 发现率 < 75% 保持拒绝。
+**统计显著性更正（对 v2 结论的修正）**：上表曾被用来支持"LLM 发现率没跑赢 BFS"，
+但以 9 个 case 的样本量，这两个数字在统计上**不可区分**——dev 上 LLM 0/9 的 95% Wilson
+区间是 **[0%, 29.9%]**，BFS 2/9 是 **[6.3%, 54.7%]**，区间完全重叠；hidden 上 0/5
+与 1/5 同样重叠。要让 `0/n` 的上界低于 22% 需要 **n ≥ 14** 个漏洞 case（当前 9 个）。
+因此正确表述是"当前样本量无法区分两者"，而不是"BFS 更强"——原先按后者做的
+Multi-strategy 降级说明，依据是站不住的。比率指标现在都自带 Wilson 区间。
 
-hidden suite Release Gate 判定：**拒绝**（hidden 发现率 0/5 < 75%，无已确认反例可谈 3/3）；
-其余检查项（版本/预算/seed 匹配、正常误报 0、历史 P0 100%、泄漏 0、无 INFRA_FAILED）全部通过。
-真实模型 Agent 在 90 秒预算内未提交任何候选即预算耗尽——这是当前主要的模型侧短板，详见
-`docs/exec/04-eval-observability-report.md` 与本次审查报告。
+机制层结论不变：真实重放、Oracle 裁决、零误报、零泄漏全部工作正常。Release Gate 在
+v2 下因 hidden 发现率 < 75% 保持拒绝，且在 v2 配置下**不可能通过**（发现率上界即被
+动作空间裁剪到 60%）。
 
 复现：`uv run rulearena benchmark --suite development --baselines random,bfs`。
 无数据的格子标 N/A，不填估计值。完整口径见 `docs/exec/04-eval-observability-report.md`。

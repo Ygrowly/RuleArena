@@ -75,7 +75,7 @@
   "cases": [
     {
       "case_id": "dev-promotion-01",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -84,7 +84,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -167,7 +167,7 @@
     },
     {
       "case_id": "dev-promotion-02",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -176,7 +176,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -232,7 +232,7 @@
     },
     {
       "case_id": "dev-promotion-03",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -241,7 +241,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -324,7 +324,7 @@
     },
     {
       "case_id": "dev-promotion-04",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -333,7 +333,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -354,7 +354,7 @@
     },
     {
       "case_id": "dev-promotion-05",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -363,7 +363,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -384,7 +384,7 @@
     },
     {
       "case_id": "dev-promotion-06",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -393,7 +393,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -414,7 +414,7 @@
     },
     {
       "case_id": "dev-refund-01",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -424,7 +424,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -473,7 +473,7 @@
     },
     {
       "case_id": "dev-refund-02",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -482,7 +482,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -531,7 +531,7 @@
     },
     {
       "case_id": "dev-refund-03",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -540,7 +540,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -589,7 +589,7 @@
     },
     {
       "case_id": "dev-refund-04",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -598,7 +598,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -619,7 +619,7 @@
     },
     {
       "case_id": "dev-refund-05",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -628,7 +628,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -649,7 +649,7 @@
     },
     {
       "case_id": "dev-membership-01",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -659,7 +659,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -711,7 +711,7 @@
     },
     {
       "case_id": "dev-membership-02",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -720,7 +720,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -765,7 +765,7 @@
     },
     {
       "case_id": "dev-membership-03",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -774,7 +774,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -826,7 +826,7 @@
     },
     {
       "case_id": "dev-membership-04",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -835,7 +835,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -856,7 +856,7 @@
     },
     {
       "case_id": "dev-membership-05",
-      "benchmark_version": "golden-v2",
+      "benchmark_version": "golden-v3",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -865,7 +865,7 @@
       ],
       "budget": {
         "max_steps": 12,
-        "max_tokens": 12000,
+        "max_tokens": 100000,
         "max_cost": 1.5,
         "max_time_seconds": 300
       },
@@ -885,5 +885,5 @@
       "ground_truth_actions": []
     }
   ],
-  "benchmark_version": "golden-v2"
+  "benchmark_version": "golden-v3"
 }

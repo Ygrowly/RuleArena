@@ -117,7 +117,7 @@ def main() -> int:
         store.close()
 
     lines: list[str] = []
-    lines.append("# Benchmark 实测报告（golden-v2）")
+    lines.append("# Benchmark 实测报告（golden-v3）")
     lines.append("")
     lines.append(
         "> 数据全部来自 PostgreSQL 中 append-only 的原始 BenchmarkRun；"

@@ -34,12 +34,12 @@ from rulearena_evaluation import (
 from rulearena_oracle import InvariantId
 
 ROOT = Path(__file__).resolve().parents[2]
-BUDGET = Budget(max_steps=12, max_tokens=12000, max_cost=1.5, max_time_seconds=90)
+BUDGET = Budget(max_steps=12, max_tokens=100000, max_cost=1.5, max_time_seconds=90)
 
 
 def _versions(**changes: str) -> VersionTuple:
     values = {
-        "benchmark_version": "golden-v2",
+        "benchmark_version": "golden-v3",
         "runtime_version": "runtime-v1",
         "rule_set_version": "rules-v1",
         "scenario_set_version": "scenarios-v1",
