@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FrozenDemo } from "../api/types";
 import { invariantTitle } from "../domain/invariants";
-import { CounterexampleEvidence, OutcomeBanner } from "./Evidence";
+import { CounterexampleEvidence, OutcomeBanner, StateDiff } from "./Evidence";
 import { StrategyTrace } from "./TechnicalTrace";
 
 export function FrozenDemoView({ demo }: { demo: FrozenDemo | null; error?: string }) {
@@ -76,9 +76,22 @@ export function FrozenDemoView({ demo }: { demo: FrozenDemo | null; error?: stri
           同一最小反例在 <strong>vulnerable</strong> Profile 上由 Oracle 判定违规；切换{" "}
           <strong>Fixed v2</strong> 后重放，旧反例不再成立，正常退款路径仍通过。
         </p>
-        <p className="muted">
-          {`vulnerable=${demo.evidence.vulnerable.classification} · fixed=${demo.evidence.fixed_regression.classification}`}
-        </p>
+        <div className="columns">
+          <div className="compare-card violating">
+            <h3>{`vulnerable · ${demo.evidence.vulnerable.classification}`}</h3>
+            <p className="muted">退款后积分不降反增</p>
+            <StateDiff
+              snapshots={demo.evidence.vulnerable.snapshots}
+              violatingStep={demo.evidence.vulnerable.actions.length}
+              lastStepOnly
+            />
+          </div>
+          <div className="compare-card clean">
+            <h3>{`Fixed v2 · ${demo.evidence.fixed_regression.classification}`}</h3>
+            <p className="muted">同一路径不再产生额外积分</p>
+            <StateDiff snapshots={demo.evidence.fixed_regression.snapshots} lastStepOnly />
+          </div>
+        </div>
       </section>
 
       <StrategyTrace records={demo.trace} />

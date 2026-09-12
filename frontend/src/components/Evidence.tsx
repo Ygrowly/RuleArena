@@ -68,19 +68,22 @@ export function ActionPath({ actions }: { actions: FrozenAction[] }) {
 export function StateDiff({
   snapshots,
   violatingStep,
+  lastStepOnly = false,
 }: {
   snapshots: { state_hash: string; state: FrozenReplay["snapshots"][number]["state"] }[];
   violatingStep?: number;
+  lastStepOnly?: boolean;
 }) {
   if (snapshots.length < 2) {
     return <p className="muted">没有可展示的状态变化。</p>;
   }
-  const rows = snapshots
+  const all = snapshots
     .slice(1)
     .map((snapshot, index) => ({
       step: index + 1,
       rows: diffSnapshots(snapshots[index], snapshot),
     }));
+  const rows = lastStepOnly ? all.slice(-1) : all;
   return (
     <div>
       {rows.map(({ step, rows: stepRows }) => {

@@ -400,3 +400,30 @@ ul.findings li.violated .finding-status {
   color: var(--danger);
   font-weight: 600;
 }
+
+/* Vulnerable and fixed side by side: the fix is shown, not asserted. */
+.compare-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.compare-card h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.compare-card.violating {
+  border-color: var(--danger);
+  background: #fff7f7;
+}
+
+.compare-card.clean {
+  border-color: var(--ok);
+  background: #f5fdfa;
+}
+
+.compare-card .step-diff h3 {
+  font-size: 13px;
+  color: var(--muted);
+}
