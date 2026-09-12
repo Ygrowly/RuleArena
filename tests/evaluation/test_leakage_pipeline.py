@@ -33,7 +33,7 @@ from rulearena_policy_schema import ScenarioType
 from tests.phase2_factories import rule_spec
 
 ROOT = Path(__file__).resolve().parents[2]
-BUDGET = Budget(max_steps=3, max_tokens=100, max_cost=1, max_time_seconds=10)
+BUDGET = Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10)
 VERSIONS = VersionTuple(
     benchmark_version="golden-v2",
     runtime_version="runtime-v1",

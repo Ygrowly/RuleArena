@@ -16,7 +16,14 @@ from .loader import (
     HiddenCaseLoader,
     load_hidden_manifest,
 )
-from .metrics import MetricValue, compute_metrics, pass_at_k, pass_to_k
+from .metrics import (
+    MetricValue,
+    compute_metrics,
+    intervals_overlap,
+    pass_at_k,
+    pass_to_k,
+    wilson_interval,
+)
 from .models import (
     BaselineType,
     BenchmarkCase,
@@ -69,6 +76,7 @@ __all__ = [
     "compute_metrics",
     "hidden_answer_fingerprints",
     "historical_p0_pass_rate",
+    "intervals_overlap",
     "load_hidden_manifest",
     "pass_at_k",
     "pass_to_k",
@@ -77,4 +85,5 @@ __all__ = [
     "scan_forbidden_markers",
     "scan_ground_truth_leakage",
     "verify_ground_truth",
+    "wilson_interval",
 ]

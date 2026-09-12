@@ -47,6 +47,25 @@ class StrategyStatus(StrEnum):
     COMPLETED = "COMPLETED"
 
 
+class StrategyTerminalReason(StrEnum):
+    """Why a strategy stopped searching.
+
+    Persisted alongside the strategy's usage so "this strategy never submitted a
+    candidate" can be attributed to a concrete cause from stored facts instead of
+    inferred from an aggregate budget number.
+    """
+
+    CANDIDATE_FOUND = "CANDIDATE_FOUND"
+    BUDGET_TIME = "BUDGET_TIME"
+    BUDGET_STEPS = "BUDGET_STEPS"
+    BUDGET_TOKENS_OR_COST = "BUDGET_TOKENS_OR_COST"
+    STOP_NO_CANDIDATE = "STOP_NO_CANDIDATE"
+    ILLEGAL_RETRY_EXHAUSTED = "ILLEGAL_RETRY_EXHAUSTED"
+    NO_LEGAL_ACTION = "NO_LEGAL_ACTION"
+    UNPARSABLE_OUTPUT = "UNPARSABLE_OUTPUT"
+    CANCELLED = "CANCELLED"
+
+
 class Budget(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -98,6 +117,24 @@ class StrategyRun(BaseModel):
     status: StrategyStatus
     budget: Budget
     usage: BudgetUsage = BudgetUsage()
+
+
+class StrategyDiagnostic(BaseModel):
+    """Why one strategy stopped and what it spent getting there.
+
+    The Attack Worker used to leave only an aggregate usage number behind, so "the
+    strategy stopped without submitting a candidate" could not be told apart from a
+    strategy that searched and honestly found nothing. Both the search path and the
+    benchmark persistence read this shape.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    strategy_type: StrategyType
+    terminal_reason: StrategyTerminalReason
+    usage: BudgetUsage = BudgetUsage()
+    rejected_proposals: dict[str, int] = Field(default_factory=dict)
+    candidates_submitted: int = Field(default=0, ge=0)
 
 
 class Checkpoint(BaseModel):

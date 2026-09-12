@@ -16,6 +16,7 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 from rulearena_evaluation import BaselineType, PostgresBenchmarkStore, Visibility
@@ -37,16 +38,21 @@ RATE_KEYS = (
 )
 
 
-def _rate(metrics: dict, key: str) -> str:
+def _rate(metrics: dict[str, Any], key: str) -> str:
     value = metrics.get(key, {})
     numerator = value.get("numerator")
     denominator = value.get("denominator")
     if not denominator:
         return "N/A"
-    return f"{numerator}/{denominator}"
+    lower, upper = value.get("lower"), value.get("upper")
+    if lower is None or upper is None:
+        return f"{numerator}/{denominator}"
+    # Carried into the published table so two point estimates are never read as a
+    # difference the sample size cannot support.
+    return f"{numerator}/{denominator} [{lower * 100:.0f}–{upper * 100:.0f}%]"
 
 
-def _rate_pct(metrics: dict, key: str) -> str:
+def _rate_pct(metrics: dict[str, Any], key: str) -> str:
     value = metrics.get(key, {})
     denominator = value.get("denominator")
     if not denominator:
@@ -54,7 +60,7 @@ def _rate_pct(metrics: dict, key: str) -> str:
     return f"{value.get('value') * 100:.0f}%"
 
 
-def _summary(metrics: dict, key: str) -> str:
+def _summary(metrics: dict[str, Any], key: str) -> str:
     block = metrics.get(key, {})
     parts = []
     for stat in ("mean", "median", "p95"):
@@ -67,7 +73,9 @@ def _summary(metrics: dict, key: str) -> str:
 def main() -> int:
     load_dotenv()
     store = PostgresBenchmarkStore(os.environ["CONTROL_DATABASE_URL"])
-    by_suite: dict[Visibility, dict[BaselineType, list]] = defaultdict(lambda: defaultdict(list))
+    by_suite: dict[Visibility, dict[BaselineType, list[Any]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     try:
         # Walk completed runs and group by suite/baseline; the report covers the
         # most recent matching group per cell (same benchmark_version/seed/model

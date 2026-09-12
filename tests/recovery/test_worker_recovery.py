@@ -100,7 +100,7 @@ async def test_worker_recovers_when_crash_happens_before_checkpoint() -> None:
         scenario_version_id="scenario-1",
         sandbox_version="fixed",
         oracle_version="1.0",
-        budget=Budget(max_steps=4, max_tokens=100, max_cost=1, max_time_seconds=10),
+        budget=Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10),
         random_seed=1,
     )
 
@@ -152,7 +152,7 @@ async def test_worker_resumes_after_checkpoint_without_repeating_step() -> None:
         scenario_version_id="scenario-1",
         sandbox_version="fixed",
         oracle_version="1.0",
-        budget=Budget(max_steps=4, max_tokens=100, max_cost=1, max_time_seconds=10),
+        budget=Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10),
         random_seed=1,
     )
     agents = {
@@ -213,7 +213,7 @@ async def test_oracle_persistence_crashes_resume_without_duplicate_counterexampl
         scenario_version_id="scenario-1",
         sandbox_version="fixed",
         oracle_version="1.0",
-        budget=Budget(max_steps=3, max_tokens=100, max_cost=1, max_time_seconds=10),
+        budget=Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10),
         random_seed=1,
     )
     agents = {
@@ -256,7 +256,7 @@ async def test_failed_recovery_replays_durable_candidate_instead_of_dropping_it(
         scenario_version_id="scenario-1",
         sandbox_version="fixed",
         oracle_version="1.0",
-        budget=Budget(max_steps=3, max_tokens=100, max_cost=1, max_time_seconds=10),
+        budget=Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10),
         random_seed=1,
     )
     agents = {

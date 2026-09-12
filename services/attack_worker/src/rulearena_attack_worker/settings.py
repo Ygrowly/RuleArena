@@ -11,7 +11,9 @@ from rulearena_attack_runtime import (
     SandboxReplayRunner,
     StrategyAgent,
     StrategyType,
+    max_output_tokens_from_environment,
     proposal_json_schema,
+    structured_response_format_enabled,
 )
 from rulearena_observability import PostgresTraceStore
 
@@ -37,6 +39,7 @@ async def startup(context: dict[str, Any]) -> None:
     timeout_seconds = float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120)
     store = PostgresRuntimeStore(database_url)
     trace_store = PostgresTraceStore(database_url)
+    max_output = max_output_tokens_from_environment()
     agents = {
         strategy: StrategyAgent(
             strategy,
@@ -50,7 +53,10 @@ async def startup(context: dict[str, Any]) -> None:
                 input_cost_per_million_tokens=input_cost,
                 output_cost_per_million_tokens=output_cost,
                 timeout_seconds=timeout_seconds,
+                session_header=os.getenv("LLM_SESSION_HEADER") or None,
+                use_response_format=structured_response_format_enabled(),
             ),
+            max_output_tokens=max_output,
         )
         for strategy in StrategyType
     }

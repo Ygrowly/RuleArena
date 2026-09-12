@@ -6,7 +6,7 @@ from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from rulearena_attack_runtime import AttackOutcome, Budget, BudgetUsage
+from rulearena_attack_runtime import AttackOutcome, Budget, BudgetUsage, StrategyDiagnostic
 from rulearena_oracle import InvariantId
 from rulearena_policy_schema import RuleSpec, ScenarioType
 
@@ -126,6 +126,10 @@ class RawCaseRun(BaseModel):
     compile_attempted: bool = False
     rule_spec_schema_valid: bool | None = None
     usage: BudgetUsage = BudgetUsage()
+    # Why each strategy stopped and what it spent. Without this, "no candidate was
+    # ever submitted" and "searched honestly and found nothing" are indistinguishable
+    # from the aggregate usage alone.
+    strategy_diagnostics: tuple[StrategyDiagnostic, ...] = ()
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     finished_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

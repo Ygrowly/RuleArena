@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import re
 import time
 from collections.abc import Awaitable, Callable, Mapping
@@ -167,6 +168,22 @@ class FakeLLMAdapter(RecordedLLMAdapter):
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
+
+def structured_response_format_enabled() -> bool:
+    """Whether to ask the provider to enforce the JSON schema itself.
+
+    Gateways differ: OpenCode Go rejects the ``json_schema`` response_format type
+    outright. The contract also travels in the system prompt, and caller-side
+    validation plus retries is the enforced boundary, so turning this off costs
+    provider-side enforcement only -- never the schema itself.
+    """
+    return os.getenv("LLM_RESPONSE_FORMAT", "on").strip().casefold() not in {
+        "off",
+        "false",
+        "0",
+        "no",
+    }
+
 # Deterministic ambiguity heuristic: if the rule text delegates decisions to the
 # implementer, a compiled spec must not silently freeze invented defaults.
 _VAGUE_MARKERS: tuple[str, ...] = (
@@ -203,6 +220,8 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
         input_cost_per_million_tokens: float = 0.0,
         output_cost_per_million_tokens: float = 0.0,
         timeout_seconds: float = 30.0,
+        session_header: str | None = None,
+        use_response_format: bool = True,
     ) -> None:
         structured_schema = dict(response_schema or RuleSpec.model_json_schema())
         # The model must be able to SEE the contract: some providers (MiniMax)
@@ -213,6 +232,15 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
             + chr(10)
             + json.dumps(structured_schema, ensure_ascii=False)
         )
+        # One adapter instance is one strategy's conversation, so a per-instance id
+        # is a stable session id. Gateways use it for routing and prompt caching,
+        # and OpenCode Go rejects requests that omit its session header outright.
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "rulearena-agent/1.0",
+        }
+        if session_header:
+            headers[session_header] = uuid4().hex
 
         async def call(
             system: str, untrusted_input: str, max_output_tokens: int | None
@@ -229,7 +257,7 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
             # "type" (discriminated unions) and do not strictly enforce the
             # constraint anyway; caller-side validation plus retries is the
             # enforced boundary, response_format is only an optimization.
-            if "type" in structured_schema:
+            if use_response_format and "type" in structured_schema:
                 payload["response_format"] = {
                     "type": "json_schema",
                     "json_schema": {
@@ -255,7 +283,7 @@ class OpenAICompatibleLLMAdapter(RecordedLLMAdapter):
             for use_env_proxy in route_trust_env:
                 client_kwargs: dict[str, Any] = {
                     "base_url": base_url.rstrip("/"),
-                    "headers": {"Authorization": f"Bearer {api_key}"},
+                    "headers": headers,
                     "timeout": timeout_seconds,
                     "trust_env": use_env_proxy,
                 }

@@ -110,7 +110,7 @@ def _run(store: InMemoryRuntimeStore) -> str:
         scenario_version_id="scenario-1",
         sandbox_version="fixed",
         oracle_version="1.0",
-        budget=Budget(max_steps=3, max_tokens=100, max_cost=1, max_time_seconds=10),
+        budget=Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10),
         random_seed=1,
     ).run_id
 

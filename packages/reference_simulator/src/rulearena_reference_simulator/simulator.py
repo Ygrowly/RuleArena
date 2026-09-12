@@ -54,106 +54,124 @@ class ReferenceSimulator:
         return SimulationState(scenario_type=self.rule_spec.scenario_type)
 
     def legal_actions(self, state: SimulationState) -> tuple[SimAction, ...]:
-        actions: list[SimAction] = []
+        """Canonical instantiations the scenario contract permits in this state.
+
+        This is an offer to the strategies, not a legality rule. It deliberately does
+        not prune by the simulator's own applicability model: whether an action is
+        applied is ``transition``'s *prediction*, and a prediction that disagrees
+        with the real system is the divergence being searched for. Pruning here used
+        to shrink the agent's action space below the target's, which made confirmed
+        counterexamples unreachable for every strategy.
+
+        Parametrised actions also carry a boundary probe one unit past the value the
+        rule allows, because "the implementation is more permissive than the rule"
+        defects are only observable by asking for the illegal value.
+        """
         if not state.users:
-            actions.append(SimAction.build(ActionType.CREATE_USER, initial_balance="500.00"))
-            return tuple(actions)
+            return (SimAction.build(ActionType.CREATE_USER, initial_balance="500.00"),)
         user = state.users[0]
-        if state.scenario_type is ScenarioType.PROMOTION:
-            if self.promotion and not state.coupons:
-                actions.append(
-                    SimAction.build(
-                        ActionType.ISSUE_COUPON,
-                        target_id=user.user_id,
-                        value=format(self.promotion.discount_amount.amount, "f"),
-                        threshold=format(self.promotion.minimum_order_amount.amount, "f"),
-                    )
+        actions: list[SimAction] = []
+        if state.scenario_type is ScenarioType.PROMOTION and self.promotion:
+            actions.append(
+                SimAction.build(
+                    ActionType.ISSUE_COUPON,
+                    target_id=user.user_id,
+                    value=format(self.promotion.discount_amount.amount, "f"),
+                    threshold=format(self.promotion.minimum_order_amount.amount, "f"),
                 )
-            if not state.orders:
-                amount = (
-                    self.promotion.minimum_order_amount.amount if self.promotion else Decimal("200")
+            )
+            actions.append(
+                SimAction.build(
+                    ActionType.CREATE_ORDER,
+                    target_id=user.user_id,
+                    amount=format(self.promotion.minimum_order_amount.amount, "f"),
                 )
-                actions.append(
-                    SimAction.build(
-                        ActionType.CREATE_ORDER,
-                        target_id=user.user_id,
-                        amount=format(amount, "f"),
-                    )
-                )
-            elif state.orders[0].status == "CREATED":
-                order = state.orders[0]
-                if state.coupons and order.coupon_id is None:
+            )
+            for order in state.orders:
+                for coupon in state.coupons:
                     actions.append(
                         SimAction.build(
                             ActionType.APPLY_COUPON,
                             target_id=order.order_id,
-                            coupon_id=state.coupons[0].coupon_id,
+                            coupon_id=coupon.coupon_id,
                         )
                     )
                 actions.append(SimAction.build(ActionType.PAY_ORDER, target_id=order.order_id))
-            elif state.orders[0].status in {"PAID", "PARTIALLY_REFUNDED"}:
-                actions.append(
-                    SimAction.build(
-                        ActionType.REFUND_ORDER,
-                        target_id=state.orders[0].order_id,
-                        amount=format(
-                            state.orders[0].paid_amount - state.orders[0].refunded_amount, "f"
-                        ),
-                    )
-                )
+                actions.extend(self._refund_offers(order))
         elif state.scenario_type is ScenarioType.REFUND_POINTS:
-            if not state.orders:
-                actions.append(
-                    SimAction.build(
-                        ActionType.CREATE_ORDER, target_id=user.user_id, amount="200.00"
-                    )
+            actions.append(
+                SimAction.build(ActionType.CREATE_ORDER, target_id=user.user_id, amount="200.00")
+            )
+            for order in state.orders:
+                actions.append(SimAction.build(ActionType.PAY_ORDER, target_id=order.order_id))
+                actions.extend(self._refund_offers(order))
+            actions.append(
+                SimAction.build(
+                    ActionType.REDEEM_POINTS,
+                    target_id=user.user_id,
+                    amount=user.points_balance,
                 )
-            elif state.orders[0].status == "CREATED":
-                actions.append(
-                    SimAction.build(ActionType.PAY_ORDER, target_id=state.orders[0].order_id)
+            )
+            actions.append(
+                SimAction.build(
+                    ActionType.REDEEM_POINTS,
+                    target_id=user.user_id,
+                    amount=user.points_balance + 1,
                 )
-            elif state.orders[0].status in {"PAID", "PARTIALLY_REFUNDED"}:
-                actions.append(
-                    SimAction.build(
-                        ActionType.REFUND_ORDER,
-                        target_id=state.orders[0].order_id,
-                        amount=format(
-                            state.orders[0].paid_amount - state.orders[0].refunded_amount, "f"
-                        ),
-                    )
-                )
-                if user.points_balance > 0:
-                    actions.append(
-                        SimAction.build(ActionType.REDEEM_POINTS, amount=user.points_balance)
-                    )
+            )
         elif state.scenario_type is ScenarioType.MEMBERSHIP_ENTITLEMENT and self.membership:
-            if not state.memberships:
+            actions.append(
+                SimAction.build(
+                    ActionType.ACTIVATE_MEMBERSHIP,
+                    target_id=user.user_id,
+                    paid_amount=format(self.membership.price.amount, "f"),
+                    quantity=self.membership.entitlement_quantity,
+                )
+            )
+            for entitlement in state.entitlements:
+                available = max(entitlement.available, 0)
                 actions.append(
                     SimAction.build(
-                        ActionType.ACTIVATE_MEMBERSHIP,
-                        target_id=user.user_id,
-                        paid_amount=format(self.membership.price.amount, "f"),
-                        quantity=self.membership.entitlement_quantity,
+                        ActionType.CONSUME_ENTITLEMENT,
+                        target_id=entitlement.entitlement_id,
+                        quantity=1,
                     )
                 )
-            elif state.memberships[0].status == "ACTIVE":
-                entitlement = state.entitlements[0]
-                if entitlement.available:
-                    actions.append(
-                        SimAction.build(
-                            ActionType.CONSUME_ENTITLEMENT,
-                            target_id=entitlement.entitlement_id,
-                            quantity=1,
-                        )
+                actions.append(
+                    SimAction.build(
+                        ActionType.CONSUME_ENTITLEMENT,
+                        target_id=entitlement.entitlement_id,
+                        quantity=available + 1,
                     )
+                )
+            for membership in state.memberships:
                 actions.append(
                     SimAction.build(
                         ActionType.CANCEL_MEMBERSHIP,
-                        target_id=state.memberships[0].membership_id,
+                        target_id=membership.membership_id,
                         refund_requested=True,
                     )
                 )
         return tuple(sorted(actions, key=SimAction.canonical_key))
+
+    @staticmethod
+    def _refund_offers(order: SimOrder) -> list[SimAction]:
+        """Refund the remaining amount, plus one cent past it."""
+        if order.paid_amount <= 0:
+            return []
+        remaining = order.paid_amount - order.refunded_amount
+        return [
+            SimAction.build(
+                ActionType.REFUND_ORDER,
+                target_id=order.order_id,
+                amount=format(remaining if remaining > 0 else order.paid_amount, "f"),
+            ),
+            SimAction.build(
+                ActionType.REFUND_ORDER,
+                target_id=order.order_id,
+                amount=format(remaining + CENT, "f"),
+            ),
+        ]
 
     def transition(self, state: SimulationState, action: SimAction) -> TransitionResult:
         common = {ActionType.CREATE_USER}

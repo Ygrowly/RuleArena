@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+from rulearena_attack_runtime import StrategyTerminalReason
 
 from .models import BenchmarkCase, ExpectedOutcome, FailureKind, RawCaseRun
 
@@ -17,14 +18,58 @@ class MetricValue(BaseModel):
     value: float | None
     numerator: int | float | None = None
     denominator: int | None = Field(default=None, ge=0)
+    # 95% Wilson score interval. Reported next to every rate so a comparison cannot
+    # be read off two point estimates: nine cases cannot separate a 0% strategy from
+    # a 20% one, and the interval is what makes that visible.
+    lower: float | None = Field(default=None, ge=0, le=1)
+    upper: float | None = Field(default=None, ge=0, le=1)
     source_run_ids: tuple[str, ...] = ()
+
+    def interval(self) -> tuple[float, float] | None:
+        return None if self.lower is None or self.upper is None else (self.lower, self.upper)
+
+
+_WILSON_Z = 1.959963984540054
+
+
+def wilson_interval(
+    successes: int, total: int, *, z: float = _WILSON_Z
+) -> tuple[float, float] | None:
+    """Wilson score interval for a binomial proportion; None when there is no sample."""
+    if total <= 0:
+        return None
+    if not 0 <= successes <= total:
+        raise ValueError("successes must lie within [0, total]")
+    observed = successes / total
+    z_squared = z * z
+    denominator = 1 + z_squared / total
+    center = (observed + z_squared / (2 * total)) / denominator
+    margin = (z / denominator) * math.sqrt(
+        observed * (1 - observed) / total + z_squared / (4 * total * total)
+    )
+    return (max(0.0, center - margin), min(1.0, center + margin))
+
+
+def intervals_overlap(left: MetricValue, right: MetricValue) -> bool:
+    """Whether two rates are distinguishable at the reported level.
+
+    A "better than" claim needs this to be False; overlapping intervals mean the
+    difference is inside the noise the sample size allows.
+    """
+    left_interval, right_interval = left.interval(), right.interval()
+    if left_interval is None or right_interval is None:
+        return True
+    return left_interval[0] <= right_interval[1] and right_interval[0] <= left_interval[1]
 
 
 def _ratio(numerator: int, denominator: int, run_ids: Sequence[str]) -> MetricValue:
+    interval = wilson_interval(numerator, denominator)
     return MetricValue(
         value=(numerator / denominator if denominator else None),
         numerator=numerator,
         denominator=denominator,
+        lower=interval[0] if interval else None,
+        upper=interval[1] if interval else None,
         source_run_ids=tuple(run_ids),
     )
 
@@ -164,6 +209,32 @@ def compute_metrics(
             kind.value: sum(run.failure_kind is kind for run in raw_runs)
             for kind in FailureKind
             if kind is not FailureKind.NONE
+        },
+        # Why strategies stopped and which proposals they had rejected. Without this
+        # a zero discovery rate cannot be told apart from a search that never ran.
+        "strategy_termination_reasons": {
+            reason.value: sum(
+                1
+                for run in eligible
+                for item in run.strategy_diagnostics
+                if item.terminal_reason is reason
+            )
+            for reason in StrategyTerminalReason
+        },
+        "rejected_proposal_kinds": {
+            kind: sum(
+                item.rejected_proposals.get(kind, 0)
+                for run in eligible
+                for item in run.strategy_diagnostics
+            )
+            for kind in sorted(
+                {
+                    key
+                    for run in eligible
+                    for item in run.strategy_diagnostics
+                    for key in item.rejected_proposals
+                }
+            )
         },
         "evaluable_run_ids": valid_ids,
         "discovered_case_ids": discovered,

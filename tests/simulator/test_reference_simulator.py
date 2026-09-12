@@ -66,7 +66,17 @@ def test_bfs_is_bounded_and_deduplicated() -> None:
     )
     assert result.status is SearchStatus.FOUND
     assert len(result.trace) <= 6
-    assert result.unique_states <= result.nodes_expanded + 2
+    assert result.nodes_expanded <= 30
+    # Deduplication: a state is discovered at most once, so the search can never
+    # expand more nodes than it has seen states. The seen set is *not* bounded by the
+    # expansion count -- one expansion discovers as many states as the action space
+    # offers -- so the ceiling is derived from the branching along the found trace.
+    states = [simulator.initial_state()]
+    for action in result.trace:
+        states.append(simulator.transition(states[-1], action).state)
+    max_branching = max(len(simulator.legal_actions(state)) for state in states)
+    assert result.unique_states >= result.nodes_expanded
+    assert result.unique_states <= 1 + result.nodes_expanded * max_branching
 
 
 def test_seeded_random_search_repeats_exactly() -> None:

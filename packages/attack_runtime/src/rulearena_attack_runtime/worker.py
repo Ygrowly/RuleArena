@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import time
+from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -19,6 +20,7 @@ from rulearena_reference_simulator import ReferenceSimulator, SimAction, Simulat
 from .agents import (
     ActionProposal,
     ProposalRejected,
+    RejectionKind,
     StopProposal,
     StrategyAgent,
     build_agent_context,
@@ -30,10 +32,13 @@ from .workflow import (
     AttackRun,
     AttackStatus,
     Budget,
+    BudgetUsage,
     CounterexampleRecord,
     RuntimeStore,
+    StrategyDiagnostic,
     StrategyRun,
     StrategyStatus,
+    StrategyTerminalReason,
     StrategyType,
 )
 
@@ -100,23 +105,6 @@ _SCENARIO_INVARIANTS: dict[ScenarioType, frozenset[InvariantId]] = {
 }
 
 
-class StrategyTerminalReason(StrEnum):
-    """Why a strategy stopped searching.
-
-    Persisted as a runtime event so "the strategy never submitted a candidate"
-    can be attributed to a concrete cause instead of guessed at.
-    """
-
-    CANDIDATE_FOUND = "CANDIDATE_FOUND"
-    BUDGET_TIME = "BUDGET_TIME"
-    BUDGET_STEPS = "BUDGET_STEPS"
-    BUDGET_TOKENS_OR_COST = "BUDGET_TOKENS_OR_COST"
-    STOP_NO_CANDIDATE = "STOP_NO_CANDIDATE"
-    ILLEGAL_RETRY_EXHAUSTED = "ILLEGAL_RETRY_EXHAUSTED"
-    NO_LEGAL_ACTION = "NO_LEGAL_ACTION"
-    CANCELLED = "CANCELLED"
-
-
 def _serialize_action(action: SimAction) -> dict[str, object]:
     return {
         "action_type": action.action_type.value,
@@ -151,6 +139,13 @@ def _deserialize_action(value: Mapping[str, object]) -> SimAction:
     )
 
 
+# A strategy has to accept at least one action and then emit a terminal proposal
+# before it can hand a candidate to the replay boundary. A share below that cannot
+# search at all, so the run must fail instead of reporting "no violation within
+# budget" for a search that never had a chance to happen.
+MIN_VIABLE_STRATEGY_STEPS = 2
+
+
 def _remaining_budget(total: Budget, used: BudgetUsage, remaining_parts: int) -> Budget:
     """Split the *unspent* run budget across the strategies that still have to run.
 
@@ -159,10 +154,22 @@ def _remaining_budget(total: Budget, used: BudgetUsage, remaining_parts: int) ->
     the ablation claimed a normalised budget. Each strategy now gets an equal
     share of what is left, and any slack a strategy does not use is redistributed
     to the next one. The run total is conserved; only the allocation changes.
+
+    Splitting can starve a strategy into producing no candidate at all, which would
+    surface as an ordinary "budget exhausted, nothing found" result. That outcome is
+    indistinguishable from an honest miss, so an allocation below the viable floor
+    fails closed instead.
     """
     parts = max(1, remaining_parts)
+    unspent_steps = total.max_steps - used.steps
+    if unspent_steps < MIN_VIABLE_STRATEGY_STEPS * parts:
+        raise ValueError(
+            "run budget cannot give every strategy a viable search budget: "
+            f"{parts} strategy/s still to run, {unspent_steps} unspent step(s), "
+            f"at least {MIN_VIABLE_STRATEGY_STEPS} per strategy required"
+        )
     return Budget(
-        max_steps=max(1, (total.max_steps - used.steps) // parts),
+        max_steps=unspent_steps // parts,
         max_tokens=max(0, (total.max_tokens - used.tokens) // parts),
         max_cost=max(0.0, (total.max_cost - used.cost) / parts),
         max_time_seconds=max(0.000001, (total.max_time_seconds - used.elapsed_seconds) / parts),
@@ -208,6 +215,7 @@ class AttackWorker:
         replay: ReplayGateway,
         agents: Mapping[StrategyType, StrategyAgent],
         *,
+        searching_strategies: tuple[StrategyType, ...] | None = None,
         fault_injector: FaultInjector | None = None,
         trace_sink: TraceSink | None = None,
     ) -> None:
@@ -217,12 +225,31 @@ class AttackWorker:
             raise ValueError(f"missing isolated strategy agents: {names}")
         if len({id(agent) for agent in agents.values()}) != len(StrategyType):
             raise ValueError("each strategy must use a distinct agent instance")
+        # Only strategies that actually search share the run budget. The interface is
+        # always three-shaped, but a single-agent baseline runs one real search and
+        # two inert placeholders; counting all three parts divided that one agent's
+        # budget by three and made the ablation's "normalised budget" unfair to it.
+        resolved = tuple(StrategyType) if searching_strategies is None else searching_strategies
+        if not resolved:
+            raise ValueError("at least one strategy must search")
+        self.searching_strategies = tuple(resolved)
         self.store = store
         self.replay = replay
         self.agents = dict(agents)
         self.oracle = DeterministicOracle()
         self.fault_injector = fault_injector
         self.trace_sink = trace_sink or NullTraceSink()
+
+    def _strategy_budget(
+        self,
+        strategy_type: StrategyType,
+        run: AttackRun,
+        used: BudgetUsage,
+        searching_left: int,
+    ) -> Budget:
+        if strategy_type not in self.searching_strategies:
+            return run.budget
+        return _remaining_budget(run.budget, used, max(1, searching_left))
 
     def _fault(self, point: FaultPoint) -> None:
         if self.fault_injector:
@@ -232,7 +259,11 @@ class AttackWorker:
         """A FAILED run holding a durable candidate checkpoint must resume REPLAYING."""
         for strategy_type in StrategyType:
             strategy = self.store.ensure_strategy(
-                run_id, strategy_type, _remaining_budget(run.budget, BudgetUsage(), len(StrategyType))
+                run_id,
+                strategy_type,
+                self._strategy_budget(
+                    strategy_type, run, BudgetUsage(), len(self.searching_strategies)
+                ),
             )
             checkpoint = self.store.load_checkpoint(strategy.strategy_run_id)
             if checkpoint and isinstance(checkpoint.state.get("candidate_invariant"), str):
@@ -252,6 +283,10 @@ class AttackWorker:
             )
             return
         if run.status is AttackStatus.READY:
+            # Checked before any status transition so a run that cannot be searched
+            # fails loudly while still READY, instead of being parked in a
+            # transitional status when the error surfaces.
+            _remaining_budget(run.budget, BudgetUsage(), len(self.searching_strategies))
             if not self.store.compare_and_set_status(
                 run_id, AttackStatus.READY, AttackStatus.SEARCHING
             ):
@@ -280,7 +315,7 @@ class AttackWorker:
         saw_unconfirmed = False
         used = BudgetUsage()
         replayed_candidate_keys: set[str] = set()
-        strategies_left = len(StrategyType)
+        strategies_left = len(self.searching_strategies)
         try:
             for strategy_type in StrategyType:
                 total_elapsed = (datetime.now(UTC) - run.created_at).total_seconds()
@@ -295,7 +330,9 @@ class AttackWorker:
                     )
                     return
                 strategy = self.store.ensure_strategy(
-                    run_id, strategy_type, _remaining_budget(run.budget, used, strategies_left)
+                    run_id,
+                    strategy_type,
+                    self._strategy_budget(strategy_type, run, used, strategies_left),
                 )
                 current_status = self.store.get_run(run_id).status
                 checkpoint = self.store.load_checkpoint(strategy.strategy_run_id)
@@ -317,10 +354,13 @@ class AttackWorker:
                     )
                 # Refresh so the next strategy splits whatever this one left unspent.
                 strategy = self.store.ensure_strategy(
-                    run_id, strategy_type, _remaining_budget(run.budget, used, strategies_left)
+                    run_id,
+                    strategy_type,
+                    self._strategy_budget(strategy_type, run, used, strategies_left),
                 )
                 used = _add_usage(used, strategy.usage)
-                strategies_left -= 1
+                if strategy_type in self.searching_strategies:
+                    strategies_left -= 1
                 if candidate is None:
                     continue
                 actions, invariant = candidate
@@ -470,6 +510,9 @@ class AttackWorker:
         usage = strategy.usage
         rejection: str | None = None
         illegal_retries = 0
+        rejected_kinds: Counter[str] = Counter()
+        reason = StrategyTerminalReason.STOP_NO_CANDIDATE
+        found: tuple[tuple[SimAction, ...], InvariantId] | None = None
         strategy = strategy.model_copy(update={"status": StrategyStatus.SEARCHING})
         self.store.update_strategy(strategy)
         checkpoint_version = checkpoint.version if checkpoint else 0
@@ -478,12 +521,22 @@ class AttackWorker:
         while True:
             elapsed = prior_elapsed + (time.monotonic() - segment_started)
             usage = usage.model_copy(update={"elapsed_seconds": elapsed})
-            if not usage.within(strategy.budget) or usage.steps >= strategy.budget.max_steps:
+            if not usage.within(strategy.budget):
+                reason = (
+                    StrategyTerminalReason.BUDGET_TIME
+                    if usage.elapsed_seconds > strategy.budget.max_time_seconds
+                    else StrategyTerminalReason.BUDGET_TOKENS_OR_COST
+                )
+                break
+            if usage.steps >= strategy.budget.max_steps:
+                reason = StrategyTerminalReason.BUDGET_STEPS
                 break
             if self.store.is_cancel_requested(run_id):
+                reason = StrategyTerminalReason.CANCELLED
                 break
             legal = simulator.legal_actions(state)
             if not legal:
+                reason = StrategyTerminalReason.NO_LEGAL_ACTION
                 break
             remaining = Budget(
                 max_steps=strategy.budget.max_steps - usage.steps,
@@ -516,9 +569,20 @@ class AttackWorker:
                     "candidate_invariants entry your executed path most likely violates, or "
                     "null if none. Do not return another ACTION."
                 )
-            proposal = await self.agents[strategy.strategy_type].propose(
-                context, rejection=rejection, runtime_notice=runtime_notice
-            )
+            try:
+                proposal = await self.agents[strategy.strategy_type].propose(
+                    context, rejection=rejection, runtime_notice=runtime_notice
+                )
+            except ProposalRejected as exc:
+                if exc.kind is RejectionKind.STRATEGY_MISMATCH:
+                    raise
+                # A run of unparsable replies is a strategy-level outcome, not an
+                # infrastructure failure. Letting it escape failed the whole run and
+                # dropped the case from the metric denominators, which hides the cell
+                # instead of recording why it produced nothing.
+                rejected_kinds[exc.kind.value] += 1
+                reason = StrategyTerminalReason.UNPARSABLE_OUTPUT
+                break
             rejection = None
             call_records = self.agents[strategy.strategy_type].adapter.drain_call_records()
             call = call_records[-1] if call_records else self.agents[
@@ -565,6 +629,7 @@ class AttackWorker:
                 update={"tokens": usage.tokens + call_tokens, "cost": usage.cost + call_cost}
             )
             if not next_usage.within(strategy.budget):
+                reason = StrategyTerminalReason.BUDGET_TOKENS_OR_COST
                 strategy = strategy.model_copy(update={"usage": next_usage})
                 self.store.update_strategy(strategy)
                 break
@@ -595,10 +660,9 @@ class AttackWorker:
                             candidate_state,
                             expected_version=checkpoint.version,
                         )
-                        self.store.update_strategy(
-                            strategy.model_copy(update={"status": StrategyStatus.COMPLETED})
-                        )
-                        return tuple(actions), proposal.candidate_invariant
+                        reason = StrategyTerminalReason.CANDIDATE_FOUND
+                        found = (tuple(actions), proposal.candidate_invariant)
+                        break
                 break
             if not isinstance(proposal, ActionProposal):
                 proposal = StopProposal(reason="unknown proposal type")
@@ -611,7 +675,14 @@ class AttackWorker:
                 # Illegal exploration is a normal model mistake: feed the
                 # rejection back and let the agent re-propose within budget
                 # instead of failing the whole run.
-                if illegal_retries >= 2 or not next_usage.within(strategy.budget):
+                rejected_kinds[exc.kind.value] += 1
+                if illegal_retries >= 2:
+                    reason = StrategyTerminalReason.ILLEGAL_RETRY_EXHAUSTED
+                    strategy = strategy.model_copy(update={"usage": usage})
+                    self.store.update_strategy(strategy)
+                    break
+                if not next_usage.within(strategy.budget):
+                    reason = StrategyTerminalReason.BUDGET_TOKENS_OR_COST
                     strategy = strategy.model_copy(update={"usage": usage})
                     self.store.update_strategy(strategy)
                     break
@@ -704,10 +775,19 @@ class AttackWorker:
                     candidate_state,
                     expected_version=checkpoint.version,
                 )
-                self.store.update_strategy(
-                    strategy.model_copy(update={"status": StrategyStatus.COMPLETED})
-                )
-                return tuple(actions), violated.invariant_id
+                reason = StrategyTerminalReason.CANDIDATE_FOUND
+                found = (tuple(actions), violated.invariant_id)
+                break
             await asyncio.sleep(0)
+        diagnostic = StrategyDiagnostic(
+            strategy_type=strategy.strategy_type,
+            terminal_reason=reason,
+            usage=usage,
+            rejected_proposals=dict(rejected_kinds),
+            candidates_submitted=1 if found is not None else 0,
+        )
+        self.store.append_event(
+            run_id, "STRATEGY_TERMINATED", diagnostic.model_dump(mode="json")
+        )
         self.store.update_strategy(strategy.model_copy(update={"status": StrategyStatus.COMPLETED}))
-        return None
+        return found

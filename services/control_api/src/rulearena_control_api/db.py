@@ -310,6 +310,7 @@ benchmark_case_run = sa.Table(
     sa.Column("compile_attempted", sa.Boolean(), nullable=False),
     sa.Column("rule_spec_schema_valid", sa.Boolean()),
     sa.Column("usage", postgresql.JSONB(), nullable=False),
+    sa.Column("strategy_diagnostics", postgresql.JSONB()),
     sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
     sa.Column("finished_at", sa.DateTime(timezone=True), nullable=False),
     sa.UniqueConstraint("benchmark_run_id", "case_id", "repetition"),

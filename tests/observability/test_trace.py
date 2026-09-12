@@ -44,7 +44,7 @@ def _stop() -> str:
 async def test_worker_trace_is_linked_redacted_and_reproducible() -> None:
     runtime = InMemoryRuntimeStore()
     trace = InMemoryTraceStore()
-    budget = Budget(max_steps=3, max_tokens=100, max_cost=1, max_time_seconds=10)
+    budget = Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10)
     run = runtime.create_run(
         job_key="trace-run",
         rule_version_id="00000000-0000-0000-0000-000000000101",

@@ -15,6 +15,7 @@ from rulearena_attack_runtime import (
     OpenAICompatibleLLMAdapter,
     SandboxReplayRunner,
     proposal_json_schema,
+    structured_response_format_enabled,
 )
 
 from .baselines import AgentBaselineExecutor, DelegatingCaseExecutor, SearchBaselineExecutor
@@ -63,6 +64,8 @@ async def _resolve_model() -> str:
                 "additionalProperties": False,
             },
             schema_name="rulearena_health_probe",
+            session_header=os.getenv("LLM_SESSION_HEADER") or None,
+            use_response_format=structured_response_format_enabled(),
         )
         try:
             response = await adapter.complete_structured(
@@ -144,6 +147,8 @@ async def _run(args: argparse.Namespace) -> int:
             input_cost_per_million_tokens=float(os.getenv("LLM_INPUT_COST_PER_MTOKEN", "0") or 0),
             output_cost_per_million_tokens=float(os.getenv("LLM_OUTPUT_COST_PER_MTOKEN", "0") or 0),
             timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120),
+            session_header=os.getenv("LLM_SESSION_HEADER") or None,
+            use_response_format=structured_response_format_enabled(),
         )
 
     executor = DelegatingCaseExecutor(

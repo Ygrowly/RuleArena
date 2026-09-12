@@ -1,10 +1,12 @@
 from .agents import (
+    DEFAULT_MAX_OUTPUT_TOKENS,
     ActionProposal,
     AgentContext,
     ProposalRejected,
     StopProposal,
     StrategyAgent,
     build_agent_context,
+    max_output_tokens_from_environment,
     parse_proposal,
     proposal_json_schema,
     validate_action_proposal,
@@ -26,6 +28,7 @@ from .compiler import (
     RuleVersionStore,
     UnavailableLLMAdapter,
     VersionStore,
+    structured_response_format_enabled,
     validate_rule_spec,
 )
 from .minimization import minimize_trace
@@ -44,8 +47,10 @@ from .workflow import (
     InMemoryRuntimeStore,
     RuntimeEvent,
     RuntimeStore,
+    StrategyDiagnostic,
     StrategyRun,
     StrategyStatus,
+    StrategyTerminalReason,
     StrategyType,
     transition_allowed,
 )
@@ -100,6 +105,11 @@ __all__ = [
     "minimize_trace",
     "parse_proposal",
     "proposal_json_schema",
+    "structured_response_format_enabled",
+    "max_output_tokens_from_environment",
+    "DEFAULT_MAX_OUTPUT_TOKENS",
+    "StrategyDiagnostic",
+    "StrategyTerminalReason",
     "sync_database_url",
     "transition_allowed",
     "validate_action_proposal",

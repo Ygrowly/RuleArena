@@ -17,16 +17,19 @@ from rulearena_evaluation import (
     FailureKind,
     HiddenCaseLoader,
     InMemoryBenchmarkStore,
+    MetricValue,
     PostgresBenchmarkStore,
     RawCaseRun,
     ReleaseGate,
     VersionTuple,
     Visibility,
     compute_metrics,
+    intervals_overlap,
     load_hidden_manifest,
     pass_at_k,
     pass_to_k,
     verify_ground_truth,
+    wilson_interval,
 )
 from rulearena_oracle import InvariantId
 
@@ -162,13 +165,58 @@ def test_metrics_recompute_and_failure_denominators_are_exact() -> None:
         "EVALUATION_FAILED": 0,
     }
     sample = {"a": [True, False], "b": [False, True], "short": [True]}
-    assert pass_at_k(sample, 2).model_dump() == {
-        "value": 1.0,
-        "numerator": 2,
-        "denominator": 2,
-        "source_run_ids": (),
-    }
+    at_k = pass_at_k(sample, 2).model_dump()
+    assert at_k["value"] == 1.0
+    assert at_k["numerator"] == 2
+    assert at_k["denominator"] == 2
+    assert at_k["lower"] == pytest.approx(0.3424, abs=1e-4)
+    assert at_k["upper"] == 1.0
+    assert at_k["source_run_ids"] == ()
     assert pass_to_k(sample, 2).value == 0
+
+
+def test_wilson_interval_matches_published_values() -> None:
+    assert wilson_interval(0, 0) is None
+    assert wilson_interval(0, 9) == pytest.approx((0.0, 0.2991), abs=1e-4)
+    # Mirror symmetry: the interval for 0/n is the reflection of the one for n/n.
+    assert wilson_interval(9, 9) == pytest.approx((0.7009, 1.0), abs=1e-4)
+    assert wilson_interval(0, 2) == pytest.approx((0.0, 0.6576), abs=1e-4)
+    assert wilson_interval(2, 2) == pytest.approx((0.3424, 1.0), abs=1e-4)
+    with pytest.raises(ValueError):
+        wilson_interval(3, 2)
+
+
+def test_rate_metrics_carry_intervals_and_noise_forbids_a_claim() -> None:
+    """Two point estimates are not a comparison.
+
+    The published golden-v2 reading (BFS 2/9 beats the LLM's 0/9) sits entirely
+    inside the noise nine cases allow, and the interval is what makes that visible.
+    """
+    cases = DevelopmentCaseLoader(ROOT / "benchmarks/development-v1.json").load()
+    vulnerable = [case for case in cases if case.expected_invariant_ids][:9]
+    normal = [case for case in cases if not case.expected_invariant_ids][:7]
+    agent = compute_metrics(
+        tuple(vulnerable + normal),
+        tuple(_raw(case.case_id) for case in vulnerable + normal),
+    )
+    rate = MetricValue.model_validate(agent["vulnerability_discovery_rate"])
+    assert rate.interval() is not None
+
+    bfs_hits = 2
+    bfs_interval = wilson_interval(bfs_hits, 9)
+    assert bfs_interval is not None
+    bfs = MetricValue(
+        value=bfs_hits / 9,
+        numerator=bfs_hits,
+        denominator=9,
+        lower=bfs_interval[0],
+        upper=bfs_interval[1],
+    )
+    assert intervals_overlap(rate, bfs), "0/9 and 2/9 must not be read as a difference"
+    assert not intervals_overlap(
+        MetricValue(value=1.0, lower=0.7, upper=1.0),
+        MetricValue(value=0.0, lower=0.0, upper=0.3),
+    )
 
 
 def test_release_gate_rejects_stale_version_and_store_is_append_only() -> None:

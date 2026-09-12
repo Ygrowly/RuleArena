@@ -17,7 +17,9 @@ from rulearena_attack_runtime import (
     ReplayClassification,
     SandboxReplayRunner,
     StrategyAgent,
+    StrategyDiagnostic,
     StrategyType,
+    max_output_tokens_from_environment,
 )
 from rulearena_domain_contracts import ActionType
 from rulearena_observability import InMemoryTraceStore, TraceKind
@@ -177,6 +179,24 @@ class SearchBaselineExecutor:
 AdapterFactory = Callable[[str], LLMAdapter]
 
 
+def _strategy_diagnostics(
+    store: InMemoryRuntimeStore, run_id: str
+) -> tuple[StrategyDiagnostic, ...]:
+    """Read back why each strategy stopped.
+
+    The benchmark runtime store is in-memory, so the worker's own terminal events are
+    the only durable-in-process record of a strategy's cause of stopping. A strategy
+    that is re-run after a recovery emits again; the last event for a strategy wins.
+    """
+    latest: dict[str, StrategyDiagnostic] = {}
+    for event in store.events_after(run_id):
+        if event.event_type != "STRATEGY_TERMINATED":
+            continue
+        diagnostic = StrategyDiagnostic.model_validate(event.data)
+        latest[diagnostic.strategy_type.value] = diagnostic
+    return tuple(latest[key] for key in sorted(latest))
+
+
 class _CapturingLLMAdapter:
     """Records every string crossing the model boundary so the leakage scanner can audit it."""
 
@@ -243,12 +263,14 @@ class AgentBaselineExecutor:
             budget=case.budget,
             random_seed=random_seed,
         )
+        max_output = max_output_tokens_from_environment()
         if baseline is BaselineType.SINGLE_AGENT:
             agents = {
                 StrategyType.VALUE_FLOW: StrategyAgent(
                     StrategyType.VALUE_FLOW,
                     capturing_factory("single-general-v1"),
                     role_name="GENERAL",
+                    max_output_tokens=max_output,
                 ),
                 StrategyType.LIFECYCLE: StrategyAgent(
                     StrategyType.LIFECYCLE,
@@ -262,15 +284,29 @@ class AgentBaselineExecutor:
         else:
             agents = {
                 strategy: StrategyAgent(
-                    strategy, capturing_factory(f"{strategy.value.casefold()}-v1")
+                    strategy,
+                    capturing_factory(f"{strategy.value.casefold()}-v1"),
+                    max_output_tokens=max_output,
                 )
                 for strategy in StrategyType
             }
         trace_store = InMemoryTraceStore()
+        # The single-agent baseline runs one real search; the other two strategies are
+        # inert placeholders, so the general agent must not have its budget split
+        # three ways.
+        searching = (
+            (StrategyType.VALUE_FLOW,)
+            if baseline is BaselineType.SINGLE_AGENT
+            else tuple(StrategyType)
+        )
         try:
-            await AttackWorker(store, self.replay, agents, trace_sink=trace_store).run(
-                run.run_id, case.rule_spec
-            )
+            await AttackWorker(
+                store,
+                self.replay,
+                agents,
+                searching_strategies=searching,
+                trace_sink=trace_store,
+            ).run(run.run_id, case.rule_spec)
         except Exception as error:
             # Honest infra accounting: keep the failure visible with its cause.
             print(
@@ -352,6 +388,7 @@ class AgentBaselineExecutor:
             replay_attempts=stability_attempts,
             replay_successes=stability_successes,
             usage=usage,
+            strategy_diagnostics=_strategy_diagnostics(store, run.run_id),
             started_at=started_at,
             finished_at=datetime.now(UTC),
         )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Annotated, Any, Literal
@@ -101,6 +102,24 @@ FORBIDDEN_CONTEXT_KEYS = frozenset(
     }
 )
 
+# Reasoning models bill their chain of thought as completion tokens, so the answer
+# allowance must not shrink with the remaining run budget: a throttled call spends its
+# whole allowance on reasoning and returns empty content, which is billed anyway and
+# forces a retry that does the same thing again. The run budget is still enforced by
+# the worker's accounting, which stops the strategy one call later.
+DEFAULT_MAX_OUTPUT_TOKENS = 8192
+
+
+def max_output_tokens_from_environment() -> int:
+    raw = os.getenv("LLM_MAX_OUTPUT_TOKENS", "").strip()
+    if not raw:
+        return DEFAULT_MAX_OUTPUT_TOKENS
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_MAX_OUTPUT_TOKENS
+    return value if value > 0 else DEFAULT_MAX_OUTPUT_TOKENS
+
 
 def parse_proposal(raw: str) -> Proposal:
     try:
@@ -188,6 +207,13 @@ def validate_action_proposal(
             kind=RejectionKind.ACTION_NOT_LEGAL,
         )
     candidate_arguments = dict(candidate.arguments)
+    flexible = {
+        ActionType.CREATE_USER: {"initial_balance"},
+        ActionType.CREATE_ORDER: {"amount"},
+        ActionType.REFUND_ORDER: {"amount"},
+        ActionType.REDEEM_POINTS: {"amount"},
+        ActionType.CONSUME_ENTITLEMENT: {"quantity"},
+    }.get(candidate.action_type, set())
     parameter_match = False
     for template in matching:
         template_arguments = dict(template.arguments)
@@ -196,24 +222,17 @@ def validate_action_proposal(
         if candidate_arguments == template_arguments:
             parameter_match = True
             break
-        flexible = {
-            ActionType.CREATE_USER: {"initial_balance"},
-            ActionType.CREATE_ORDER: {"amount"},
-            ActionType.REFUND_ORDER: {"amount"},
-            ActionType.REDEEM_POINTS: {"amount"},
-            ActionType.CONSUME_ENTITLEMENT: {"quantity"},
-        }.get(candidate.action_type, set())
         if set(candidate_arguments) != flexible:
             continue
+        # The contract fixes the parameter *names* and requires a positive value; it
+        # does not cap the value at what the rule currently allows. Whether the real
+        # system accepts an over-sized amount is the question under test, so clamping
+        # it here would answer that question in the simulator's favour.
         try:
             proposed = Decimal(str(next(iter(candidate_arguments.values()))))
-            upper = Decimal(str(next(iter(template_arguments.values()))))
         except (InvalidOperation, StopIteration):
             continue
-        if proposed > 0 and (
-            candidate.action_type in {ActionType.CREATE_USER, ActionType.CREATE_ORDER}
-            or proposed <= upper
-        ):
+        if proposed > 0:
             parameter_match = True
             break
     if not parameter_match:
@@ -221,7 +240,15 @@ def validate_action_proposal(
             "action parameters are outside the legal schema or range",
             kind=RejectionKind.PARAMS_OUT_OF_RANGE,
         )
-    if any(item.get("action_key") == candidate.canonical_key() for item in history):
+    # Only repeats that made no progress are rejected. An action that applied once
+    # may legitimately apply again -- a second order, a second refund -- and those
+    # repeats are exactly what the idempotency and double-execution defects look
+    # like. Blocking them would remove the defect class from the search space.
+    if any(
+        item.get("action_key") == candidate.canonical_key()
+        and item.get("status") != "APPLIED"
+        for item in history
+    ):
         raise ProposalRejected(
             "duplicate action in the current strategy history",
             kind=RejectionKind.DUPLICATE_ACTION,
@@ -231,11 +258,17 @@ def validate_action_proposal(
 
 class StrategyAgent:
     def __init__(
-        self, strategy_type: StrategyType, adapter: LLMAdapter, *, role_name: str | None = None
+        self,
+        strategy_type: StrategyType,
+        adapter: LLMAdapter,
+        *,
+        role_name: str | None = None,
+        max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
     ) -> None:
         self.strategy_type = strategy_type
         self.adapter = adapter
         self.role_name = role_name or strategy_type.value
+        self.max_output_tokens = max_output_tokens
 
     async def propose(
         self,
@@ -303,7 +336,7 @@ class StrategyAgent:
                 response = await self.adapter.complete_structured(
                     system=system,
                     untrusted_input=untrusted,
-                    max_output_tokens=min(context.remaining_budget.max_tokens, 8192) or None,
+                    max_output_tokens=self.max_output_tokens,
                 )
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code < 500 and exc.response.status_code != 429:

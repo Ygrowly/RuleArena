@@ -16,6 +16,7 @@ from rulearena_attack_runtime import (
     RuntimeStore,
     UnavailableLLMAdapter,
     VersionStore,
+    structured_response_format_enabled,
 )
 from rulearena_evaluation import BenchmarkStore, PostgresBenchmarkStore
 from rulearena_observability import (
@@ -71,6 +72,8 @@ def create_app(
                 api_key=resolved.llm_api_key.get_secret_value(),
                 model=resolved.llm_model,
                 timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "120") or 120),
+                session_header=os.getenv("LLM_SESSION_HEADER") or None,
+                use_response_format=structured_response_format_enabled(),
             )
         else:
             adapter = UnavailableLLMAdapter()

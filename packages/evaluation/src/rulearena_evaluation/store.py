@@ -128,7 +128,7 @@ class PostgresBenchmarkStore:
                     attack_run_id, outcome, failure_kind, confirmed_invariant_ids,
                     replayed_candidates, confirmed_candidates, replay_attempts,
                     replay_successes, compile_attempted, rule_spec_schema_valid,
-                    usage, started_at, finished_at
+                    usage, strategy_diagnostics, started_at, finished_at
                 ) VALUES (
                     CAST(:id AS uuid), CAST(:benchmark_run_id AS uuid), :case_id,
                     :visibility, :baseline, :repetition,
@@ -136,12 +136,13 @@ class PostgresBenchmarkStore:
                     :outcome, :failure_kind, :confirmed_invariant_ids,
                     :replayed_candidates, :confirmed_candidates, :replay_attempts,
                     :replay_successes, :compile_attempted, :rule_spec_schema_valid,
-                    :usage, :started_at, :finished_at
+                    :usage, :strategy_diagnostics, :started_at, :finished_at
                 )
                 """
             ).bindparams(
                 sa.bindparam("confirmed_invariant_ids", type_=JSONB),
                 sa.bindparam("usage", type_=JSONB),
+                sa.bindparam("strategy_diagnostics", type_=JSONB),
             )
             for raw in run.raw_runs:
                 raw_values = raw.model_dump(mode="json")
