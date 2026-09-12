@@ -490,6 +490,8 @@ def test_postgres_benchmark_facts_are_normalized_and_append_only() -> None:
     database_url = os.getenv("TEST_CONTROL_DATABASE_URL")
     if not database_url:
         pytest.skip("set TEST_CONTROL_DATABASE_URL after applying control migrations")
+    sync_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+    engine = sa.create_engine(sync_url)
     now = datetime.now(UTC)
     raw = _raw("dev-promotion-01")
     run = BenchmarkRun(
@@ -505,11 +507,13 @@ def test_postgres_benchmark_facts_are_normalized_and_append_only() -> None:
         started_at=now,
         finished_at=now,
     )
-    store = PostgresBenchmarkStore(database_url)
-    try:
-        store.save(run)
-        assert store.get(run.benchmark_run_id) == run
-        with store.engine.connect() as connection:
+    with engine.connect() as connection:
+        transaction = connection.begin()
+        try:
+            store = PostgresBenchmarkStore(engine)
+            store.engine = _RollbackEngine(connection)  # type: ignore[assignment]
+            store.save(run)
+            assert store.get(run.benchmark_run_id) == run
             count = connection.scalar(
                 sa.text(
                     "SELECT count(*) FROM control.benchmark_case_run "
@@ -517,27 +521,21 @@ def test_postgres_benchmark_facts_are_normalized_and_append_only() -> None:
                 ),
                 {"id": run.benchmark_run_id},
             )
-        assert count == 1
-        with pytest.raises(sa.exc.DBAPIError):
-            with store.engine.begin() as connection:
-                connection.execute(
-                    sa.text(
-                        "UPDATE control.benchmark_run SET status = 'FAILED' "
-                        "WHERE id = CAST(:id AS uuid)"
-                    ),
-                    {"id": run.benchmark_run_id},
-                )
-        with pytest.raises(sa.exc.DBAPIError):
-            with store.engine.begin() as connection:
-                connection.execute(
-                    sa.text(
-                        "DELETE FROM control.benchmark_case_run "
-                        "WHERE benchmark_run_id = CAST(:id AS uuid)"
-                    ),
-                    {"id": run.benchmark_run_id},
-                )
-    finally:
-        store.close()
+            assert count == 1
+            # Each rejection aborts the transaction, so it needs its own savepoint for
+            # the following one to be attempted against a usable transaction.
+            for statement in (
+                "UPDATE control.benchmark_run SET status = 'FAILED' WHERE id = CAST(:id AS uuid)",
+                "DELETE FROM control.benchmark_case_run WHERE benchmark_run_id = CAST(:id AS uuid)",
+                "DELETE FROM control.benchmark_run WHERE id = CAST(:id AS uuid)",
+            ):
+                savepoint = connection.begin_nested()
+                with pytest.raises(sa.exc.ProgrammingError):
+                    connection.execute(sa.text(statement), {"id": run.benchmark_run_id})
+                savepoint.rollback()
+        finally:
+            transaction.rollback()
+    engine.dispose()
 
 
 @pytest.mark.sandbox
