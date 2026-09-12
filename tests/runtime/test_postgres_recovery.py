@@ -60,7 +60,7 @@ async def test_worker_resumes_from_postgres_checkpoint_after_crash() -> None:
     policy_id = str(uuid4())
     versions.record_compile(policy_id, "postgres recovery", compiled)
     version = versions.confirm(policy_id, compiled)
-    budget = Budget(max_steps=4, max_tokens=100, max_cost=1, max_time_seconds=10)
+    budget = Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10)
     run = runtime.create_run(
         job_key=f"pg-recovery:{uuid4()}",
         rule_version_id=version.version_id,

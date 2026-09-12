@@ -167,6 +167,7 @@ async def _run(args: argparse.Namespace) -> int:
                 random_seed=args.seed,
                 historical_p0_pass_rate=regression_rate,
                 concurrency=args.concurrency,
+                resume=args.resume,
             )
             print(
                 json.dumps(
@@ -225,6 +226,12 @@ def _parser() -> argparse.ArgumentParser:
         "--baselines", default="random,bfs,single_agent,multi_strategy"
     )
     benchmark.add_argument("--repetitions", type=int, default=1)
+    benchmark.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue an unfinished run of the same configuration instead of "
+        "starting over; finished cases are already durable and are skipped",
+    )
     benchmark.add_argument(
         "--concurrency",
         type=int,

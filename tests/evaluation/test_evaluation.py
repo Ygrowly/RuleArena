@@ -306,6 +306,185 @@ async def test_runner_persists_raw_facts_and_rejects_budget_drift() -> None:
         )
 
 
+@pytest.mark.asyncio
+async def test_runner_keeps_finished_cases_when_interrupted_and_resumes() -> None:
+    """A multi-hour benchmark must survive an interruption and continue where it stopped.
+
+    Case facts used to be written only when a whole baseline finished, so a kill lost
+    every finished case; the diagnostics of the interrupted run were unrecoverable.
+    """
+    cases = DevelopmentCaseLoader(ROOT / "benchmarks/development-v1.json").load()[:3]
+
+    class InterruptingExecutor:
+        def __init__(self, fail_at: int) -> None:
+            self.calls = 0
+            self.fail_at = fail_at
+
+        async def execute(
+            self,
+            case: BenchmarkCase,
+            *,
+            baseline: BaselineType,
+            repetition: int,
+            random_seed: int,
+        ) -> RawCaseRun:
+            self.calls += 1
+            if self.calls == self.fail_at:
+                raise KeyboardInterrupt("simulated kill")
+            return _raw(case.case_id, repetition=repetition)
+
+    store = InMemoryBenchmarkStore()
+    with pytest.raises(KeyboardInterrupt):
+        await BenchmarkRunner(store, InterruptingExecutor(fail_at=3)).run(
+            cases,
+            versions=_versions(),
+            baseline=BaselineType.BFS,
+            repetitions=1,
+            random_seed=7,
+        )
+    interrupted = store.running(
+        versions=_versions(), baseline=BaselineType.BFS, suite=Visibility.DEVELOPMENT
+    )
+    assert interrupted is not None
+    durable = store.completed_cases(interrupted.benchmark_run_id)
+    assert [item.case_id for item in durable] == [cases[0].case_id, cases[1].case_id]
+
+    executed: list[str] = []
+
+    class RecordingExecutor:
+        async def execute(
+            self,
+            case: BenchmarkCase,
+            *,
+            baseline: BaselineType,
+            repetition: int,
+            random_seed: int,
+        ) -> RawCaseRun:
+            executed.append(case.case_id)
+            return _raw(case.case_id, repetition=repetition)
+
+    result = await BenchmarkRunner(store, RecordingExecutor()).run(
+        cases,
+        versions=_versions(),
+        baseline=BaselineType.BFS,
+        repetitions=1,
+        random_seed=7,
+        resume=True,
+    )
+    assert executed == [cases[2].case_id], "finished cases must not be repeated"
+    assert result.benchmark_run_id == interrupted.benchmark_run_id
+    assert len(result.raw_runs) == 3
+    assert (
+        store.running(
+            versions=_versions(), baseline=BaselineType.BFS, suite=Visibility.DEVELOPMENT
+        )
+        is None
+    )
+    assert (
+        store.latest(
+            versions=_versions(), baseline=BaselineType.BFS, suite=Visibility.DEVELOPMENT
+        )
+        is not None
+    )
+
+
+class _RollbackEngine:
+    """Runs store writes inside a transaction the test rolls back.
+
+    The benchmark tables are append-only, so synthetic rows written to the development
+    database could never be removed and would sit in the history that real gate queries
+    read. This keeps the verification honest and the database clean.
+    """
+
+    def __init__(self, connection: sa.Connection) -> None:
+        self._connection = connection
+
+    def begin(self) -> object:
+        connection = self._connection
+
+        class _Context:
+            def __enter__(self) -> sa.Connection:
+                return connection
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+        return _Context()
+
+    def connect(self) -> object:
+        return self.begin()
+
+
+@pytest.mark.postgres
+def test_run_lifecycle_is_write_once_and_identity_stays_frozen() -> None:
+    database_url = os.getenv("TEST_CONTROL_DATABASE_URL")
+    if not database_url:
+        pytest.skip("set TEST_CONTROL_DATABASE_URL after applying control migrations")
+    sync_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+    engine = sa.create_engine(sync_url)
+    now = datetime.now(UTC)
+    run = BenchmarkRun(
+        versions=_versions(),
+        baseline=BaselineType.BFS,
+        random_seed=11,
+        budget=BUDGET,
+        repetitions=1,
+        suite=Visibility.DEVELOPMENT,
+        status=BenchmarkStatus.RUNNING,
+        raw_runs=(),
+        metrics={},
+        started_at=now,
+        finished_at=None,
+    )
+    raw = _raw("lifecycle-case-1")
+    with engine.connect() as connection:
+        transaction = connection.begin()
+        try:
+            store = PostgresBenchmarkStore(engine)
+            store.engine = _RollbackEngine(connection)  # type: ignore[assignment]
+            store.start_run(run)
+            running = store.running(
+                versions=_versions(),
+                baseline=BaselineType.BFS,
+                suite=Visibility.DEVELOPMENT,
+            )
+            assert running is not None
+            assert running.benchmark_run_id == run.benchmark_run_id
+
+            store.append_case(run.benchmark_run_id, raw)
+            assert [item.case_id for item in store.completed_cases(run.benchmark_run_id)] == [
+                "lifecycle-case-1"
+            ]
+
+            store.finalize_run(
+                run.benchmark_run_id,
+                status=BenchmarkStatus.COMPLETED,
+                raw_runs=(raw,),
+                metrics={"marker": 1},
+                finished_at=now,
+            )
+            with pytest.raises(ValueError, match="only a RUNNING"):
+                store.finalize_run(
+                    run.benchmark_run_id,
+                    status=BenchmarkStatus.COMPLETED,
+                    raw_runs=(raw,),
+                    metrics={"marker": 2},
+                    finished_at=now,
+                )
+            # Identity and configuration stay frozen even for the one allowed transition.
+            with pytest.raises(sa.exc.ProgrammingError, match="append-only"):
+                connection.execute(
+                    sa.text(
+                        "UPDATE control.benchmark_run SET random_seed = 1234 "
+                        "WHERE id = CAST(:id AS uuid)"
+                    ),
+                    {"id": run.benchmark_run_id},
+                )
+        finally:
+            transaction.rollback()
+    engine.dispose()
+
+
 @pytest.mark.postgres
 def test_postgres_benchmark_facts_are_normalized_and_append_only() -> None:
     database_url = os.getenv("TEST_CONTROL_DATABASE_URL")
