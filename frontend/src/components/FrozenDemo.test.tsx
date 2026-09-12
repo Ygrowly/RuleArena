@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { FrozenDemoView } from "./FrozenDemo";
+import frozenJson from "../../public/frozen/golden-run.json";
 import type { FrozenDemo } from "../api/types";
 
 const demo: FrozenDemo = {
@@ -127,3 +128,59 @@ describe("FrozenDemoView", () => {
     expect(screen.getByText(/正在加载冻结黄金案例/)).toBeTruthy();
   });
 });
+
+/**
+ * The shipped demo asset, asserted directly.
+ *
+ * The tests above use a fixture, so they pass whatever the frozen run actually contains.
+ * These read the committed JSON: if the export is regenerated with a scripted path or a
+ * different profile, the demo's claims must change with it, and that is what they check.
+ */
+const frozen = frozenJson as unknown as FrozenDemo;
+
+describe("the committed frozen demo", () => {
+  it("claims the model found the path only when the export used one", () => {
+    render(<FrozenDemoView demo={frozen} />);
+    if (frozen.provenance.search_mode === "live_model") {
+      expect(screen.getByText(/模型在 \d+ 步内搜索到/)).toBeTruthy();
+    } else {
+      // A scripted export must not be presented as a model finding.
+      expect(screen.queryByText(/模型在 \d+ 步内搜索到/)).toBeNull();
+      expect(screen.getByText(/路径由确定性脚本给出/)).toBeTruthy();
+    }
+  });
+
+  it("marks the step that trips the invariant on the shipped run", () => {
+    render(<FrozenDemoView demo={frozen} />);
+    const tags = screen.getAllByText("违规发生在此步");
+    // One in the evidence timeline, one in the vulnerable card of the comparison.
+    expect(tags.length).toBeGreaterThan(0);
+    const pointsBefore = pointsBalance(frozen.evidence.vulnerable.snapshots, -2);
+    const pointsAfter = pointsBalance(frozen.evidence.vulnerable.snapshots, -1);
+    expect(screen.getAllByText(pointsBefore).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(pointsAfter).length).toBeGreaterThan(0);
+  });
+
+  it("shows the fixed profile leaving the same path's points alone", () => {
+    render(<FrozenDemoView demo={frozen} />);
+    const fixedAfter = pointsBalance(frozen.evidence.fixed_regression.snapshots, -1);
+    expect(screen.getByText(/Fixed v2 回归：旧反例不再成立/)).toBeTruthy();
+    expect(screen.getAllByText(fixedAfter).length).toBeGreaterThan(0);
+    expect(fixedAfter).not.toBe(pointsBalance(frozen.evidence.vulnerable.snapshots, -1));
+  });
+
+  it("states how many invariants the Oracle checked", () => {
+    const findings = frozen.evidence.vulnerable.findings;
+    expect(findings && findings.length).toBeGreaterThan(0);
+    render(<FrozenDemoView demo={frozen} />);
+    expect(screen.getByText(new RegExp(`全部 ${findings?.length} 条不变量`))).toBeTruthy();
+  });
+});
+
+function pointsBalance(
+  snapshots: FrozenDemo["evidence"]["vulnerable"]["snapshots"],
+  index: number,
+): string {
+  const users = snapshots.at(index)?.state.users as { points_balance?: number }[] | undefined;
+  return String(users?.[0]?.points_balance);
+}
