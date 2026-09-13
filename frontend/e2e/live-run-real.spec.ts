@@ -49,8 +49,11 @@ test.describe("live run against the real backend", () => {
 
     // Any of the three business outcomes is a valid result; what is not acceptable is
     // the run staying in progress, failing silently, or being dressed up as safety.
+    // Scoped to the status banner on purpose: the page footer quotes the same phrases
+    // while explaining the semantics, and matching the whole page let a run that never
+    // started satisfy this assertion.
     await expect(
-      page.getByText(/已确认违规|未确认候选|预算内未发现违规/),
+      page.getByRole("status").getByText(/已确认违规|未确认候选|预算内未发现违规/),
       "the public run must reach a business outcome inside its 90-second budget",
     ).toBeVisible({ timeout: 150_000 });
     await expect(page.getByText("规则安全", { exact: true })).toHaveCount(0);

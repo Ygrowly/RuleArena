@@ -7,6 +7,7 @@ from rulearena_attack_runtime import (
     RuleCompiler,
     RuleVersionStore,
 )
+from rulearena_attack_runtime.compiler import value_at_path
 from rulearena_policy_schema import Ambiguity, ScenarioType
 
 from tests.phase2_factories import rule_spec
@@ -47,8 +48,28 @@ async def test_ambiguity_requires_explicit_resolution() -> None:
 
     assert result.status is CompileStatus.NEEDS_CONFIRMATION
     assert result.questions[0].field_path == "rules[0].restore_on_full_refund"
+    # The compiled spec already carries a value at that path; the question offers it so a
+    # human can confirm or override the guess rather than invent a value from nothing.
+    assert result.questions[0].suggestion == "false"
     with pytest.raises(ValueError, match="ambiguities"):
         RuleVersionStore().confirm("policy-1", result)
+
+
+def test_value_at_path_resolves_the_paths_the_compiler_asks_about() -> None:
+    document = {
+        "assets": [],
+        "rules": [
+            {"restore_on_full_refund": False, "minimum_order_amount": {"currency": "CNY"}}
+        ],
+    }
+    assert value_at_path(document, "assets") == []
+    assert value_at_path(document, "rules[0].restore_on_full_refund") is False
+    assert value_at_path(document, "rules[0].minimum_order_amount.currency") == "CNY"
+    # Paths that do not resolve yield no suggestion rather than an error.
+    assert value_at_path(document, "rules[9].restore_on_full_refund") is None
+    assert value_at_path(document, "rules[0].missing") is None
+    assert value_at_path(document, "rules") is not None
+    assert value_at_path(document, "") is None
 
 
 @pytest.mark.asyncio

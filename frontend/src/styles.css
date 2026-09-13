@@ -368,6 +368,35 @@ table.trace-table tr.totals td {
   border-top: 2px solid var(--line);
 }
 
+/* Ambiguity answers: each question shows the value the compiler already chose. */
+ul.questions {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+ul.questions li {
+  margin-bottom: 10px;
+}
+
+ul.questions p {
+  margin: 0 0 6px;
+}
+
+.question-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.question-answer input {
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  min-width: 16ch;
+}
+
 /* The Oracle's coverage: what it checked, not only what it found. */
 ul.findings {
   margin: 8px 0 0;

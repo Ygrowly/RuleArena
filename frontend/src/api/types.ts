@@ -125,6 +125,8 @@ export interface ConfirmationQuestion {
   question_id: string;
   field_path: string;
   question: string;
+  /** The value the compiled spec already carries there, as JSON; null when unresolvable. */
+  suggestion?: string | null;
 }
 
 export interface LLMCallRecord {

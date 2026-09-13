@@ -55,11 +55,14 @@ export async function compileRule(
   });
 }
 
-export async function confirmPolicy(policyId: string): Promise<RuleVersionResponse> {
+export async function confirmPolicy(
+  policyId: string,
+  confirmedRuleSpec: Record<string, unknown> | null = null,
+): Promise<RuleVersionResponse> {
   return request<RuleVersionResponse>(`/api/policies/${policyId}/confirm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ confirmed_rule_spec: confirmedRuleSpec }),
   });
 }
 

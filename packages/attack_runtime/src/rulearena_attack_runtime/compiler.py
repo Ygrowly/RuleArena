@@ -30,6 +30,38 @@ class ConfirmationQuestion(BaseModel):
     question_id: str
     field_path: str
     question: str
+    # The value the compiled spec already carries at that path. The model has to return a
+    # complete RuleSpec, so a field it had to guess has one; showing it is what lets a
+    # human confirm or override the guess instead of being asked to invent a value.
+    suggestion: str | None = None
+
+
+_FIELD_SEGMENT = re.compile(r"^([^\[\]]+)(?:\[(\d+)\])?$")
+
+
+def value_at_path(document: object, field_path: str) -> object | None:
+    """Read ``a.b[0].c`` out of a nested document, or None when it does not resolve."""
+    current = document
+    for segment in field_path.split("."):
+        match = _FIELD_SEGMENT.match(segment)
+        if match is None:
+            return None
+        name, index = match.group(1), match.group(2)
+        if not isinstance(current, dict) or name not in current:
+            return None
+        current = current[name]
+        if index is not None:
+            if not isinstance(current, list) or int(index) >= len(current):
+                return None
+            current = current[int(index)]
+    return current
+
+
+def suggestion_for(spec: RuleSpec, field_path: str) -> str | None:
+    value = value_at_path(spec.model_dump(mode="json"), field_path)
+    if value is None:
+        return None
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
 class LLMUsage(BaseModel):
@@ -547,6 +579,7 @@ class RuleCompiler:
                 question_id=item.ambiguity_id,
                 field_path=item.field_path,
                 question=item.question,
+                suggestion=suggestion_for(spec, item.field_path),
             )
             for item in spec.ambiguities
         )

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ApiError,
   cancelRun,
   compileRule,
   confirmPolicy,
@@ -18,6 +17,7 @@ import type {
   TraceRecord,
 } from "../api/types";
 import { describeStatus, STRATEGY_META } from "../domain/outcome";
+import { setAtPath } from "../domain/specPath";
 import { OutcomeBanner } from "./Evidence";
 import { StrategyTrace } from "./TechnicalTrace";
 
@@ -47,6 +47,10 @@ export function LiveRunView() {
   const [versionId, setVersionId] = useState<string>("");
   const [traces, setTraces] = useState<TraceRecord[]>([]);
   const [counterexamples, setCounterexamples] = useState<CounterexampleRecord[]>([]);
+  // Answers to the compiler's ambiguity questions, keyed by question id. Seeded with the
+  // value the compiled spec already carries, so confirming means accepting or editing it
+  // rather than inventing a value from nothing.
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const idempotencyKey = useRef<string>("");
 
   useEffect(() => {
@@ -98,11 +102,25 @@ export function LiveRunView() {
     try {
       const result = await compileRule(templateId, modification);
       setCompiled(result);
-      if (result.status === "COMPILED") setPhase("compiled");
-      else if (result.status === "NEEDS_CONFIRMATION") setPhase("ambiguous");
-      else setPhase("pick");
+      setAnswers(
+        Object.fromEntries(
+          result.questions.map((question) => [question.question_id, question.suggestion ?? ""]),
+        ),
+      );
+      if (result.status === "COMPILED") {
+        // A cleanly compiled draft is already complete, but a *runnable* version only
+        // exists once it is frozen. Skipping this left the start button inert: the panel
+        // appeared, the click did nothing, and no version was ever created.
+        const version = await confirmPolicy(result.policy_id, null);
+        setVersionId(version.version_id);
+        setPhase("compiled");
+      } else if (result.status === "NEEDS_CONFIRMATION") {
+        setPhase("ambiguous");
+      } else {
+        setPhase("pick");
+      }
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : String(cause));
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
     }
@@ -113,11 +131,30 @@ export function LiveRunView() {
     setBusy(true);
     setError(null);
     try {
-      const version = await confirmPolicy(compiled.policy_id);
+      // Resolving means handing back a spec with the answers applied: the service refuses
+      // to freeze a draft that still carries ambiguities, and an acknowledgement alone
+      // would leave the human confirming values nobody ever saw.
+      let resolved = (compiled.rule_spec ?? {}) as Record<string, unknown>;
+      for (const question of compiled.questions) {
+        if (question.suggestion === null || question.suggestion === undefined) {
+          continue; // Nothing in the spec to answer for (e.g. the rule-text question).
+        }
+        let value: unknown;
+        try {
+          value = JSON.parse(answers[question.question_id] ?? "");
+        } catch {
+          throw new Error(
+            `「${question.field_path}」的取值必须是合法 JSON，例如 true、12、"CNY"、[]。`,
+          );
+        }
+        resolved = setAtPath(resolved, question.field_path, value) as Record<string, unknown>;
+      }
+      resolved = { ...resolved, ambiguities: [] };
+      const version = await confirmPolicy(compiled.policy_id, resolved);
       setVersionId(version.version_id);
       setPhase("compiled");
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : String(cause));
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
     }
@@ -147,7 +184,7 @@ export function LiveRunView() {
       setRun(created);
       setPhase("running");
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : String(cause));
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
     }
@@ -160,7 +197,7 @@ export function LiveRunView() {
       await cancelRun(run.run_id);
       await poll(run.run_id);
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : String(cause));
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
     }
@@ -210,10 +247,29 @@ export function LiveRunView() {
           )}
           {phase === "ambiguous" && (
             <div className="banner warn">
-              规则存在歧义，需要显式确认后才能创建可运行版本：
-              <ul>
+              规则存在歧义，需要显式确认后才能创建可运行版本。每条已预填编译出的取值，
+              可直接接受或改成你要的：
+              <ul className="questions">
                 {compiled.questions.map((question) => (
-                  <li key={question.question_id}>{`${question.field_path}: ${question.question}`}</li>
+                  <li key={question.question_id}>
+                    <p>{`${question.field_path}：${question.question}`}</p>
+                    {question.suggestion !== null && question.suggestion !== undefined && (
+                      <label className="question-answer">
+                        <span className="muted">取值（JSON）</span>
+                        <input
+                          aria-label={`${question.field_path} 取值`}
+                          value={answers[question.question_id] ?? ""}
+                          onChange={(event) =>
+                            setAnswers((current) => ({
+                              ...current,
+                              [question.question_id]: event.target.value,
+                            }))
+                          }
+                        />
+                        <span className="muted">{`编译建议：${question.suggestion}`}</span>
+                      </label>
+                    )}
+                  </li>
                 ))}
               </ul>
               <button type="button" className="primary" disabled={busy} onClick={handleConfirm}>
