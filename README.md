@@ -83,7 +83,13 @@ open http://127.0.0.1:8080
 - 一处如实降级：另有 2 条 Oracle 已确认的违规**未计入**发现率——它们的路径违反的不是
   该 case 标注的不变量。这不是运行时的缺陷，而是靶场设计问题（多个 case 共用同一缺陷
   环境，标签不约束路径能触发哪条不变量），已记为下一步要修。
-- **hidden suite 尚未在 v3 下运行**，因此本表只有 development；v2 的 hidden 数字见下。
+- **hidden suite 已在 v3 下运行**（Multi-strategy，8 case = 5 漏洞 + 3 正常）：发现率
+  **2/5（40%）**，95% CI **[11.8%, 76.9%]**；误报 0/3；候选确认 3/144；稳定重放 9/9；
+  零 INFRA_FAILED；成本 mean $0.021/case。命中 `hidden-04`、`hidden-05`。
+- **发布门禁（`uv run rulearena benchmark verify --latest`）判定：拒绝**，9 项检查过 8 项，
+  唯一未过的是 `hidden_discovery_at_least_75_percent`。与前一轮的本质区别在于：旧配置下
+  门禁**不可能通过**（发现率上界被动作空间裁到 60%），现在是搜索确实只找到 2/5。同时
+  n=5 的置信区间宽到**包含 75%**——按统计口径，它既不能证明达标，也不能排除达标。
 
 复现：`uv run rulearena benchmark --suite development --baselines random,bfs,single_agent,multi_strategy`。
 无数据的格子标 N/A，不填估计值。
@@ -116,9 +122,10 @@ v2 的 Release Gate 判定为**拒绝**（hidden 发现率 0/5 < 75%），且在
 ## 边界与诚实声明
 
 - 本项目**不是形式化证明**。搜索受预算约束，「预算内未发现违规」不等于「规则安全」。
-- 最近一次真实模型评测是 **golden-v3 的 development 四 Baseline**（见上表）；**hidden
-  suite 尚未在 v3 下重跑**。v2 的 hidden 评测由 Release Gate 如实拒绝（发现率 0/5 < 75%），
-  发布保持未通过状态，`benchmark verify --latest` 可复核。
+- 最近一次真实模型评测是 **golden-v3 的 development 四 Baseline 与 hidden Multi-strategy**
+  （见上表）。Release Gate 判定为**拒绝**，唯一未过的是 hidden 发现率阈值（2/5 < 75%）；
+  其余 8 项——版本/预算/seed 匹配、无 INFRA_FAILED、正常误报 0、稳定重放 3/3、历史 P0 100%、
+  泄漏 0——全部通过。发布保持未通过状态，`benchmark verify --latest` 可复核。
 - hidden 私有载荷与真实模型凭据属部署侧资产；公共仓库只有无答案 manifest，
   Runtime 无读取路径。
 - 攻击面与信任边界见 [安全模型](docs/security-model.md)。
