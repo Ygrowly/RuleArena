@@ -191,11 +191,22 @@ append-only 触发器只放行**一次**离开 `RUNNING` 的迁移，身份与�
 
 | 项 | 状态 |
 | --- | --- |
-| 完整栈（`docker compose up`：web + control-api + worker + sandbox） | **NOT VERIFIED**（本次只单独起过 postgres/redis/sandbox） |
-| Live Run 端到端（浏览器发起一次真实运行） | **NOT VERIFIED** |
+| 完整栈（`docker compose up`：web + control-api + worker + sandbox） | **已验证**（2026-09-13）：6 个容器健康、nginx 前门 200、`/api/templates` 返回 3 个模板 |
+| Live Run 端到端（浏览器发起一次真实运行） | **已验证**：compile 200 → confirm 200 → run 201 → 终态 `CONFIRMED_VIOLATION`，2 步 / 7.2k tokens，在 90 秒预算内 |
 | hidden suite @ golden-v3 | **NOT VERIFIED**（未运行） |
 | `benchmark verify --latest` @ v3 | **NOT VERIFIED**（依赖上一条） |
-| 带账目修复的 agent 基线重跑 | 运行中（`--baselines single_agent,multi_strategy`），用于消掉表中两个星号 |
+| 带账目修复的 agent 基线重跑 | **已完成**，但 MULTI 那次撞上提供方瞬时中断（连续 4 次 `ConnectError`），其分母被削到 7，因此 MULTI 仍引用 F3 那次的 2/9；SINGLE 的数字（3/8）来自这次运行 |
+
+### 5.1a 补上验证时发现的问题（均已修复）
+
+| 问题 | 影响 | 证据 |
+| --- | --- | --- |
+| `docker-compose.yml` 未传递模型网关必需配置 | **公开部署无法编译任何规则**（`model provider unavailable`） | 修复后同一模板从 provider 错误变成真实产出 4 条歧义问题 |
+| 歧义确认协议不完整：UI 发空 body，服务端要求已解决的 RuleSpec | **公开 Live Run 有歧义时必 409**，且每次真实编译都会产生歧义 | 修复后在浏览器里走通 confirm → 200 |
+| 编译干净时 UI 不冻结、拿不到 `version_id` | **启动按钮静默失效**（点下去什么都不发生） | 修复后日志出现 `POST /api/runs → 201` |
+| nginx 启动时钉死后端 IP | 重建 `control-api` 后前门持续 502，直到 nginx 也重启 | 修复后重启后端仍返回 200 |
+| `docker compose up --build` 在提示无 0006 | 镜像与仓库不同步时栈起不来（fail-closed 按设计工作，部署必须 `--build`） | 记为部署事实 |
+| `uv sync` 构建期需联网 | 首次构建因瞬时网络失败，重试成功 | 记为部署事实 |
 
 ### 5.2 未开始（按价值排序）
 
