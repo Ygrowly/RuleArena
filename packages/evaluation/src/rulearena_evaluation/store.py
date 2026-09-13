@@ -139,7 +139,12 @@ class BenchmarkStore(Protocol):
         suite: Visibility,
     ) -> BenchmarkRun | None: ...
 
-    def latest_completed(self) -> BenchmarkRun | None: ...
+    def latest_completed(
+        self,
+        *,
+        suite: Visibility | None = None,
+        baseline: BaselineType | None = None,
+    ) -> BenchmarkRun | None: ...
 
 
 class InMemoryBenchmarkStore:
@@ -245,14 +250,31 @@ class InMemoryBenchmarkStore:
                 return None
             return max(candidates, key=lambda item: item.started_at).model_copy(deep=True)
 
-    def latest_completed(self) -> BenchmarkRun | None:
+    def latest_completed(
+        self,
+        *,
+        suite: Visibility | None = None,
+        baseline: BaselineType | None = None,
+    ) -> BenchmarkRun | None:
+        """The most recent *whole-suite* completed run.
+
+        Ordering is by case count before recency on purpose. A benchmark result is a
+        suite result; a partial run, and a single-case run written by a test, are both
+        complete runs, and presenting one as "the latest benchmark" reports a number
+        that measures nothing. Picking the fullest run never selects either.
+        """
         with self._lock:
             candidates = [
-                run for run in self._runs.values() if run.status is BenchmarkStatus.COMPLETED
+                run
+                for run in self._runs.values()
+                if run.status is BenchmarkStatus.COMPLETED
+                and (suite is None or run.suite is suite)
+                and (baseline is None or run.baseline is baseline)
             ]
             if not candidates:
                 return None
-            return max(candidates, key=lambda item: item.started_at).model_copy(deep=True)
+            newest = max(candidates, key=lambda item: (len(item.raw_runs), item.started_at))
+            return newest.model_copy(deep=True)
 
 
 class PostgresBenchmarkStore:
@@ -401,13 +423,24 @@ class PostgresBenchmarkStore:
             row = connection.execute(query, values).mappings().one_or_none()
             return self._from_row(row) if row is not None else None
 
-    def latest_completed(self) -> BenchmarkRun | None:
+    def latest_completed(
+        self,
+        *,
+        suite: Visibility | None = None,
+        baseline: BaselineType | None = None,
+    ) -> BenchmarkRun | None:
         with self.engine.connect() as connection:
             row = connection.execute(
                 sa.text(
                     "SELECT * FROM control.benchmark_run WHERE status = 'COMPLETED' "
-                    "ORDER BY started_at DESC LIMIT 1"
-                )
+                    "AND (CAST(:suite AS text) IS NULL OR suite = CAST(:suite AS text)) "
+                    "AND (CAST(:baseline AS text) IS NULL OR baseline = CAST(:baseline AS text)) "
+                    "ORDER BY jsonb_array_length(raw_runs) DESC, started_at DESC LIMIT 1"
+                ),
+                {
+                    "suite": suite.value if suite is not None else None,
+                    "baseline": baseline.value if baseline is not None else None,
+                },
             ).mappings().one_or_none()
             return self._from_row(row) if row is not None else None
 

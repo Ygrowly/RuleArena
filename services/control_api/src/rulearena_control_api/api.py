@@ -23,7 +23,13 @@ from rulearena_attack_runtime import (
     VersionStore,
     validate_rule_spec,
 )
-from rulearena_evaluation import BenchmarkStore, public_metric_summary, scan_forbidden_markers
+from rulearena_evaluation import (
+    BaselineType,
+    BenchmarkStore,
+    Visibility,
+    public_metric_summary,
+    scan_forbidden_markers,
+)
 from rulearena_observability import TraceSink
 from rulearena_policy_schema import RuleSpec
 
@@ -277,8 +283,15 @@ def runtime_router(
         return {"trace": safe_records, "leakage_blocked": blocked}
 
     @router.get("/benchmarks/latest")
-    async def latest_benchmark() -> object:
-        benchmark = benchmark_store.latest_completed() if benchmark_store is not None else None
+    async def latest_benchmark(
+        suite: Visibility | None = None,
+        baseline: BaselineType | None = None,
+    ) -> object:
+        benchmark = (
+            benchmark_store.latest_completed(suite=suite, baseline=baseline)
+            if benchmark_store is not None
+            else None
+        )
         if benchmark is None:
             raise HTTPException(status_code=404, detail="completed benchmark not found")
         return {

@@ -72,7 +72,47 @@ def _raw(
     )
 
 
-def test_golden_assets_have_16_public_and_8_non_leaking_hidden_metadata(
+def _benchmark_run(
+    *,
+    run_id: str,
+    cases: int,
+    started_at: datetime,
+    baseline: BaselineType = BaselineType.RANDOM,
+) -> BenchmarkRun:
+    return BenchmarkRun(
+        benchmark_run_id=run_id,
+        versions=_versions(),
+        baseline=baseline,
+        random_seed=7,
+        budget=BUDGET,
+        repetitions=1,
+        suite=Visibility.DEVELOPMENT,
+        status=BenchmarkStatus.COMPLETED,
+        raw_runs=tuple(_raw(f"case-{index}") for index in range(cases)),
+        metrics={},
+        started_at=started_at,
+        finished_at=started_at,
+    )
+
+
+def test_latest_completed_is_a_whole_suite_result_not_a_newer_single_case_run() -> None:
+    """A one-case run is a test artifact. Served as "the latest benchmark" it reports a
+    number that measures nothing, which is exactly what happened when a test wrote rows
+    into the development database."""
+    store = InMemoryBenchmarkStore()
+    store.save(
+        _benchmark_run(run_id="full", cases=21, started_at=datetime(2026, 9, 12, tzinfo=UTC))
+    )
+    store.save(
+        _benchmark_run(run_id="partial", cases=1, started_at=datetime(2026, 9, 13, tzinfo=UTC))
+    )
+    found = store.latest_completed()
+    assert found is not None
+    assert found.benchmark_run_id == "full"
+    assert store.latest_completed(baseline=BaselineType.BFS) is None
+
+
+def test_golden_assets_are_public_with_an_answer_free_hidden_manifest(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     development = DevelopmentCaseLoader(ROOT / "benchmarks/development-v1.json").load()

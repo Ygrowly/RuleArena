@@ -66,7 +66,7 @@ class Blueprint:
     def scenario_version_id(self) -> str:
         return {
             "promotion": "promotion-v1",
-            "refund_points": "refund_points-v1",
+            "refund_points": "refund-points-v1",
             "membership": "membership-v1",
         }[self.rule_spec_ref]
 
@@ -516,9 +516,32 @@ async def verify(
     return list(await asyncio.gather(*(check(bp) for bp in blueprints)))
 
 
+def _suite_versions(document: Any) -> dict[str, tuple[str, str]]:
+    """The rule and scenario version each scenario already uses.
+
+    A case may not introduce its own: the runner refuses a suite whose cases of one
+    scenario carry different versions, and a generator that hardcodes them will drift
+    from the suite it is extending the first time someone edits one.
+    """
+    versions: dict[str, tuple[str, str]] = {}
+    for case in document["cases"]:
+        versions.setdefault(
+            case["scenario_type"], (case["rule_version_id"], case["scenario_version_id"])
+        )
+    return versions
+
+
 def _case_row(
-    blueprint: Blueprint, benchmark_version: str, budget: dict[str, Any], visibility: str
+    blueprint: Blueprint,
+    benchmark_version: str,
+    budget: dict[str, Any],
+    visibility: str,
+    versions: dict[str, tuple[str, str]],
 ) -> dict[str, Any]:
+    rule_version_id, scenario_version_id = versions.get(
+        blueprint.scenario.value,
+        (blueprint.rule_version_id, blueprint.scenario_version_id),
+    )
     return {
         "case_id": blueprint.case_id,
         "benchmark_version": benchmark_version,
@@ -526,8 +549,8 @@ def _case_row(
         "scenario_type": blueprint.scenario.value,
         "tags": list(blueprint.tags),
         "budget": budget,
-        "rule_version_id": blueprint.rule_version_id,
-        "scenario_version_id": blueprint.scenario_version_id,
+        "rule_version_id": rule_version_id,
+        "scenario_version_id": scenario_version_id,
         "sandbox_version": "vulnerable",
         "defect_axes": [blueprint.axis.value],
         "oracle_version": "1.0",
@@ -599,10 +622,11 @@ def main() -> int:
 
     benchmark_version = document["cases"][0]["benchmark_version"]
     budget = _budget_of(document)
+    versions = _suite_versions(document)
     for verdict in verdicts:
         _insert_after_last_case_group(
             document["cases"],
-            _case_row(verdict.blueprint, benchmark_version, budget, args.suite),
+            _case_row(verdict.blueprint, benchmark_version, budget, args.suite, versions),
         )
     _write_json(path, document)
 
@@ -617,7 +641,7 @@ def main() -> int:
             "budget",
         )
         for verdict in verdicts:
-            row = _case_row(verdict.blueprint, benchmark_version, budget, args.suite)
+            row = _case_row(verdict.blueprint, benchmark_version, budget, args.suite, versions)
             manifest.append({key: row[key] for key in public})
         manifest.sort(key=lambda row: row["case_id"])
         _write_json(HIDDEN_MANIFEST, manifest)

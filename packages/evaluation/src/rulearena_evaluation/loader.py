@@ -50,6 +50,19 @@ def _validate_suite(
         raise ValueError("benchmark case IDs must be unique")
     if any(case.visibility is not visibility for case in cases):
         raise ValueError("case visibility does not match loader")
+    # A generated case can silently introduce its own version pair, which the runner then
+    # rejects long after the suite was written. Refuse it at load, where the cause is
+    # still visible.
+    for scenario in {case.scenario_type for case in cases}:
+        pairs = {
+            (case.rule_version_id, case.scenario_version_id)
+            for case in cases
+            if case.scenario_type is scenario
+        }
+        if len(pairs) != 1:
+            raise ValueError(
+                f"{scenario.value} cases must share one rule and scenario version"
+            )
     return cases
 
 

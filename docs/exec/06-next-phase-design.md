@@ -7,6 +7,22 @@
 （置信区间全部重叠），在这样一个度量上优化搜索，得到的数字无法解释——这正是 R1 与
 golden-v3 那一轮教给我们的：当时"LLM 没跑赢 BFS"的结论，根因是靶场剪掉了答案。
 
+## 执行状态
+
+| 项 | 状态 | 落地 |
+| --- | --- | --- |
+| A1 完整栈 + Live Run 端到端 | 完成 | 浏览器 golden journey 跑通；Live Run 在 90s / 7.2k tokens 内到达 `CONFIRMED_VIOLATION`；预算由服务端钳制（`PUBLIC_RUN_BUDGET_CAP`，越界 422） |
+| A2 hidden suite + `benchmark verify` | 完成 | golden-v3 hidden Multi 判定为**拒绝**，9 项检查过 8 项（唯一未过：hidden 发现率 2/5 < 75%） |
+| B1 缺陷矩阵靶场 | 完成 | 提交 `b577a0b`：`DefectAxis` 7 轴 + `AXES_BY_SCENARIO`；每个 Case 声明自己测的轴；Sandbox 与 Case 双双拒绝本 scenario 触达不到的轴 |
+| B2 用例生成器 + 统计效力 | 完成 | 提交 `b863b29`：`scripts/generate_cases.py` 由模板生成并逐条对真实 Sandbox 验收；development 21（14 漏洞）、hidden 17（14 漏洞） |
+| B2 续：四基线重测 | 进行中 | golden-v4 实测（见 README 评测表） |
+| C0–C2 / D1–D4 | 未开始 | 见下 |
+
+**B1/B2 修正的一条错误结论**：golden-v3 的 Multi-strategy 运行里有 **3 条 Oracle 已确认的违规
+被计为未命中**。原因不是搜索能力不足，而是同一 scenario 下所有漏洞 case 共享一个能表现
+全部缺陷的环境，一条路径可以踩中 B case 的缺陷却被记在 A case 的标签下。这也是 v3
+"LLM 没跑赢 BFS" 之外的第二个度量假象。
+
 ---
 
 ## Phase A：补齐验证（无新功能，成本近零）

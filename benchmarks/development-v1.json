@@ -755,7 +755,7 @@
         "max_tokens": 100000
       },
       "rule_version_id": "00000000-0000-0000-0000-000000000102",
-      "scenario_version_id": "refund_points-v1",
+      "scenario_version_id": "refund-points-v1",
       "sandbox_version": "vulnerable",
       "defect_axes": [
         "POINTS_GRANTED_AGAIN_ON_REFUND"
@@ -816,7 +816,7 @@
         "max_tokens": 100000
       },
       "rule_version_id": "00000000-0000-0000-0000-000000000102",
-      "scenario_version_id": "refund_points-v1",
+      "scenario_version_id": "refund-points-v1",
       "sandbox_version": "vulnerable",
       "defect_axes": [
         "POINTS_OVERREDEMPTION"
