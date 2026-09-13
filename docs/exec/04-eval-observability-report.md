@@ -1,5 +1,11 @@
 # 阶段 4 完成报告：Golden Set、评测与可观测性
 
+> **本报告的数字属于已作废的 golden-v2 口径，保留为历史记录。**
+> 后续复核发现两个问题：其一，配置声明 12 步而 `max_tokens=12000` 只够约 5.3 步，
+> 两个数字自相矛盾；其二，Agent 的动作空间被 Reference Simulator 裁剪，9 个开发漏洞
+> 中有 6 个的 ground truth 根本无法被提出。当前口径见 README 评测区与
+> `benchmarks/README.md` 版本历史，设计见 `docs/exec/06-next-phase-design.md`。
+
 状态：实现完成；开发集确定性验证通过；完整 24 Case / 四 Baseline Release Gate 尚未执行  
 日期：2026-09-01
 
