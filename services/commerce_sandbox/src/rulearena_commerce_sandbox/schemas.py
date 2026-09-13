@@ -16,6 +16,24 @@ class SandboxVersion(StrEnum):
     VULNERABLE = "vulnerable"
 
 
+class DefectAxis(StrEnum):
+    """One way the measured implementation may deviate from the frozen RuleSpec.
+
+    Independent axes rather than a single flag. With one boolean, every case in a
+    scenario shared an environment that could exhibit *every* defect, so a path could
+    trip a different case's defect and be scored against a label it never touched --
+    which is how two Oracle-confirmed violations went uncounted.
+    """
+
+    COUPON_RESTORED_ON_REFUND = "COUPON_RESTORED_ON_REFUND"
+    REFUND_AGAINST_ORIGINAL = "REFUND_AGAINST_ORIGINAL"
+    POINTS_GRANTED_AGAIN_ON_REFUND = "POINTS_GRANTED_AGAIN_ON_REFUND"
+    POINTS_OVERREDEMPTION = "POINTS_OVERREDEMPTION"
+    FULL_REFUND_AFTER_CONSUMPTION = "FULL_REFUND_AFTER_CONSUMPTION"
+    ENTITLEMENT_LEFT_AFTER_REFUND = "ENTITLEMENT_LEFT_AFTER_REFUND"
+    ENTITLEMENT_OVERCONSUMPTION = "ENTITLEMENT_OVERCONSUMPTION"
+
+
 class ActionName(StrEnum):
     CREATE_USER = "create_user"
     ISSUE_COUPON = "issue_coupon"
@@ -42,6 +60,10 @@ class CreateRunRequest(StrictModel):
     schema_version: Literal["1.0"] = "1.0"
     scenario_type: ScenarioType
     sandbox_version: SandboxVersion = SandboxVersion.FIXED
+    # Which defects this run's environment exhibits. Omitted, it inherits the whole set
+    # the named version carries. Naming them explicitly is what lets a case present one
+    # defect without also presenting the others.
+    defect_axes: tuple[DefectAxis, ...] | None = None
 
     @model_validator(mode="before")
     @classmethod

@@ -47,6 +47,9 @@ class RunSpace(Base):
     )
     scenario_type: Mapped[str] = mapped_column(String(64), nullable=False)
     sandbox_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Which defect axes this run's environment exhibits. Null means "all of the version's",
+    # which is how runs created before axes existed keep their original behaviour.
+    defect_axes: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     initial_state_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     snapshot_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -33,7 +33,7 @@ from .models import (
     TestUser,
 )
 from .profiles import SandboxProfile
-from .schemas import ActionCommand, ActionName, CreateRunRequest, RunResponse, SandboxVersion
+from .schemas import ActionCommand, ActionName, CreateRunRequest, RunResponse
 
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -63,6 +63,11 @@ class SandboxService:
                     scenario_version_id=scenario.id,
                     scenario_type=scenario.scenario_type,
                     sandbox_version=scenario.sandbox_version,
+                    defect_axes=(
+                        [axis.value for axis in request.defect_axes]
+                        if request.defect_axes is not None
+                        else None
+                    ),
                     initial_state_json=dict(scenario.initial_state_json),
                     epoch=0,
                     snapshot_version=0,
@@ -504,8 +509,8 @@ class SandboxService:
         max_amount = (
             order.paid_amount
             if (
-                SandboxProfile(
-                    SandboxVersion(run.sandbox_version)
+                SandboxProfile.for_run(
+                    run.sandbox_version, run.defect_axes
                 ).allows_refund_against_original_amount
                 and run.scenario_type == ScenarioType.PROMOTION.value
             )
@@ -543,7 +548,7 @@ class SandboxService:
             key,
         )
 
-        profile = SandboxProfile(SandboxVersion(run.sandbox_version))
+        profile = SandboxProfile.for_run(run.sandbox_version, run.defect_axes)
         if run.scenario_type == ScenarioType.REFUND_POINTS.value:
             if profile.grants_points_again_on_refund:
                 extra_points = self._points_for(amount)
@@ -604,7 +609,7 @@ class SandboxService:
         self._args(command, {"amount"}, {"amount"})
         amount = self._positive_int(command.arguments["amount"], "amount")
         user = await self._user(session, run.id, command.target_id or command.actor_id, lock=True)
-        profile = SandboxProfile(SandboxVersion(run.sandbox_version))
+        profile = SandboxProfile.for_run(run.sandbox_version, run.defect_axes)
         if user.points_balance < amount and not (
             run.scenario_type == ScenarioType.REFUND_POINTS.value
             and profile.allows_points_overredemption
@@ -707,7 +712,7 @@ class SandboxService:
             - entitlement.consumed_quantity
             - entitlement.revoked_quantity
         )
-        profile = SandboxProfile(SandboxVersion(run.sandbox_version))
+        profile = SandboxProfile.for_run(run.sandbox_version, run.defect_axes)
         if not profile.allows_entitlement_overconsumption and quantity > available:
             raise DomainError("INSUFFICIENT_ENTITLEMENT", "entitlement quantity is insufficient")
         entitlement.consumed_quantity += quantity
@@ -747,7 +752,7 @@ class SandboxService:
         entitlement = await self._entitlement_by_membership(
             session, run.id, membership.id, lock=True
         )
-        profile = SandboxProfile(SandboxVersion(run.sandbox_version))
+        profile = SandboxProfile.for_run(run.sandbox_version, run.defect_axes)
         available = (
             entitlement.granted_quantity
             - entitlement.consumed_quantity
