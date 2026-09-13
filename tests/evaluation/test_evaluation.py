@@ -39,7 +39,7 @@ BUDGET = Budget(max_steps=12, max_tokens=100000, max_cost=1.5, max_time_seconds=
 
 def _versions(**changes: str) -> VersionTuple:
     values = {
-        "benchmark_version": "golden-v3",
+        "benchmark_version": "golden-v4",
         "runtime_version": "runtime-v1",
         "rule_set_version": "rules-v1",
         "scenario_set_version": "scenarios-v1",

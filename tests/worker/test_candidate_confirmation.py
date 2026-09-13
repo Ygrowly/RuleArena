@@ -1,4 +1,5 @@
 import json
+from collections.abc import Sequence
 from typing import Any
 
 import pytest
@@ -30,7 +31,13 @@ class ClassifiedReplay:
         self.calls = 0
 
     async def replay(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> ReplayResult:
         self.calls += 1
         status = (
@@ -59,7 +66,13 @@ class ClassifiedReplay:
         )
 
     async def minimize(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> MinimizationResult:
         values: tuple[Any, ...] = tuple(actions)
         return MinimizationResult(
@@ -122,7 +135,13 @@ class MisnamedInvariantReplay:
         self.calls = 0
 
     async def replay(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> ReplayResult:
         self.calls += 1
         report = OracleReport(
@@ -151,7 +170,13 @@ class MisnamedInvariantReplay:
         )
 
     async def minimize(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> MinimizationResult:
         values: tuple[Any, ...] = tuple(actions)
         return MinimizationResult(

@@ -4,7 +4,19 @@ from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from rulearena_domain_contracts import DefectAxis, unreachable_axes
 from rulearena_policy_schema import ScenarioType
+
+__all__ = [
+    "ActionCommand",
+    "ActionName",
+    "CreateRunRequest",
+    "DefectAxis",
+    "RunResponse",
+    "SandboxVersion",
+    "Scope",
+    "StrictModel",
+]
 
 
 class StrictModel(BaseModel):
@@ -14,24 +26,6 @@ class StrictModel(BaseModel):
 class SandboxVersion(StrEnum):
     FIXED = "fixed"
     VULNERABLE = "vulnerable"
-
-
-class DefectAxis(StrEnum):
-    """One way the measured implementation may deviate from the frozen RuleSpec.
-
-    Independent axes rather than a single flag. With one boolean, every case in a
-    scenario shared an environment that could exhibit *every* defect, so a path could
-    trip a different case's defect and be scored against a label it never touched --
-    which is how two Oracle-confirmed violations went uncounted.
-    """
-
-    COUPON_RESTORED_ON_REFUND = "COUPON_RESTORED_ON_REFUND"
-    REFUND_AGAINST_ORIGINAL = "REFUND_AGAINST_ORIGINAL"
-    POINTS_GRANTED_AGAIN_ON_REFUND = "POINTS_GRANTED_AGAIN_ON_REFUND"
-    POINTS_OVERREDEMPTION = "POINTS_OVERREDEMPTION"
-    FULL_REFUND_AFTER_CONSUMPTION = "FULL_REFUND_AFTER_CONSUMPTION"
-    ENTITLEMENT_LEFT_AFTER_REFUND = "ENTITLEMENT_LEFT_AFTER_REFUND"
-    ENTITLEMENT_OVERCONSUMPTION = "ENTITLEMENT_OVERCONSUMPTION"
 
 
 class ActionName(StrEnum):
@@ -64,6 +58,14 @@ class CreateRunRequest(StrictModel):
     # the named version carries. Naming them explicitly is what lets a case present one
     # defect without also presenting the others.
     defect_axes: tuple[DefectAxis, ...] | None = None
+
+    @model_validator(mode="after")
+    def validate_defect_axes(self) -> CreateRunRequest:
+        unreachable = unreachable_axes(self.scenario_type, self.defect_axes or ())
+        if unreachable:
+            names = ", ".join(sorted(axis.value for axis in unreachable))
+            raise ValueError(f"{self.scenario_type.value} cannot exhibit: {names}")
+        return self
 
     @model_validator(mode="before")
     @classmethod

@@ -134,6 +134,7 @@ class SearchBaselineExecutor:
                 result.trace,
                 invariant,
                 sandbox_version=case.sandbox_version,
+                defect_axes=case.replay_defect_axes,
             )
             if replay.classification is ReplayClassification.CONFIRMED_VIOLATION:
                 confirmed.add(invariant)
@@ -148,6 +149,7 @@ class SearchBaselineExecutor:
                         result.trace,
                         invariant,
                         sandbox_version=case.sandbox_version,
+                        defect_axes=case.replay_defect_axes,
                     )
                     if (
                         repeated.classification
@@ -272,6 +274,7 @@ class AgentBaselineExecutor:
             rule_version_id=case.rule_version_id,
             scenario_version_id=case.scenario_version_id,
             sandbox_version=case.sandbox_version,
+            defect_axes=case.replay_defect_axes or (),
             oracle_version=case.oracle_version,
             budget=case.budget,
             random_seed=random_seed,
@@ -362,6 +365,7 @@ class AgentBaselineExecutor:
                     actions,
                     invariant,
                     sandbox_version=case.sandbox_version,
+                    defect_axes=case.replay_defect_axes,
                 )
                 if (
                     repeated.classification

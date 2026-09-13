@@ -1,4 +1,5 @@
 import json
+from collections.abc import Sequence
 from typing import Any
 
 import pytest
@@ -49,7 +50,13 @@ class ConfirmingReplay:
         self.replay_calls = 0
 
     async def replay(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> ReplayResult:
         self.replay_calls += 1
         report = AlwaysViolationOracle().evaluate()
@@ -65,7 +72,13 @@ class ConfirmingReplay:
         )
 
     async def minimize(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> MinimizationResult:
         values: tuple[Any, ...] = tuple(actions)
         return MinimizationResult(

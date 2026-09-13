@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from rulearena_attack_runtime import AttackOutcome, Budget, BudgetUsage, StrategyDiagnostic
+from rulearena_domain_contracts import DefectAxis, unreachable_axes
 from rulearena_oracle import InvariantId
 from rulearena_policy_schema import RuleSpec, ScenarioType
 
@@ -73,6 +74,12 @@ class BenchmarkCase(PublicCaseMetadata):
     rule_version_id: str
     scenario_version_id: str
     sandbox_version: str
+    # What this case is measuring: the environment exhibits these defects and no others,
+    # so a path that confirms an invariant did so by exercising the labelled defect.
+    # Before this, a case's environment could exhibit every defect in its scenario, and
+    # a search path tripping a *different* case's defect was scored against a label it
+    # never touched.
+    defect_axes: frozenset[DefectAxis] = frozenset()
     oracle_version: str
     rule_spec: RuleSpec
     expected_outcome: ExpectedOutcome
@@ -88,9 +95,27 @@ class BenchmarkCase(PublicCaseMetadata):
                 raise ValueError("vulnerable cases require invariant and action ground truth")
             if not all(self.ground_truth_replays):
                 raise ValueError("vulnerable ground truth must replay successfully 3/3")
+            if not self.defect_axes:
+                raise ValueError("vulnerable cases must declare which defect they measure")
+            unreachable = unreachable_axes(self.scenario_type, self.defect_axes)
+            if unreachable:
+                names = ", ".join(sorted(axis.value for axis in unreachable))
+                raise ValueError(f"the case's scenario cannot exhibit: {names}")
         elif self.expected_invariant_ids or self.ground_truth_actions:
             raise ValueError("normal cases cannot carry vulnerability ground truth")
+        elif self.defect_axes:
+            raise ValueError("a normal case measures the absence of every defect")
         return self
+
+    @property
+    def replay_defect_axes(self) -> tuple[str, ...] | None:
+        """What to send the Sandbox when opening this case's environment.
+
+        `None` means "inherit the whole set the named version carries". Only normal
+        cases take that path -- they ask for `fixed`, so the inherited set is empty --
+        which keeps the field's old meaning intact for every other caller.
+        """
+        return tuple(sorted(axis.value for axis in self.defect_axes)) or None
 
     def public_metadata(self) -> PublicCaseMetadata:
         return PublicCaseMetadata.model_validate(

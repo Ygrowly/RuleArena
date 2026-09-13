@@ -1,4 +1,5 @@
 from .models import (
+    AXES_BY_SCENARIO,
     ActionReceipt,
     ActionRequest,
     ActionStatus,
@@ -9,12 +10,15 @@ from .models import (
     BusinessAction,
     BusinessEvent,
     BusinessEventType,
+    DefectAxis,
     IdempotencyKey,
     RunId,
     StateSnapshot,
+    unreachable_axes,
 )
 
 __all__ = [
+    "AXES_BY_SCENARIO",
     "ActionReceipt",
     "ActionRequest",
     "ActionStatus",
@@ -25,7 +29,9 @@ __all__ = [
     "BusinessAction",
     "BusinessEvent",
     "BusinessEventType",
+    "DefectAxis",
     "IdempotencyKey",
     "RunId",
     "StateSnapshot",
+    "unreachable_axes",
 ]

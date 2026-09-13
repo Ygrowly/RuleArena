@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import threading
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Protocol
@@ -100,6 +101,10 @@ class AttackRun(BaseModel):
     rule_version_id: str
     scenario_version_id: str
     sandbox_version: str
+    # Which defects this run's environment exhibits. Empty means "inherit the whole set
+    # the named version carries", which is what every run created before this field
+    # existed does -- so leaving it empty preserves the old behaviour exactly.
+    defect_axes: tuple[str, ...] = ()
     oracle_version: str
     status: AttackStatus = AttackStatus.READY
     outcome: AttackOutcome | None = None
@@ -223,6 +228,7 @@ class RuntimeStore(Protocol):
         oracle_version: str,
         budget: Budget,
         random_seed: int,
+        defect_axes: Sequence[str] = (),
     ) -> AttackRun: ...
 
     def get_run(self, run_id: str) -> AttackRun: ...
@@ -288,6 +294,7 @@ class InMemoryRuntimeStore:
         oracle_version: str,
         budget: Budget,
         random_seed: int,
+        defect_axes: Sequence[str] = (),
     ) -> AttackRun:
         with self._lock:
             if job_key in self._jobs:
@@ -298,6 +305,7 @@ class InMemoryRuntimeStore:
                 rule_version_id=rule_version_id,
                 scenario_version_id=scenario_version_id,
                 sandbox_version=sandbox_version,
+                defect_axes=tuple(defect_axes),
                 oracle_version=oracle_version,
                 budget=budget,
                 random_seed=random_seed,

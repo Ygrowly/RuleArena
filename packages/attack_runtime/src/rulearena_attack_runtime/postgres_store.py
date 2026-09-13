@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 from uuid import uuid4
 
@@ -303,6 +303,7 @@ class PostgresRuntimeStore:
             rule_version_id=str(row["rule_version_id"]),
             scenario_version_id=str(row["scenario_version_id"]),
             sandbox_version=str(row["sandbox_version"]),
+            defect_axes=tuple(str(item) for item in (row["defect_axes"] or ())),
             oracle_version=str(row["oracle_version"]),
             status=AttackStatus(str(row["status"])),
             outcome=AttackOutcome(str(row["outcome"])) if row["outcome"] else None,
@@ -321,20 +322,25 @@ class PostgresRuntimeStore:
         oracle_version: str,
         budget: Budget,
         random_seed: int,
+        defect_axes: Sequence[str] = (),
     ) -> AttackRun:
         run_id = str(uuid4())
         statement = sa.text(
             """
             INSERT INTO control.attack_run(
                 id, job_key, rule_version_id, scenario_version_id, sandbox_version,
-                oracle_version, status, outcome, budget, random_seed, created_at
+                defect_axes, oracle_version, status, outcome, budget, random_seed, created_at
             ) VALUES (
                 CAST(:id AS uuid), :job_key, CAST(:rule_version_id AS uuid), :scenario_version_id,
-                :sandbox_version, :oracle_version, 'READY', NULL, :budget, :random_seed, now()
+                :sandbox_version, :defect_axes, :oracle_version, 'READY', NULL, :budget,
+                :random_seed, now()
             )
             ON CONFLICT (job_key) DO NOTHING
             """
-        ).bindparams(sa.bindparam("budget", type_=JSONB))
+        ).bindparams(
+            sa.bindparam("budget", type_=JSONB),
+            sa.bindparam("defect_axes", type_=JSONB),
+        )
         with self.engine.begin() as connection:
             connection.execute(
                 statement,
@@ -344,6 +350,7 @@ class PostgresRuntimeStore:
                     "rule_version_id": rule_version_id,
                     "scenario_version_id": scenario_version_id,
                     "sandbox_version": sandbox_version,
+                    "defect_axes": list(defect_axes),
                     "oracle_version": oracle_version,
                     "budget": budget.model_dump(mode="json"),
                     "random_seed": random_seed,

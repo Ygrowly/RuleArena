@@ -75,7 +75,7 @@
   "cases": [
     {
       "case_id": "dev-promotion-01",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -91,6 +91,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000101",
       "scenario_version_id": "promotion-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "COUPON_RESTORED_ON_REFUND"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "promotion",
       "expected_outcome": "VULNERABLE",
@@ -167,7 +170,7 @@
     },
     {
       "case_id": "dev-promotion-02",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -183,6 +186,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000101",
       "scenario_version_id": "promotion-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "REFUND_AGAINST_ORIGINAL"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "promotion",
       "expected_outcome": "VULNERABLE",
@@ -232,7 +238,7 @@
     },
     {
       "case_id": "dev-promotion-03",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -248,6 +254,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000101",
       "scenario_version_id": "promotion-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "COUPON_RESTORED_ON_REFUND"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "promotion",
       "expected_outcome": "VULNERABLE",
@@ -324,7 +333,7 @@
     },
     {
       "case_id": "dev-promotion-04",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -340,6 +349,7 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000101",
       "scenario_version_id": "promotion-v1",
       "sandbox_version": "fixed",
+      "defect_axes": [],
       "oracle_version": "1.0",
       "rule_spec_ref": "promotion",
       "expected_outcome": "NORMAL",
@@ -354,7 +364,7 @@
     },
     {
       "case_id": "dev-promotion-05",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -370,6 +380,7 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000101",
       "scenario_version_id": "promotion-v1",
       "sandbox_version": "fixed",
+      "defect_axes": [],
       "oracle_version": "1.0",
       "rule_spec_ref": "promotion",
       "expected_outcome": "NORMAL",
@@ -384,7 +395,7 @@
     },
     {
       "case_id": "dev-promotion-06",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "PROMOTION",
       "tags": [
@@ -400,6 +411,7 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000101",
       "scenario_version_id": "promotion-v1",
       "sandbox_version": "fixed",
+      "defect_axes": [],
       "oracle_version": "1.0",
       "rule_spec_ref": "promotion",
       "expected_outcome": "NORMAL",
@@ -414,7 +426,7 @@
     },
     {
       "case_id": "dev-refund-01",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -431,6 +443,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000102",
       "scenario_version_id": "refund-points-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "POINTS_GRANTED_AGAIN_ON_REFUND"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "refund_points",
       "expected_outcome": "VULNERABLE",
@@ -473,7 +488,7 @@
     },
     {
       "case_id": "dev-refund-02",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -489,6 +504,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000102",
       "scenario_version_id": "refund-points-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "POINTS_OVERREDEMPTION"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "refund_points",
       "expected_outcome": "VULNERABLE",
@@ -531,7 +549,7 @@
     },
     {
       "case_id": "dev-refund-03",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -547,6 +565,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000102",
       "scenario_version_id": "refund-points-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "POINTS_GRANTED_AGAIN_ON_REFUND"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "refund_points",
       "expected_outcome": "VULNERABLE",
@@ -589,7 +610,7 @@
     },
     {
       "case_id": "dev-refund-04",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -605,6 +626,7 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000102",
       "scenario_version_id": "refund-points-v1",
       "sandbox_version": "fixed",
+      "defect_axes": [],
       "oracle_version": "1.0",
       "rule_spec_ref": "refund_points",
       "expected_outcome": "NORMAL",
@@ -619,7 +641,7 @@
     },
     {
       "case_id": "dev-refund-05",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "REFUND_POINTS",
       "tags": [
@@ -635,6 +657,7 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000102",
       "scenario_version_id": "refund-points-v1",
       "sandbox_version": "fixed",
+      "defect_axes": [],
       "oracle_version": "1.0",
       "rule_spec_ref": "refund_points",
       "expected_outcome": "NORMAL",
@@ -649,7 +672,7 @@
     },
     {
       "case_id": "dev-membership-01",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -666,6 +689,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000103",
       "scenario_version_id": "membership-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "FULL_REFUND_AFTER_CONSUMPTION"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "membership",
       "expected_outcome": "VULNERABLE",
@@ -711,7 +737,7 @@
     },
     {
       "case_id": "dev-membership-02",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -727,6 +753,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000103",
       "scenario_version_id": "membership-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "ENTITLEMENT_OVERCONSUMPTION"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "membership",
       "expected_outcome": "VULNERABLE",
@@ -765,7 +794,7 @@
     },
     {
       "case_id": "dev-membership-03",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -781,6 +810,9 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000103",
       "scenario_version_id": "membership-v1",
       "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "ENTITLEMENT_LEFT_AFTER_REFUND"
+      ],
       "oracle_version": "1.0",
       "rule_spec_ref": "membership",
       "expected_outcome": "VULNERABLE",
@@ -826,7 +858,7 @@
     },
     {
       "case_id": "dev-membership-04",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -842,6 +874,7 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000103",
       "scenario_version_id": "membership-v1",
       "sandbox_version": "fixed",
+      "defect_axes": [],
       "oracle_version": "1.0",
       "rule_spec_ref": "membership",
       "expected_outcome": "NORMAL",
@@ -856,7 +889,7 @@
     },
     {
       "case_id": "dev-membership-05",
-      "benchmark_version": "golden-v3",
+      "benchmark_version": "golden-v4",
       "visibility": "development",
       "scenario_type": "MEMBERSHIP_ENTITLEMENT",
       "tags": [
@@ -872,6 +905,7 @@
       "rule_version_id": "00000000-0000-0000-0000-000000000103",
       "scenario_version_id": "membership-v1",
       "sandbox_version": "fixed",
+      "defect_axes": [],
       "oracle_version": "1.0",
       "rule_spec_ref": "membership",
       "expected_outcome": "NORMAL",
@@ -885,5 +919,5 @@
       "ground_truth_actions": []
     }
   ],
-  "benchmark_version": "golden-v3"
+  "benchmark_version": "golden-v4"
 }

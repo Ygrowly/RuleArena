@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import httpx
 from rulearena_oracle import DeterministicOracle, InvariantId, OracleStatus
@@ -48,21 +49,24 @@ class SandboxReplayRunner:
         target_invariant: InvariantId,
         *,
         sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> ReplayResult:
+        payload: dict[str, Any] = {
+            "schema_version": "1.0",
+            "scenario_type": rule_spec.scenario_type.value,
+            "sandbox_version": sandbox_version,
+        }
+        # Omitted, the environment inherits every defect its version carries. A caller
+        # that is measuring one defect names it, so a path cannot trip another case's.
+        if defect_axes is not None:
+            payload["defect_axes"] = list(defect_axes)
         async with httpx.AsyncClient(
             base_url=self.base_url,
             headers=self.headers,
             timeout=self.timeout,
             transport=self.transport,
         ) as client:
-            created = await client.post(
-                "/internal/runs",
-                json={
-                    "schema_version": "1.0",
-                    "scenario_type": rule_spec.scenario_type.value,
-                    "sandbox_version": sandbox_version,
-                },
-            )
+            created = await client.post("/internal/runs", json=payload)
             created.raise_for_status()
             created_data = created.json()
             run_id = str(created_data["run_id"])
@@ -138,6 +142,7 @@ class SandboxReplayRunner:
         *,
         repetitions: int = 3,
         sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> tuple[ReplayResult, ...]:
         if repetitions < 1:
             raise ValueError("repetitions must be positive")
@@ -145,7 +150,11 @@ class SandboxReplayRunner:
         for _ in range(repetitions):
             results.append(
                 await self.replay(
-                    rule_spec, actions, target_invariant, sandbox_version=sandbox_version
+                    rule_spec,
+                    actions,
+                    target_invariant,
+                    sandbox_version=sandbox_version,
+                    defect_axes=defect_axes,
                 )
             )
         return tuple(results)
@@ -157,6 +166,7 @@ class SandboxReplayRunner:
         target_invariant: InvariantId,
         *,
         sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> MinimizationResult:
         async def confirms(candidate: tuple[SimAction, ...], invariant: InvariantId) -> bool:
             result = await self.replay(
@@ -164,6 +174,7 @@ class SandboxReplayRunner:
                 candidate,
                 invariant,
                 sandbox_version=sandbox_version,
+                defect_axes=defect_axes,
             )
             return result.classification is ReplayClassification.CONFIRMED_VIOLATION
 

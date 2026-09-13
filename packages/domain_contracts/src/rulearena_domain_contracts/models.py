@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Annotated, Any, Literal, NewType
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from rulearena_policy_schema import Money
+from rulearena_policy_schema import Money, ScenarioType
 
 RunId = NewType("RunId", str)
 ActorId = NewType("ActorId", str)
@@ -132,6 +134,58 @@ class ActionType(StrEnum):
     CONSUME_ENTITLEMENT = "CONSUME_ENTITLEMENT"
     CANCEL_MEMBERSHIP = "CANCEL_MEMBERSHIP"
     INSPECT_STATE = "INSPECT_STATE"
+
+
+class DefectAxis(StrEnum):
+    """One way a measured environment may deviate from the frozen RuleSpec.
+
+    A closed vocabulary shared by the two sides that need it: the commerce sandbox,
+    which decides what its implementation *can* get wrong, and the benchmark, which
+    decides what a case is *measuring*. With a single boolean instead, every case in a
+    scenario shared an environment able to exhibit every defect, so a search path could
+    trip a different case's defect and be scored against a label it never touched.
+    """
+
+    COUPON_RESTORED_ON_REFUND = "COUPON_RESTORED_ON_REFUND"
+    REFUND_AGAINST_ORIGINAL = "REFUND_AGAINST_ORIGINAL"
+    POINTS_GRANTED_AGAIN_ON_REFUND = "POINTS_GRANTED_AGAIN_ON_REFUND"
+    POINTS_OVERREDEMPTION = "POINTS_OVERREDEMPTION"
+    FULL_REFUND_AFTER_CONSUMPTION = "FULL_REFUND_AFTER_CONSUMPTION"
+    ENTITLEMENT_LEFT_AFTER_REFUND = "ENTITLEMENT_LEFT_AFTER_REFUND"
+    ENTITLEMENT_OVERCONSUMPTION = "ENTITLEMENT_OVERCONSUMPTION"
+
+
+# Which defects a scenario's flows can reach at all. The sandbox consults each axis at a
+# single scenario-gated site, so naming an axis outside its scenario would silently
+# change nothing -- and a case that measures nothing still looks like a case. Both the
+# Sandbox request and the benchmark case refuse it instead.
+AXES_BY_SCENARIO: Mapping[ScenarioType, frozenset[DefectAxis]] = MappingProxyType(
+    {
+        ScenarioType.PROMOTION: frozenset(
+            {DefectAxis.COUPON_RESTORED_ON_REFUND, DefectAxis.REFUND_AGAINST_ORIGINAL}
+        ),
+        ScenarioType.REFUND_POINTS: frozenset(
+            {
+                DefectAxis.POINTS_GRANTED_AGAIN_ON_REFUND,
+                DefectAxis.POINTS_OVERREDEMPTION,
+            }
+        ),
+        ScenarioType.MEMBERSHIP_ENTITLEMENT: frozenset(
+            {
+                DefectAxis.FULL_REFUND_AFTER_CONSUMPTION,
+                DefectAxis.ENTITLEMENT_LEFT_AFTER_REFUND,
+                DefectAxis.ENTITLEMENT_OVERCONSUMPTION,
+            }
+        ),
+    }
+)
+
+
+def unreachable_axes(
+    scenario: ScenarioType, axes: Iterable[DefectAxis]
+) -> frozenset[DefectAxis]:
+    reachable = AXES_BY_SCENARIO[scenario]
+    return frozenset(axis for axis in axes if axis not in reachable)
 
 
 class BusinessEventType(StrEnum):

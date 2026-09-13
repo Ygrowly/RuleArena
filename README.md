@@ -59,6 +59,15 @@ open http://127.0.0.1:8080
 
 ## 评测
 
+### golden-v3 结果（**环境口径已变更，不可与新版本混排**）
+
+> `golden-v4` 把每个 Case 的环境从"整个 scenario 的缺陷集合"收窄为**它自己声明的缺陷轴**
+> （见 [benchmarks/README.md](benchmarks/README.md) 的版本历史）。v3 的这一组数字是在旧
+> 环境下测得的：同一 scenario 下所有漏洞 Case 共享一个能表现全部缺陷的环境，因此一条
+> 搜索路径可以踩中 B Case 的缺陷而被记在 A Case 的标签下——v3 的 Multi 运行里就有 **3 条
+> Oracle 已确认的违规被计为未命中**。下表保留为历史记录，**不与 golden-v4 的数字比较**；
+> 门禁阈值（hidden 发现率 ≥ 75%）两版相同。
+
 四 Baseline 实测（**golden-v3**，deepseek-v4.1-flash，development 16 = 9 漏洞 + 7 正常）：
 
 | Baseline | dev 发现率 | 95% CI | dev 误报 | 候选确认 | 稳定重放 | steps | tokens | 成本 |

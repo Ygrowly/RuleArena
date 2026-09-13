@@ -205,24 +205,33 @@ def test_a_faithful_environment_exhibits_no_defect(box: Sandbox) -> None:
 
 
 def test_each_run_exhibits_exactly_the_axis_it_declares(box: Sandbox) -> None:
+    """The identity matrix, over the pairs that exist.
+
+    A scenario can only reach its own axes, and the Sandbox now refuses the rest, so
+    the matrix is per-scenario: declaring an axis must move that axis's observable and
+    leave every sibling observable in the same scenario untouched. Within-scenario
+    isolation is the property that matters -- a path tripping a *sibling* defect while
+    being scored against this case's label is the failure being ruled out.
+    """
     observed: dict[str, list[str]] = {}
     for axis in AXES:
+        scenario = PROBES[axis][0]
+        siblings = [name for name, (item, _) in PROBES.items() if item == scenario]
         observed[axis] = [
-            name
-            for name, (scenario, probe) in PROBES.items()
-            if probe(box, box.run(scenario, (axis,)))
+            name for name in siblings if PROBES[name][1](box, box.run(scenario, (axis,)))
         ]
-    expected = {axis: [axis] for axis in AXES}
-    assert observed == expected, json.dumps(observed, indent=2)
+    assert observed == {axis: [axis] for axis in AXES}, json.dumps(observed, indent=2)
 
 
 def test_axes_combine_without_leaking_into_each_other(box: Sandbox) -> None:
-    """A two-axis environment exhibits those two and nothing else."""
-    pair = ("COUPON_RESTORED_ON_REFUND", "POINTS_GRANTED_AGAIN_ON_REFUND")
+    """Two axes in one scenario move their two observables and nothing more."""
+    pair = ("COUPON_RESTORED_ON_REFUND", "REFUND_AGAINST_ORIGINAL")
+    scenario = PROBES[pair[0]][0]
+    assert PROBES[pair[1]][0] == scenario, "the pair must share a scenario"
     observed = [
         name
-        for name, (scenario, probe) in PROBES.items()
-        if probe(box, box.run(scenario, pair))
+        for name, (item, probe) in PROBES.items()
+        if item == scenario and probe(box, box.run(scenario, pair))
     ]
     assert sorted(observed) == sorted(pair), observed
 
@@ -231,6 +240,17 @@ def test_an_unknown_axis_is_refused(box: Sandbox) -> None:
     """Naming an axis that does not exist must fail loudly, not silently do nothing."""
     response = box.create("PROMOTION", "fixed", ["NOT_A_REAL_AXIS"])
     assert response.status_code == 422, response.status_code
+
+
+def test_an_axis_the_scenario_cannot_reach_is_refused(box: Sandbox) -> None:
+    """A real axis outside its scenario would be consulted nowhere -- a silent no-op.
+
+    The observable is identical to having asked for no defect at all, which is exactly
+    the kind of declaration that lets a case look like a case while measuring nothing.
+    """
+    response = box.create("PROMOTION", "fixed", ["ENTITLEMENT_OVERCONSUMPTION"])
+    assert response.status_code == 422, response.status_code
+    assert "cannot exhibit" in response.text, response.text
 
 
 def test_the_suite_versions_still_carry_their_whole_axis_set(box: Sandbox) -> None:

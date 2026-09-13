@@ -51,6 +51,7 @@ class ReplayGateway(Protocol):
         target_invariant: InvariantId,
         *,
         sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> ReplayResult: ...
 
     async def minimize(
@@ -60,6 +61,7 @@ class ReplayGateway(Protocol):
         target_invariant: InvariantId,
         *,
         sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> MinimizationResult: ...
 
 
@@ -388,6 +390,7 @@ class AttackWorker:
                     actions,
                     invariant,
                     sandbox_version=run.sandbox_version,
+                    defect_axes=run.defect_axes or None,
                 )
                 for step_id, (action, receipt) in enumerate(
                     zip(replayed.actions, replayed.receipts, strict=False), start=1
@@ -449,6 +452,7 @@ class AttackWorker:
                             actions,
                             invariant_id,
                             sandbox_version=run.sandbox_version,
+                            defect_axes=run.defect_axes or None,
                         )
                         self.store.save_counterexample(
                             CounterexampleRecord(

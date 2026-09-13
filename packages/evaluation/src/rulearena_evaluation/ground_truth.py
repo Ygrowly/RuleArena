@@ -57,6 +57,7 @@ async def verify_ground_truth(
                 actions,
                 invariant,
                 sandbox_version=case.sandbox_version,
+                defect_axes=case.replay_defect_axes,
             )
             run_ids.append(result.run_id)
             if result.classification is ReplayClassification.CONFIRMED_VIOLATION:

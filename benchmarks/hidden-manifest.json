@@ -1,7 +1,7 @@
 [
   {
     "case_id": "hidden-01",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "PROMOTION",
     "tags": [
@@ -16,7 +16,7 @@
   },
   {
     "case_id": "hidden-02",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "PROMOTION",
     "tags": [
@@ -31,7 +31,7 @@
   },
   {
     "case_id": "hidden-03",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "PROMOTION",
     "tags": [
@@ -46,7 +46,7 @@
   },
   {
     "case_id": "hidden-04",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "REFUND_POINTS",
     "tags": [
@@ -61,7 +61,7 @@
   },
   {
     "case_id": "hidden-05",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "REFUND_POINTS",
     "tags": [
@@ -76,7 +76,7 @@
   },
   {
     "case_id": "hidden-06",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "REFUND_POINTS",
     "tags": [
@@ -91,7 +91,7 @@
   },
   {
     "case_id": "hidden-07",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "MEMBERSHIP_ENTITLEMENT",
     "tags": [
@@ -106,7 +106,7 @@
   },
   {
     "case_id": "hidden-08",
-    "benchmark_version": "golden-v3",
+    "benchmark_version": "golden-v4",
     "visibility": "hidden",
     "scenario_type": "MEMBERSHIP_ENTITLEMENT",
     "tags": [

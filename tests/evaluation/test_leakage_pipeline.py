@@ -1,4 +1,5 @@
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from rulearena_attack_runtime import (
     ReplayClassification,
     ReplayResult,
 )
+from rulearena_domain_contracts import DefectAxis
 from rulearena_evaluation import (
     AgentBaselineExecutor,
     BaselineType,
@@ -27,7 +29,12 @@ from rulearena_evaluation import (
     compute_metrics,
     historical_p0_pass_rate,
 )
-from rulearena_oracle import InvariantId, OracleFinding, OracleReport, OracleStatus
+from rulearena_oracle import (
+    InvariantId,
+    OracleFinding,
+    OracleReport,
+    OracleStatus,
+)
 from rulearena_policy_schema import ScenarioType
 
 from tests.phase2_factories import rule_spec
@@ -35,7 +42,7 @@ from tests.phase2_factories import rule_spec
 ROOT = Path(__file__).resolve().parents[2]
 BUDGET = Budget(max_steps=6, max_tokens=100, max_cost=1, max_time_seconds=10)
 VERSIONS = VersionTuple(
-    benchmark_version="golden-v3",
+    benchmark_version="golden-v4",
     runtime_version="runtime-v1",
     rule_set_version="rules-v1",
     scenario_set_version="scenarios-v1",
@@ -52,7 +59,13 @@ class ClassifiedReplay:
         self.calls = 0
 
     async def replay(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> ReplayResult:
         self.calls += 1
         status = (
@@ -81,7 +94,13 @@ class ClassifiedReplay:
         )
 
     async def minimize(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> MinimizationResult:
         values: tuple[Any, ...] = tuple(actions)
         return MinimizationResult(
@@ -111,14 +130,15 @@ _STOP_DONE = _proposal({"proposal_type": "STOP", "reason": "done"})
 def _vulnerable_case(case_id: str) -> BenchmarkCase:
     return BenchmarkCase(
         case_id=case_id,
-        benchmark_version="golden-v3",
+        benchmark_version="golden-v4",
         visibility=Visibility.DEVELOPMENT,
         scenario_type=ScenarioType.PROMOTION,
         tags=("unit",),
         budget=BUDGET,
         rule_version_id="rule-1",
         scenario_version_id="scenario-1",
-        sandbox_version="fixed",
+        sandbox_version="vulnerable",
+        defect_axes=frozenset({DefectAxis.REFUND_AGAINST_ORIGINAL}),
         oracle_version="1.0",
         rule_spec=rule_spec(ScenarioType.PROMOTION),
         expected_outcome=ExpectedOutcome.VULNERABLE,

@@ -3,6 +3,7 @@ from checkpoints exactly like the in-memory store does."""
 
 import json
 import os
+from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
 
@@ -121,11 +122,23 @@ class Replayless:
     """The scripted path never reaches the replay boundary."""
 
     async def replay(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> ReplayResult:
         raise AssertionError("replay must not run in this scenario")
 
     async def minimize(
-        self, rule_spec: Any, actions: Any, target_invariant: Any, *, sandbox_version: str = "fixed"
+        self,
+        rule_spec: Any,
+        actions: Any,
+        target_invariant: Any,
+        *,
+        sandbox_version: str = "fixed",
+        defect_axes: Sequence[str] | None = None,
     ) -> MinimizationResult:
         raise AssertionError("minimize must not run in this scenario")
