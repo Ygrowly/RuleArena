@@ -2,6 +2,7 @@ import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 import sqlalchemy as sa
@@ -119,6 +120,42 @@ def test_latest_completed_skips_fragments_and_still_means_latest() -> None:
     assert found.benchmark_run_id == "current"
     assert store.latest_completed(baseline=BaselineType.BFS) is None
     assert store.latest_completed(suite=Visibility.HIDDEN) is None
+
+
+def test_case_row_rebuild_stringifies_driver_uuid_columns() -> None:
+    """Resume reads finished cases back through this path.
+
+    The driver hands uuid columns over as UUID objects and the model carries them as
+    the strings it was given. Only a run that reached the replay boundary has an
+    attack_run_id, so nothing exercised this until a hidden Multi-strategy run needed
+    resuming -- and then resume failed on the very first finished case it read.
+    """
+    from rulearena_evaluation.store import _case_from_row
+
+    identifier = "ff259ce4-e632-422d-b36c-3667b8ae108e"
+    row = {
+        "attack_run_id": UUID(identifier),
+        "case_id": "hidden-17",
+        "visibility": "hidden",
+        "baseline": "MULTI_STRATEGY",
+        "repetition": 1,
+        "outcome": "CONFIRMED_VIOLATION",
+        "failure_kind": "NONE",
+        "confirmed_invariant_ids": ["COUPON_SINGLE_CONSUMPTION"],
+        "replayed_candidates": 1,
+        "confirmed_candidates": 1,
+        "replay_attempts": 3,
+        "replay_successes": 3,
+        "compile_attempted": False,
+        "rule_spec_schema_valid": None,
+        "usage": {"steps": 1, "tokens": 10, "cost": 0.0, "elapsed_seconds": 1.0},
+        "strategy_diagnostics": [],
+        "started_at": datetime(2026, 9, 13, tzinfo=UTC),
+        "finished_at": datetime(2026, 9, 13, tzinfo=UTC),
+    }
+    rebuilt = _case_from_row(row)  # type: ignore[arg-type]
+    assert rebuilt.attack_run_id == identifier
+    assert rebuilt.case_id == "hidden-17"
 
 
 def test_golden_assets_are_public_with_an_answer_free_hidden_manifest(

@@ -4,7 +4,7 @@ import copy
 import threading
 from datetime import datetime
 from typing import Any, Protocol
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -96,9 +96,16 @@ def _case_values(benchmark_run_id: str, raw: RawCaseRun) -> dict[str, Any]:
 def _case_from_row(row: sa.RowMapping) -> RawCaseRun:
     """Rebuild a case fact from its row; storage-only columns are dropped."""
     available = set(row.keys())
-    return RawCaseRun.model_validate(
-        {key: row[key] for key in RawCaseRun.model_fields if key in available}
-    )
+    values: dict[str, Any] = {}
+    for key in RawCaseRun.model_fields:
+        if key not in available:
+            continue
+        value = row[key]
+        # The driver hands uuid columns back as UUID objects; the model carries them as
+        # the strings it was given. Only a run that reached the replay boundary has an
+        # attack_run_id, so the search baselines never exercised this.
+        values[key] = str(value) if isinstance(value, UUID) else value
+    return RawCaseRun.model_validate(values)
 
 
 class BenchmarkStore(Protocol):

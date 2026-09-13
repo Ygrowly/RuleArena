@@ -30,6 +30,9 @@ final deployment boundary, not Python object privacy.
   `INFRA_FAILED` 改为独立的 `UNPARSABLE_OUTPUT` 终止原因。
   改动的是 Case 的**运行环境**，因此 golden-v3 的发现率/误报数字**与新版本不可比**，
   门禁阈值不变（hidden 发现率 ≥ 75%）。v3 结果继续保留在 README 中作为历史记录。
+  实测（deepseek-v4.1-flash，development 21 / hidden 17，hidden Multi 重复 3 次）：
+  dev 四基线 0/2/4/5（共 14 个漏洞 case），hidden Multi `pass@3 = 8/14`、**`pass^3 = 1/14`**
+  ——搜索的**不可复现性**从此可见，这是单次运行掩盖不了的。
 - `golden-v3`：仅将 `max_tokens` 12000 → **100000**，Case 内容、期望答案、
   门禁阈值不变。依据是实测校准：真实模型每步消耗 input+output 的 p95 为 **2735
   tokens**，因此声明的 12 步预算需要 `12 × 2735 = 32820` tokens，而原配置只够
