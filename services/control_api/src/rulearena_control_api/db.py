@@ -93,6 +93,14 @@ attack_run = sa.Table(
     ),
     sa.Column("scenario_version_id", sa.Text(), nullable=False),
     sa.Column("sandbox_version", sa.Text(), nullable=False),
+    # Which defects this run's environment exhibits; empty means "everything the
+    # sandbox version carries", which is what every pre-migration row means.
+    sa.Column(
+        "defect_axes",
+        postgresql.JSONB(),
+        nullable=False,
+        server_default=sa.text("'[]'::jsonb"),
+    ),
     sa.Column("oracle_version", sa.Text(), nullable=False),
     sa.Column("status", sa.Text(), nullable=False),
     sa.Column("outcome", sa.Text()),
