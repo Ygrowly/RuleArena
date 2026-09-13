@@ -95,21 +95,30 @@ def _benchmark_run(
     )
 
 
-def test_latest_completed_is_a_whole_suite_result_not_a_newer_single_case_run() -> None:
-    """A one-case run is a test artifact. Served as "the latest benchmark" it reports a
-    number that measures nothing, which is exactly what happened when a test wrote rows
-    into the development database."""
+def test_latest_completed_skips_fragments_and_still_means_latest() -> None:
+    """Two properties at once, because getting either alone is a different bug.
+
+    A one-case run is a test artifact and must never be served as the latest benchmark.
+    But "the fullest run" is not the answer either -- a 48-case run from an older suite
+    is not more recent than the 21-case run that superseded it.
+    """
     store = InMemoryBenchmarkStore()
     store.save(
-        _benchmark_run(run_id="full", cases=21, started_at=datetime(2026, 9, 12, tzinfo=UTC))
+        _benchmark_run(
+            run_id="older-but-larger", cases=48, started_at=datetime(2026, 9, 12, tzinfo=UTC)
+        )
     )
     store.save(
-        _benchmark_run(run_id="partial", cases=1, started_at=datetime(2026, 9, 13, tzinfo=UTC))
+        _benchmark_run(run_id="current", cases=21, started_at=datetime(2026, 9, 13, tzinfo=UTC))
+    )
+    store.save(
+        _benchmark_run(run_id="fragment", cases=1, started_at=datetime(2026, 9, 14, tzinfo=UTC))
     )
     found = store.latest_completed()
     assert found is not None
-    assert found.benchmark_run_id == "full"
+    assert found.benchmark_run_id == "current"
     assert store.latest_completed(baseline=BaselineType.BFS) is None
+    assert store.latest_completed(suite=Visibility.HIDDEN) is None
 
 
 def test_golden_assets_are_public_with_an_answer_free_hidden_manifest(

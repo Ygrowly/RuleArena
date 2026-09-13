@@ -19,6 +19,11 @@ from .models import (
     Visibility,
 )
 
+# The smallest thing that can be a suite result. Below it a run is a fragment -- what a
+# test writes when it exercises the persistence path with one case -- and reporting one as
+# "the latest benchmark" publishes a metric that measures nothing.
+MIN_SUITE_CASES = 2
+
 _RUN_INSERT = sa.text(
     """
     INSERT INTO control.benchmark_run(
@@ -256,24 +261,27 @@ class InMemoryBenchmarkStore:
         suite: Visibility | None = None,
         baseline: BaselineType | None = None,
     ) -> BenchmarkRun | None:
-        """The most recent *whole-suite* completed run.
+        """The most recently finished completed run that is not a fragment.
 
-        Ordering is by case count before recency on purpose. A benchmark result is a
-        suite result; a partial run, and a single-case run written by a test, are both
-        complete runs, and presenting one as "the latest benchmark" reports a number
-        that measures nothing. Picking the fullest run never selects either.
+        A one-case run is what a test writes straight into the store, and served as
+        "the latest benchmark" it reports a number that measures nothing. The floor
+        below excludes exactly that -- it is a fragment filter, not a completeness
+        proof: a multi-case run truncated part way through still passes it. Judging
+        whether a run covered its whole suite needs the declared size, which is what
+        `latest(versions=..., baseline=..., suite=...)` and the Release Gate are for.
         """
         with self._lock:
             candidates = [
                 run
                 for run in self._runs.values()
                 if run.status is BenchmarkStatus.COMPLETED
+                and len(run.raw_runs) >= MIN_SUITE_CASES
                 and (suite is None or run.suite is suite)
                 and (baseline is None or run.baseline is baseline)
             ]
             if not candidates:
                 return None
-            newest = max(candidates, key=lambda item: (len(item.raw_runs), item.started_at))
+            newest = max(candidates, key=lambda item: item.started_at)
             return newest.model_copy(deep=True)
 
 
@@ -433,11 +441,13 @@ class PostgresBenchmarkStore:
             row = connection.execute(
                 sa.text(
                     "SELECT * FROM control.benchmark_run WHERE status = 'COMPLETED' "
+                    "AND jsonb_array_length(raw_runs) >= :min_cases "
                     "AND (CAST(:suite AS text) IS NULL OR suite = CAST(:suite AS text)) "
                     "AND (CAST(:baseline AS text) IS NULL OR baseline = CAST(:baseline AS text)) "
-                    "ORDER BY jsonb_array_length(raw_runs) DESC, started_at DESC LIMIT 1"
+                    "ORDER BY started_at DESC LIMIT 1"
                 ),
                 {
+                    "min_cases": MIN_SUITE_CASES,
                     "suite": suite.value if suite is not None else None,
                     "baseline": baseline.value if baseline is not None else None,
                 },
