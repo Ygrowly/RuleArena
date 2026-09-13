@@ -61,7 +61,7 @@ class DevelopmentCaseLoader:
         return _validate_suite(
             _CASES.validate_python(_expand_document(_load_json(self.path))),
             Visibility.DEVELOPMENT,
-            16,
+            21,
         )
 
 
@@ -99,12 +99,14 @@ class HiddenCaseLoader:
         return _validate_suite(
             _CASES.validate_python(_expand_document(_load_json(self._access.private_path))),
             Visibility.HIDDEN,
-            8,
+            17,
         )
 
 
 def load_hidden_manifest(path: str | Path) -> tuple[PublicCaseMetadata, ...]:
     cases = _PUBLIC_CASES.validate_python(_load_json(Path(path).resolve()))
-    if len(cases) != 8 or any(case.visibility is not Visibility.HIDDEN for case in cases):
-        raise ValueError("hidden public manifest must contain exactly 8 hidden metadata rows")
+    if len(cases) != 17 or any(case.visibility is not Visibility.HIDDEN for case in cases):
+        raise ValueError(
+            "hidden public manifest must contain exactly 17 hidden metadata rows"
+        )
     return cases

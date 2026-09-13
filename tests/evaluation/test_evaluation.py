@@ -77,8 +77,8 @@ def test_golden_assets_have_16_public_and_8_non_leaking_hidden_metadata(
 ) -> None:
     development = DevelopmentCaseLoader(ROOT / "benchmarks/development-v1.json").load()
     hidden = load_hidden_manifest(ROOT / "benchmarks/hidden-manifest.json")
-    assert len(development) == 16
-    assert len(hidden) == 8
+    assert len(development) == 21
+    assert len(hidden) == 17
     assert {case.scenario_type for case in development} == {
         case.scenario_type for case in hidden
     }
@@ -102,7 +102,7 @@ def test_golden_assets_have_16_public_and_8_non_leaking_hidden_metadata(
 def test_private_hidden_loader_requires_evaluation_capability(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    source = DevelopmentCaseLoader(ROOT / "benchmarks/development-v1.json").load()[:8]
+    source = DevelopmentCaseLoader(ROOT / "benchmarks/development-v1.json").load()[:17]
     rule_specs: dict[str, object] = {}
     rows: list[dict[str, object]] = []
     for index, case in enumerate(source):
@@ -126,7 +126,7 @@ def test_private_hidden_loader_requires_evaluation_capability(
         monkeypatch.setenv("RULEARENA_PROCESS_ROLE", "evaluation")
         monkeypatch.setenv("RULEARENA_HIDDEN_SUITE_PATH", str(path))
         loaded = HiddenCaseLoader(EvaluationAccess.from_environment()).load()
-        assert len(loaded) == 8
+        assert len(loaded) == 17
         assert all(case.visibility is Visibility.HIDDEN for case in loaded)
     finally:
         path.unlink(missing_ok=True)

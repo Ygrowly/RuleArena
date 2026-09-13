@@ -425,6 +425,74 @@
       "ground_truth_actions": []
     },
     {
+      "case_id": "dev-promotion-07",
+      "benchmark_version": "golden-v4",
+      "visibility": "development",
+      "scenario_type": "PROMOTION",
+      "tags": [
+        "partial-refund",
+        "repeat"
+      ],
+      "budget": {
+        "max_cost": 1.5,
+        "max_steps": 12,
+        "max_time_seconds": 300,
+        "max_tokens": 100000
+      },
+      "rule_version_id": "00000000-0000-0000-0000-000000000101",
+      "scenario_version_id": "promotion-v1",
+      "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "REFUND_AGAINST_ORIGINAL"
+      ],
+      "oracle_version": "1.0",
+      "rule_spec_ref": "promotion",
+      "expected_outcome": "VULNERABLE",
+      "expected_invariant_ids": [
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "实付 300.00 元，两次部分退款各为 180.00 / 160.00 元；第二次的额度上限被放宽回原始实付额，累计 340.00 元超过实付。",
+      "ground_truth_replays": [
+        true,
+        true,
+        true
+      ],
+      "ground_truth_actions": [
+        {
+          "action_type": "CREATE_USER",
+          "arguments": {
+            "initial_balance": "500.00"
+          }
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "target_id": "user-1",
+          "arguments": {
+            "amount": "300.00"
+          }
+        },
+        {
+          "action_type": "PAY_ORDER",
+          "target_id": "order-1",
+          "arguments": {}
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "180.00"
+          }
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "160.00"
+          }
+        }
+      ]
+    },
+    {
       "case_id": "dev-refund-01",
       "benchmark_version": "golden-v4",
       "visibility": "development",
@@ -669,6 +737,129 @@
         false
       ],
       "ground_truth_actions": []
+    },
+    {
+      "case_id": "dev-refund-06",
+      "benchmark_version": "golden-v4",
+      "visibility": "development",
+      "scenario_type": "REFUND_POINTS",
+      "tags": [
+        "refund",
+        "points",
+        "value-conservation"
+      ],
+      "budget": {
+        "max_cost": 1.5,
+        "max_steps": 12,
+        "max_time_seconds": 300,
+        "max_tokens": 100000
+      },
+      "rule_version_id": "00000000-0000-0000-0000-000000000102",
+      "scenario_version_id": "refund_points-v1",
+      "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "POINTS_GRANTED_AGAIN_ON_REFUND"
+      ],
+      "oracle_version": "1.0",
+      "rule_spec_ref": "refund_points",
+      "expected_outcome": "VULNERABLE",
+      "expected_invariant_ids": [
+        "POINTS_VALUE_CONSERVATION"
+      ],
+      "construction_reason": "150.00 元订单支付后获得 150 积分，退款 150.00 元时未按比例撤销，而是再次发放，用户净得积分。",
+      "ground_truth_replays": [
+        true,
+        true,
+        true
+      ],
+      "ground_truth_actions": [
+        {
+          "action_type": "CREATE_USER",
+          "arguments": {
+            "initial_balance": "500.00"
+          }
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "target_id": "user-1",
+          "arguments": {
+            "amount": "150.00"
+          }
+        },
+        {
+          "action_type": "PAY_ORDER",
+          "target_id": "order-1",
+          "arguments": {}
+        },
+        {
+          "action_type": "REFUND_ORDER",
+          "target_id": "order-1",
+          "arguments": {
+            "amount": "150.00"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "dev-refund-07",
+      "benchmark_version": "golden-v4",
+      "visibility": "development",
+      "scenario_type": "REFUND_POINTS",
+      "tags": [
+        "redeem",
+        "boundary"
+      ],
+      "budget": {
+        "max_cost": 1.5,
+        "max_steps": 12,
+        "max_time_seconds": 300,
+        "max_tokens": 100000
+      },
+      "rule_version_id": "00000000-0000-0000-0000-000000000102",
+      "scenario_version_id": "refund_points-v1",
+      "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "POINTS_OVERREDEMPTION"
+      ],
+      "oracle_version": "1.0",
+      "rule_spec_ref": "refund_points",
+      "expected_outcome": "VULNERABLE",
+      "expected_invariant_ids": [
+        "POINTS_VALUE_CONSERVATION"
+      ],
+      "construction_reason": "支付 120.00 元后余额仅 120 积分，却成功兑换 200 积分，余额被扣成负数。",
+      "ground_truth_replays": [
+        true,
+        true,
+        true
+      ],
+      "ground_truth_actions": [
+        {
+          "action_type": "CREATE_USER",
+          "arguments": {
+            "initial_balance": "500.00"
+          }
+        },
+        {
+          "action_type": "CREATE_ORDER",
+          "target_id": "user-1",
+          "arguments": {
+            "amount": "120.00"
+          }
+        },
+        {
+          "action_type": "PAY_ORDER",
+          "target_id": "order-1",
+          "arguments": {}
+        },
+        {
+          "action_type": "REDEEM_POINTS",
+          "target_id": "user-1",
+          "arguments": {
+            "amount": 200
+          }
+        }
+      ]
     },
     {
       "case_id": "dev-membership-01",
@@ -917,6 +1108,135 @@
         false
       ],
       "ground_truth_actions": []
+    },
+    {
+      "case_id": "dev-membership-06",
+      "benchmark_version": "golden-v4",
+      "visibility": "development",
+      "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+      "tags": [
+        "membership",
+        "refund",
+        "consumed"
+      ],
+      "budget": {
+        "max_cost": 1.5,
+        "max_steps": 12,
+        "max_time_seconds": 300,
+        "max_tokens": 100000
+      },
+      "rule_version_id": "00000000-0000-0000-0000-000000000103",
+      "scenario_version_id": "membership-v1",
+      "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "FULL_REFUND_AFTER_CONSUMPTION"
+      ],
+      "oracle_version": "1.0",
+      "rule_spec_ref": "membership",
+      "expected_outcome": "VULNERABLE",
+      "expected_invariant_ids": [
+        "ENTITLEMENT_REFUND_CONSISTENCY"
+      ],
+      "construction_reason": "已消费 2/2 份权益的会员仍获全额退款 50.00 元，违反 UNUSED_ONLY 退款政策。",
+      "ground_truth_replays": [
+        true,
+        true,
+        true
+      ],
+      "ground_truth_actions": [
+        {
+          "action_type": "CREATE_USER",
+          "arguments": {
+            "initial_balance": "500.00"
+          }
+        },
+        {
+          "action_type": "ACTIVATE_MEMBERSHIP",
+          "target_id": "user-1",
+          "arguments": {
+            "paid_amount": "50.00",
+            "quantity": 2
+          }
+        },
+        {
+          "action_type": "CONSUME_ENTITLEMENT",
+          "target_id": "entitlement-1",
+          "arguments": {
+            "quantity": 2
+          }
+        },
+        {
+          "action_type": "CANCEL_MEMBERSHIP",
+          "target_id": "membership-1",
+          "arguments": {
+            "refund_requested": true
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "dev-membership-07",
+      "benchmark_version": "golden-v4",
+      "visibility": "development",
+      "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+      "tags": [
+        "cancel",
+        "residual-entitlement"
+      ],
+      "budget": {
+        "max_cost": 1.5,
+        "max_steps": 12,
+        "max_time_seconds": 300,
+        "max_tokens": 100000
+      },
+      "rule_version_id": "00000000-0000-0000-0000-000000000103",
+      "scenario_version_id": "membership-v1",
+      "sandbox_version": "vulnerable",
+      "defect_axes": [
+        "ENTITLEMENT_LEFT_AFTER_REFUND"
+      ],
+      "oracle_version": "1.0",
+      "rule_spec_ref": "membership",
+      "expected_outcome": "VULNERABLE",
+      "expected_invariant_ids": [
+        "ENTITLEMENT_REFUND_CONSISTENCY"
+      ],
+      "construction_reason": "未使用会员全额退款后，其 2 份权益未被撤销，仍可继续消费 2 份。",
+      "ground_truth_replays": [
+        true,
+        true,
+        true
+      ],
+      "ground_truth_actions": [
+        {
+          "action_type": "CREATE_USER",
+          "arguments": {
+            "initial_balance": "500.00"
+          }
+        },
+        {
+          "action_type": "ACTIVATE_MEMBERSHIP",
+          "target_id": "user-1",
+          "arguments": {
+            "paid_amount": "50.00",
+            "quantity": 2
+          }
+        },
+        {
+          "action_type": "CANCEL_MEMBERSHIP",
+          "target_id": "membership-1",
+          "arguments": {
+            "refund_requested": true
+          }
+        },
+        {
+          "action_type": "CONSUME_ENTITLEMENT",
+          "target_id": "entitlement-1",
+          "arguments": {
+            "quantity": 2
+          }
+        }
+      ]
     }
   ],
   "benchmark_version": "golden-v4"

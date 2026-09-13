@@ -118,5 +118,152 @@
       "max_cost": 1.5,
       "max_time_seconds": 300
     }
+  },
+  {
+    "case_id": "hidden-09",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "PROMOTION",
+    "tags": [
+      "coupon-reuse",
+      "sequence"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-10",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "PROMOTION",
+    "tags": [
+      "partial-refund",
+      "repeat"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-11",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "REFUND_POINTS",
+    "tags": [
+      "refund",
+      "points",
+      "value-conservation"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-12",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "REFUND_POINTS",
+    "tags": [
+      "refund",
+      "points",
+      "value-conservation"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-13",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "REFUND_POINTS",
+    "tags": [
+      "redeem",
+      "boundary"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-14",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "REFUND_POINTS",
+    "tags": [
+      "redeem",
+      "boundary"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-15",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+    "tags": [
+      "membership",
+      "refund",
+      "consumed"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-16",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+    "tags": [
+      "cancel",
+      "residual-entitlement"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
+  },
+  {
+    "case_id": "hidden-17",
+    "benchmark_version": "golden-v4",
+    "visibility": "hidden",
+    "scenario_type": "MEMBERSHIP_ENTITLEMENT",
+    "tags": [
+      "entitlement",
+      "overconsume"
+    ],
+    "budget": {
+      "max_cost": 1.5,
+      "max_steps": 12,
+      "max_time_seconds": 300,
+      "max_tokens": 100000
+    }
   }
 ]
