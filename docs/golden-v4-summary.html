@@ -1,0 +1,560 @@
+<title>golden-v4 度量修正记</title>
+<style>
+  :root {
+    --ground: #eff2f4;
+    --surface: #ffffff;
+    --surface-sunk: #e6ebee;
+    --ink: #101619;
+    --muted: #5c6b73;
+    --rule: #d3dbdf;
+    --lie: #9a5b00;
+    --lie-bg: #fdf3e3;
+    --ok: #0b6252;
+    --ok-bg: #e6f4f0;
+    --focus: #0b6252;
+
+    --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: "Cascadia Mono", Consolas, "SF Mono", ui-monospace, Menlo, monospace;
+
+    --measure: 68ch;
+    --gap: 1.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1316;
+      --surface: #161d21;
+      --surface-sunk: #101619;
+      --ink: #e4ebee;
+      --muted: #8b9ba3;
+      --rule: #27343a;
+      --lie: #e5a544;
+      --lie-bg: #2a2113;
+      --ok: #4fc2a6;
+      --ok-bg: #11241f;
+      --focus: #4fc2a6;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e1316;
+    --surface: #161d21;
+    --surface-sunk: #101619;
+    --ink: #e4ebee;
+    --muted: #8b9ba3;
+    --rule: #27343a;
+    --lie: #e5a544;
+    --lie-bg: #2a2113;
+    --ok: #4fc2a6;
+    --ok-bg: #11241f;
+    --focus: #4fc2a6;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 1.25rem 5rem;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 76ch;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  header.masthead {
+    padding-top: 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 5vw, 2.7rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 1.06rem;
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: 0;
+  }
+
+  /* Headline numbers: scanned, not read. */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0.5rem 0 0;
+  }
+
+  .stat {
+    background: var(--surface);
+    padding: 1rem 1.1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .stat .value {
+    font-family: var(--mono);
+    font-size: 1.35rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .stat .label {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+  }
+
+  h2 {
+    font-size: 1.28rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--ink);
+    text-wrap: balance;
+  }
+
+  .section-note {
+    margin: -0.6rem 0 0;
+    max-width: var(--measure);
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    gap: 0.7rem;
+    align-items: baseline;
+  }
+
+  .num {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+    padding-top: 0.15em;
+  }
+
+  .finding {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 1.1rem 0 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .finding:first-of-type { border-top: none; padding-top: 0; }
+
+  .finding p {
+    margin: 0;
+    max-width: var(--measure);
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.12rem 0.4rem;
+    border-radius: 2px;
+    margin-right: 0.55rem;
+    white-space: nowrap;
+  }
+
+  .tag.lie { background: var(--lie-bg); color: var(--lie); }
+  .tag.fix { background: var(--ok-bg); color: var(--ok); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    background: var(--surface-sunk);
+    padding: 0.08em 0.32em;
+    border-radius: 2px;
+  }
+
+  .scroll { overflow-x: auto; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 40rem;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  td.n { text-align: right; }
+
+  .hero-row { background: var(--surface-sunk); }
+  .hero-row td { font-weight: 600; }
+
+  .weak { color: var(--muted); }
+
+  ul.plain {
+    margin: 0;
+    padding-left: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    max-width: var(--measure);
+  }
+
+  ul.plain li::marker { color: var(--muted); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+
+  footer p { margin: 0; max-width: var(--measure); }
+
+  .hashes {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.9;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.9rem;
+  }
+
+  a { color: var(--ok); }
+  a:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <p class="eyebrow">RuleArena · golden-v4 · 14 次提交</p>
+    <h1>golden-v4 度量修正记</h1>
+    <p class="lede">
+      这一轮没有让搜索变得更聪明。它做的是让「发现率」这个数字第一次说出真话——
+      结果是数字变小了，但每一个都站得住，而且不可复现这件事终于看得见了。
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="value">14</span>
+        <span class="label">漏洞 case，dev 与 hidden 各 14（原为 9 / 5）</span>
+      </div>
+      <div class="stat">
+        <span class="value">0</span>
+        <span class="label">四基线的 INFRA_FAILED（v3 的 Multi 有 4 次）</span>
+      </div>
+      <div class="stat">
+        <span class="value">8/14 · 1/14</span>
+        <span class="label">hidden Multi 的 pass@3 与 pass^3</span>
+      </div>
+      <div class="stat">
+        <span class="value">8/9</span>
+        <span class="label">门禁通过项；唯一未过的是发现率阈值</span>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <h2>一、数字说了谎</h2>
+    <p class="section-note">
+      这三处不是代码崩溃，而是仪表读数错误——程序照常运行、照常出报告，
+      只是报告里的数字不指向它声称指向的东西。
+    </p>
+
+    <article class="finding">
+      <h3><span class="num">01</span>标签不可归因</h3>
+      <p>
+        <span class="tag lie">声称</span>某个 case 没被发现，说明搜索能力不足。
+      </p>
+      <p>
+        <span class="tag lie">实际</span>同一 scenario 下的所有漏洞 case 共用一个
+        <strong>能表现该 scenario 全部缺陷</strong>的环境，因为环境由一个布尔量
+        <code>sandbox_version</code> 决定。于是一条搜索路径可以踩中 B case 的缺陷，
+        却被记在 A case 的标签下。golden-v3 的 Multi 运行里因此有
+        <strong>3 条 Oracle 已确认的违规被计为未命中</strong>，Single 的分母也退化成 8。
+      </p>
+      <p>
+        <span class="tag fix">修法</span>把布尔量换成 <strong>7 个缺陷轴</strong>，
+        每个漏洞 case 显式声明它要测的那一个；Sandbox 只让声明的轴生效，并
+        <strong>拒绝</strong>本 scenario 触达不到的轴（422，而不是静默失效）。
+      </p>
+    </article>
+
+    <article class="finding">
+      <h3><span class="num">02</span>「最近一次 benchmark」是测试写的</h3>
+      <p>
+        <span class="tag lie">声称</span>接口返回最近一次完成的评测。
+      </p>
+      <p>
+        <span class="tag lie">实际</span><code>latest_completed()</code> 只按时间排序，
+        所以一个测试为验证持久化而写的<strong>单 case 运行</strong>压过了所有真实套件运行。
+        库里共有 <strong>15 条</strong>这样的行。更要紧的是：我第一次把它改成「按 case 数排序」，
+        结果让老的 48-case golden-v2 运行压过了当前的 21-case v4——<strong>矫枉过正</strong>。
+      </p>
+      <p>
+        <span class="tag fix">修法</span>在<strong>非碎片</strong>中取最新，并把
+        <code>MIN_SUITE_CASES</code> 的语义写进 docstring：这是碎片过滤，
+        <strong>不是完整性证明</strong>——一个被截断的多 case 运行仍然能通过它。
+        判断一个运行是否覆盖了整个套件需要声明的 case 数，那是 Release Gate 的职责。
+      </p>
+    </article>
+
+    <article class="finding">
+      <h3><span class="num">03</span>报告把两个版本拼进一张表</h3>
+      <p>
+        <span class="tag lie">声称</span>报告标题写着 golden-v3，表格就是 golden-v3。
+      </p>
+      <p>
+        <span class="tag lie">实际</span>导出器按 (suite, baseline, version, seed) 分组各取最新，
+        但打印时只按 baseline 成行。于是 v4 已测的 Random / BFS 行与 v3 的 Agent 行
+        出现在同一张表里——<strong>两个版本的 case 环境不同，数字不可比</strong>，
+        而这正是版本号存在的全部理由。
+      </p>
+      <p>
+        <span class="tag fix">修法</span><code>--benchmark-version</code> 锁定单一版本
+        （默认取最新完成的运行），缺的格子渲染为 N/A，不借用别的版本的数字。
+      </p>
+    </article>
+  </section>
+
+  <section>
+    <h2>二、仪器坏了</h2>
+    <p class="section-note">
+      这四处不改变结论，但会让结论<em>来路不明</em>——包括我自己写来防止出错的那些东西。
+    </p>
+
+    <article class="finding">
+      <h3><span class="num">04</span>我自己的隔离矩阵在断言不可达的组合</h3>
+      <p>
+        <span class="tag lie">实际</span>修完 01 之后，我给 Sandbox 加了「拒绝不可达的轴」。
+        紧接着我自己那张单位矩阵<strong>当场红了</strong>——它一直把 PROMOTION 的 run
+        拿去过 REFUND_POINTS 的探针，而那些组合此前是被静默忽略的。
+      </p>
+      <p>
+        <span class="tag fix">修法</span>矩阵收窄到该 scenario 真实可达的轴 / 探针对。
+        更有价值的是范围变了：从「跨 scenario 不串」变成
+        <strong>「同 scenario 内不串」</strong>——后者才是真正会发生的那种混淆。
+      </p>
+    </article>
+
+    <article class="finding">
+      <h3><span class="num">05</span>resume 是坏的</h3>
+      <p>
+        <span class="tag lie">实际</span>从 Postgres 读回已完成的 case 时，
+        <code>attack_run_id</code> 是 UUID 对象，而模型要的是字符串。
+        只有走到重放边界的运行才有这个字段，所以三个搜索基线从来没碰过这条路径。
+        hidden 跑到 45/51 被中断，<code>--resume</code> 第一次读 case 就撞上。
+      </p>
+      <p>
+        <span class="tag fix">修法</span>重建时把驱动返回的 UUID 转回字符串，
+        并加一条纯函数测试。<strong>这是被真实运行发现的，不是被测试发现的。</strong>
+      </p>
+    </article>
+
+    <article class="finding">
+      <h3><span class="num">06</span>用例生成器硬编码了版本号</h3>
+      <p>
+        <span class="tag lie">实际</span>生成器为新 case 写死了一个 scenario version，
+        与套件里既有的不一致。运行器在启动时拒绝了整个套件
+        （「同一 scenario 的 case 必须共享同一个规则与 scenario 版本」）。
+      </p>
+      <p>
+        <span class="tag fix">修法</span>版本一律从套件本身读取，而不是在生成器里重复一遍；
+        并在 loader 加载期就拦住不一致的套件——原先只有运行器会拦，
+        那已经是写完套件很久之后了。
+      </p>
+    </article>
+
+    <article class="finding">
+      <h3><span class="num">07</span>迁移元数据漂移</h3>
+      <p>
+        <span class="tag lie">实际</span>迁移给 <code>attack_run</code> 加了
+        <code>defect_axes</code> 列，但 SQLAlchemy 的 table metadata 没同步声明。
+        <code>alembic check</code> 因此提议<strong>删掉这一列</strong>——
+        下次谁跑一次 autogenerate，就会生成一条破坏性迁移。
+      </p>
+      <p>
+        <span class="tag fix">修法</span>在 metadata 里补上声明，两个 <code>alembic check</code> 恢复干净。
+      </p>
+    </article>
+  </section>
+
+  <section>
+    <h2>三、实测结果</h2>
+    <p class="section-note">
+      deepseek-v4.1-flash，temperature 0，seed 20260831。development 21 个 case
+      （14 漏洞 + 7 正常），hidden 17 个（14 漏洞 + 3 正常）。dev 为单次运行，
+      hidden 的 Multi 重复 3 次。
+    </p>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Baseline</th><th>suite</th><th>reps</th><th>发现率</th>
+            <th>95% CI</th><th>误报</th><th>稳定重放</th><th>tokens</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Random</td><td>dev</td><td class="n">1</td><td class="n">0/14</td>
+            <td class="weak">[0–22%]</td><td class="n">0/7</td><td class="weak">—</td><td class="n">0</td></tr>
+          <tr><td>BFS</td><td>dev</td><td class="n">1</td><td class="n">2/14</td>
+            <td class="weak">[4–40%]</td><td class="n">0/7</td><td class="n">6/6</td><td class="n">0</td></tr>
+          <tr><td>Single Agent</td><td>dev</td><td class="n">1</td><td class="n">4/14</td>
+            <td class="weak">[12–55%]</td><td class="n">0/7</td><td class="n">12/12</td><td class="n">48,510</td></tr>
+          <tr><td>Multi-strategy</td><td>dev</td><td class="n">1</td><td class="n">5/14</td>
+            <td class="weak">[16–61%]</td><td class="n">0/7</td><td class="n">15/15</td><td class="n">36,696</td></tr>
+          <tr class="hero-row"><td>Multi-strategy</td><td>hidden</td><td class="n">3</td><td class="n">8/14</td>
+            <td class="weak">[33–79%]</td><td class="n">0/3</td><td class="n">42/42</td><td class="n">37,662</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ul class="plain">
+      <li>
+        <strong>搜索不可复现，这是本轮最重要的发现。</strong>
+        hidden Multi 的 <code>pass@3 = 8/14 (57%)</code>，但
+        <code>pass^3 = 1/14 (7%)</code>——8 个被找到的 case 里，只有一个三次都找到。
+        「57% 的时候能找到」和「7% 的时候能稳定找到」是两个完全不同的产品承诺，
+        而单次运行的 v3 把这两者压成了一个数字。
+      </li>
+      <li>
+        <strong>Multi 5/14（36%）高于 BFS 2/14（14%），但置信区间仍然重叠</strong>
+        （[16–61%] vs [4–40%]）。按统计口径<strong>仍不能宣称谁更强</strong>。
+        要把两者分开需要更多 case 或更多重复——这是量化的下一步依据，
+        不是把阈值调低。
+      </li>
+      <li>
+        <strong>四基线全部 0 次 INFRA_FAILED。</strong>
+        并且 <code>UNPARSABLE_OUTPUT</code> 现在是<strong>具名终止原因</strong>而非整条运行失败：
+        模型偶发输出不可解析时，记为该策略正常终止，不再污染发现率的分母。
+      </li>
+      <li>
+        <strong>门禁判定：拒绝。</strong>9 项检查过 8 项，唯一未过的是
+        <code>hidden_discovery_at_least_75_percent</code>（8/14 = 57% &lt; 75%）。
+        与早期版本的本质区别在于：那时门禁<strong>不可能通过</strong>
+        （发现率上界被动作空间裁到 60%），现在是<em>真的没找够</em>。
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>四、仍然不知道的</h2>
+    <ul class="plain">
+      <li>
+        <strong>dev 只有单次运行。</strong>pass^k 只在 hidden 上有。
+        这是一个明确的取舍：dev 的 rep 3 要再花约 90 分钟，而 dev 的结论是四基线之间的
+        横向比较，那个比较靠 Wilson 区间已经站得住。表里的 <code>reps</code> 列如实写着 1。
+      </li>
+      <li>
+        <strong>hidden 只跑了 Multi-strategy。</strong>另外三个基线在 hidden 上没有数字，
+        报告里渲染为 N/A，不用别的版本的数填。
+      </li>
+      <li>
+        <strong>碎片过滤不是完整性证明。</strong>一个多 case 但被截断的运行仍会通过
+        <code>latest_completed()</code>；真正的判断依据是 Release Gate 按版本元组比对。
+      </li>
+      <li>
+        <strong>15 条单 case 合成运行仍在 control 库里。</strong>
+        它们是 append-only 的（触发器强制），我没有为了干净而弱化那个约束。
+      </li>
+      <li>
+        <strong>真正未做的还有两块：</strong>规范化状态投影与差观测闭环
+        （让 Agent 能比对"规格说的"与"实现做的"），以及探针归一化预算 +
+        确定性上界基线。这两块才是提升搜索能力的方向。
+      </li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>
+      <strong>验证状态：</strong><code>ruff</code> · <code>mypy</code> ·
+      <code>pytest</code>（121 passed / 39 skipped）· 两个 <code>alembic check</code> 全绿，
+      工作树干净。缺陷轴的验收测试跑在<strong>真实 Sandbox</strong> 上，不是 mock：
+      每个 case 的 ground truth 必须在它自己声明的轴下确认，在忠实环境下不确认，
+      在同 scenario 的兄弟轴下也不确认。
+    </p>
+    <p>本轮 14 次提交：</p>
+    <div class="hashes">
+      <span>2c9a67d 迁移元数据</span>
+      <span>06fe21e golden-v4 结果</span>
+      <span>e54fbd5 报告锁定版本</span>
+      <span>072540f 按时间而非体积</span>
+      <span>e50e178 不返回碎片运行</span>
+      <span>b863b29 用例生成器</span>
+      <span>b577a0b 每个 case 一条缺陷轴</span>
+      <span>c2a511f 缺陷轴契约</span>
+      <span class="weak">a300566…b101035 全栈冒烟与门禁证据</span>
+    </div>
+  </footer>
+</div>
