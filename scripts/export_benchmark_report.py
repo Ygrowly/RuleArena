@@ -12,6 +12,7 @@ and emits `docs/benchmark-results.md`:
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from collections import defaultdict
@@ -70,7 +71,31 @@ def _summary(metrics: dict[str, Any], key: str) -> str:
     return " / ".join(parts)
 
 
+def _latest_version(connection: Any) -> str:
+    import sqlalchemy as sa
+
+    row = connection.execute(
+        sa.text(
+            "SELECT benchmark_version FROM control.benchmark_run "
+            "WHERE status = 'COMPLETED' ORDER BY started_at DESC LIMIT 1"
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise SystemExit("no completed benchmark run to report on")
+    return str(row)
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--benchmark-version",
+        default=None,
+        help="which suite version to report; defaults to the newest completed run's. "
+        "Every cell comes from this version only -- a table that mixes versions "
+        "compares numbers measured under different environments.",
+    )
+    args = parser.parse_args()
+
     load_dotenv()
     store = PostgresBenchmarkStore(os.environ["CONTROL_DATABASE_URL"])
     by_suite: dict[Visibility, dict[BaselineType, list[Any]]] = defaultdict(
@@ -83,12 +108,15 @@ def main() -> int:
         connection = store.engine.connect()
         import sqlalchemy as sa
 
+        version = args.benchmark_version or _latest_version(connection)
         rows = connection.execute(
             sa.text(
                 "SELECT id, suite, baseline, benchmark_version, random_seed, repetitions "
                 "FROM control.benchmark_run WHERE status = 'COMPLETED' "
+                "AND benchmark_version = :version "
                 "ORDER BY started_at DESC"
-            )
+            ),
+            {"version": version},
         ).mappings().all()
         seen_groups: set[tuple[str, str, str, int]] = set()
         for row in rows:
@@ -117,12 +145,13 @@ def main() -> int:
         store.close()
 
     lines: list[str] = []
-    lines.append("# Benchmark 实测报告（golden-v3）")
+    lines.append(f"# Benchmark 实测报告（{version}）")
     lines.append("")
     lines.append(
         "> 数据全部来自 PostgreSQL 中 append-only 的原始 BenchmarkRun；"
         "每个聚合项可在 `control.benchmark_run` 中按 Run ID 复算。"
         "hidden suite 只输出聚合指标，不披露任何单 Case 期望答案。"
+        f"本表**只取 {version}**：跨版本的 case 环境不同，数字不可混排。"
     )
     lines.append("")
 
