@@ -193,9 +193,13 @@ append-only 触发器只放行**一次**离开 `RUNNING` 的迁移，身份与�
 | --- | --- |
 | 完整栈（`docker compose up`：web + control-api + worker + sandbox） | **已验证**（2026-09-13）：6 个容器健康、nginx 前门 200、`/api/templates` 返回 3 个模板 |
 | Live Run 端到端（浏览器发起一次真实运行） | **已验证**：compile 200 → confirm 200 → run 201 → 终态 `CONFIRMED_VIOLATION`，2 步 / 7.2k tokens，在 90 秒预算内 |
-| hidden suite @ golden-v3 | **NOT VERIFIED**（未运行） |
-| `benchmark verify --latest` @ v3 | **NOT VERIFIED**（依赖上一条） |
-| 带账目修复的 agent 基线重跑 | **已完成**，但 MULTI 那次撞上提供方瞬时中断（连续 4 次 `ConnectError`），其分母被削到 7，因此 MULTI 仍引用 F3 那次的 2/9；SINGLE 的数字（3/8）来自这次运行 |
+| hidden suite @ golden-v3 | **已验证**：Multi-strategy 发现率 2/5（CI 11.8–76.9%）、误报 0/3、重放 9/9、零 INFRA_FAILED，成本 $0.021/case |
+| `benchmark verify --latest` @ v3 | **已验证**：判定**拒绝**，9 项检查过 8 项，唯一未过 `hidden_discovery_at_least_75_percent` |
+| 带账目修复的 agent 基线重跑 | **已完成**，但 MULTI 那次撞上提供方瞬时中断（连续 4 次 `ConnectError`），其分母被削到 7，因此 MULTI 仍引用 F3 那次的 2/9；SINGLE 的 3/8 来自这次运行 |
+
+**关于门禁**：这一轮拒绝与上一轮性质不同。旧配置下门禁**不可能通过**——发现率上界被动作
+空间裁剪到 60%；现在是搜索确实只找到 2/5，而 n=5 的区间宽到**包含 75%**，既不能证明达标
+也不能排除达标。两者都如实写进了 README。
 
 ### 5.1a 补上验证时发现的问题（均已修复）
 
