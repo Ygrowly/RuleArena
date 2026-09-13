@@ -39,6 +39,15 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      # Gateways differ in what they require and refuse (OpenCode Go needs a session
+      # header and rejects the json_schema response_format). The code reads these from the
+      # environment, so a deployment that omits them cannot call the model at all.
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-120}
+      LLM_SESSION_HEADER: ${LLM_SESSION_HEADER:-}
+      LLM_RESPONSE_FORMAT: ${LLM_RESPONSE_FORMAT:-on}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-8192}
+      LLM_INPUT_COST_PER_MTOKEN: ${LLM_INPUT_COST_PER_MTOKEN:-0}
+      LLM_OUTPUT_COST_PER_MTOKEN: ${LLM_OUTPUT_COST_PER_MTOKEN:-0}
       REDIS_URL: redis://redis:6379/0
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN}
       PORT: "8000"
@@ -98,6 +107,12 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-120}
+      LLM_SESSION_HEADER: ${LLM_SESSION_HEADER:-}
+      LLM_RESPONSE_FORMAT: ${LLM_RESPONSE_FORMAT:-on}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-8192}
+      LLM_INPUT_COST_PER_MTOKEN: ${LLM_INPUT_COST_PER_MTOKEN:-0}
+      LLM_OUTPUT_COST_PER_MTOKEN: ${LLM_OUTPUT_COST_PER_MTOKEN:-0}
     depends_on:
       control-migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
