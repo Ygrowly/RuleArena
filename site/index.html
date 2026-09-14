@@ -1684,9 +1684,15 @@
           checked.forEach(function (name) {
             var li = el("li");
             li.appendChild(el("span", null, name));
+            // Before the run ends nothing has been judged. Showing SATISFIED there would
+            // be the same mistake as believing a receipt that no state confirms.
             var violated = done && bare.violated_invariants.indexOf(name) >= 0;
             li.appendChild(
-              el("span", "chip " + (violated ? "bad" : "ok"), violated ? "VIOLATED" : "SATISFIED")
+              el(
+                "span",
+                "chip " + (!done ? "dim" : violated ? "bad" : "ok"),
+                !done ? "PENDING" : violated ? "VIOLATED" : "SATISFIED"
+              )
             );
             ol.appendChild(li);
           });
