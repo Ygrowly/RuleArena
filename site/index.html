@@ -3,44 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RuleArena 运行时门禁 · 交互演示</title>
+    <title>RuleArena 执行门禁控制台</title>
     <meta
       name="description"
       content="同一份退款 Agent 代码跑两次：裸跑 6/15 张工单重复退款，加上运行时门禁后 0/15。可逐步回放真实运行记录。"
     />
     <meta property="og:type" content="website" />
-    <meta
-      property="og:title"
-      content="RuleArena 运行时门禁：同一份 Agent，裸跑 6/15 重复退款，加门禁 0/15"
-    />
+    <meta property="og:title" content="RuleArena 执行门禁控制台" />
     <meta
       property="og:description"
-      content="真实 Sandbox HTTP、真实回执与快照、确定性 Oracle 裁决。页面里的每一步都来自真实运行记录。"
+      content="真实 Sandbox HTTP、真实回执与快照、确定性 Oracle 裁决。控制台里的每一行都来自真实运行记录。"
     />
     <meta name="twitter:card" content="summary" />
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%232563eb'/%3E%3Cpath d='M9 21.5 15 10l3 8 2-3.5h3' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%235b9dff'/%3E%3Cpath d='M9 21.5 15 10l3 8 2-3.5h3' stroke='%230a0d12' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
     />
     <style>
       :root {
-        color-scheme: light;
-        --bg: #f6f7fb;
-        --panel: #ffffff;
-        --ink: #111827;
-        --ink-soft: #374151;
-        --muted: #6b7280;
-        --faint: #9ca3af;
-        --line: #dfe3ea;
-        --line-strong: #c7cdd8;
-        --accent: #2563eb;
-        --accent-soft: #eef4ff;
-        --danger: #b91c1c;
-        --danger-soft: #fef2f2;
-        --warn: #92600a;
-        --warn-soft: #fffbeb;
-        --ok: #04684a;
-        --ok-soft: #ecfdf5;
+        color-scheme: dark;
+        --bg: #0a0d12;
+        --panel: #0f131a;
+        --panel-2: #141922;
+        --raise: #1a212c;
+        --line: #1e2531;
+        --line-2: #2a3241;
+        --ink: #e7ebf2;
+        --ink-2: #b3bccb;
+        --muted: #78849a;
+        --faint: #4d5768;
+        --accent: #5b9dff;
+        --accent-dim: rgba(91, 157, 255, 0.15);
+        --danger: #ff6b6b;
+        --danger-dim: rgba(255, 107, 107, 0.14);
+        --warn: #e8b13a;
+        --warn-dim: rgba(232, 177, 58, 0.14);
+        --ok: #3ddc97;
+        --ok-dim: rgba(61, 220, 151, 0.14);
         --r: 4px;
         --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
         font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -49,367 +48,801 @@
         box-sizing: border-box;
       }
       @media (prefers-reduced-motion: reduce) {
-        * {
+        *,
+        *::before,
+        *::after {
           animation: none !important;
           transition: none !important;
         }
+      }
+      html,
+      body {
+        height: 100%;
       }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--ink);
-        font-size: 15px;
-        line-height: 1.6;
+        font-size: 13px;
+        line-height: 1.55;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        overflow: hidden;
       }
-      .wrap {
-        max-width: 1180px;
-        margin: 0 auto;
-        padding: 0 20px;
+      button {
+        font: inherit;
       }
       a {
         color: var(--accent);
-        text-underline-offset: 2px;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
       }
       a:focus-visible,
-      button:focus-visible {
+      button:focus-visible,
+      [tabindex]:focus-visible,
+      input:focus-visible {
         outline: 2px solid var(--accent);
-        outline-offset: 2px;
+        outline-offset: 1px;
       }
-      h1,
-      h2,
-      h3 {
-        margin: 0;
-        line-height: 1.35;
-        font-weight: 650;
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
       }
-      h2 {
-        font-size: 17px;
-        letter-spacing: 0.01em;
+      ::-webkit-scrollbar-thumb {
+        background: #232b38;
+        border-radius: 8px;
       }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .mono,
       .num {
+        font-family: var(--mono);
         font-variant-numeric: tabular-nums;
       }
-      .mono {
-        font-family: var(--mono);
-        font-size: 0.88em;
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
       }
 
-      /* ---------- toolbar ---------- */
-      .bar {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background: rgba(246, 247, 251, 0.94);
-        border-bottom: 1px solid var(--line);
-      }
-      .bar-in {
+      /* ---------------- app bar ---------------- */
+      .appbar {
         display: flex;
         align-items: center;
         gap: 14px;
-        min-height: 56px;
+        padding: 0 14px;
+        min-height: 46px;
         flex-wrap: wrap;
-        padding-top: 8px;
-        padding-bottom: 8px;
-      }
-      .bar .name {
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        font-size: 16px;
-      }
-      .bar .claim {
-        color: var(--muted);
-        font-size: 13.5px;
-      }
-      .bar .claim b {
-        color: var(--ink);
-        font-variant-numeric: tabular-nums;
-      }
-      .bar nav {
-        margin-left: auto;
-        display: flex;
-        gap: 16px;
-        font-size: 13.5px;
-        flex-wrap: wrap;
-      }
-
-      /* ---------- sections ---------- */
-      section {
-        padding: 30px 0;
-        border-top: 1px solid var(--line);
-      }
-      section:first-of-type {
-        border-top: 0;
-      }
-      .lead {
-        margin-bottom: 18px;
-      }
-      .lead p {
-        margin: 6px 0 0;
-        color: var(--muted);
-        font-size: 13.5px;
-        max-width: 78ch;
-      }
-
-      /* ---------- the instrument ---------- */
-      .picker {
-        display: flex;
-        border: 1px solid var(--line);
-        border-radius: var(--r);
-        overflow: hidden;
         background: var(--panel);
-        width: fit-content;
-        max-width: 100%;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        font-weight: 650;
+        letter-spacing: 0.01em;
+      }
+      .brand .sub {
+        color: var(--muted);
+        font-weight: 400;
+        font-size: 12px;
+      }
+      .runmeta {
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        gap: 14px;
         flex-wrap: wrap;
       }
-      .picker button {
-        font: inherit;
-        font-size: 13.5px;
-        padding: 8px 14px;
-        border: 0;
-        border-right: 1px solid var(--line);
-        background: transparent;
-        color: var(--muted);
-        cursor: pointer;
-      }
-      .picker button:last-child {
-        border-right: 0;
-      }
-      .picker button[aria-selected="true"] {
-        background: var(--accent-soft);
-        color: var(--accent);
+      .runmeta b {
+        color: var(--ink-2);
         font-weight: 600;
       }
-      .ticket {
-        margin: 14px 0 0;
-        padding: 12px 14px;
-        border-left: 2px solid var(--accent);
-        background: var(--panel);
-        border-radius: 0 var(--r) var(--r) 0;
+      .appbar .spacer {
+        margin-left: auto;
       }
-      .ticket p {
-        margin: 0;
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        font-size: 11.5px;
+        padding: 2px 8px;
+        border: 1px solid var(--line-2);
+        border-radius: var(--r);
+        color: var(--ink-2);
       }
-      .ticket .meta {
-        margin-top: 6px;
+      .badge .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--warn);
+      }
+      .statusline {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        padding: 5px 14px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--line);
         color: var(--muted);
-        font-size: 13px;
+        font-size: 11.5px;
+        flex-wrap: wrap;
+      }
+      .statusline b {
+        color: var(--ink-2);
+        font-weight: 600;
       }
 
-      .console {
-        margin-top: 16px;
+      /* ---------------- shell ---------------- */
+      .shell {
+        display: grid;
+        grid-template-columns: 212px minmax(0, 1fr);
+        min-height: 0;
+      }
+      .rail {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        padding: 10px 8px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .rail .group {
+        color: var(--faint);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        padding: 10px 8px 4px;
+      }
+      .rail button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-radius: var(--r);
+        color: var(--ink-2);
+        padding: 6px 8px;
+        cursor: pointer;
+        font-size: 12.5px;
+      }
+      .rail button:hover {
+        background: var(--panel-2);
+        color: var(--ink);
+      }
+      .rail button[aria-current="true"] {
+        background: var(--accent-dim);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .rail button .n {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .rail .legend {
+        margin-top: 6px;
+        padding: 8px;
+        border-top: 1px solid var(--line);
+        color: var(--faint);
+        font-size: 11px;
+        line-height: 1.7;
+      }
+      main {
+        overflow-y: auto;
+        padding: 14px 16px 48px;
+        min-height: 0;
+      }
+      section[hidden] {
+        display: none;
+      }
+
+      /* ---------------- shared bits ---------------- */
+      .ws-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .ws-head h1 {
+        font-size: 15px;
+        margin: 0;
+        font-weight: 650;
+      }
+      .ws-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .panel {
+        background: var(--panel);
         border: 1px solid var(--line);
         border-radius: var(--r);
-        background: var(--panel);
+      }
+      .panel > header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-2);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .panel > header > span {
+        white-space: nowrap;
+      }
+      .panel > header .hint {
+        color: var(--muted);
+        font-weight: 400;
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      .chip {
+        display: inline-block;
+        padding: 0 6px;
+        border-radius: var(--r);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        font-family: var(--mono);
+        white-space: nowrap;
+      }
+      .chip.ok {
+        background: var(--ok-dim);
+        color: var(--ok);
+      }
+      .chip.bad {
+        background: var(--danger-dim);
+        color: var(--danger);
+      }
+      .chip.warn {
+        background: var(--warn-dim);
+        color: var(--warn);
+      }
+      .chip.dim {
+        background: var(--raise);
+        color: var(--muted);
+      }
+      .chip.acc {
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .btn {
+        background: var(--raise);
+        border: 1px solid var(--line-2);
+        border-radius: var(--r);
+        color: var(--ink);
+        padding: 5px 11px;
+        cursor: pointer;
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+      .btn:hover:not(:disabled) {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #08111f;
+      }
+      .btn.primary:hover:not(:disabled) {
+        color: #08111f;
+        filter: brightness(1.08);
+      }
+
+      /* ---------------- 工单处理 ---------------- */
+      .work {
+        display: grid;
+        grid-template-columns: 236px minmax(0, 1fr) 316px;
+        gap: 12px;
+        align-items: start;
+      }
+      .queue {
+        max-height: calc(100dvh - 190px);
+        overflow-y: auto;
+      }
+      .queue button {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 4px 8px;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-2);
+        padding: 7px 10px;
+        cursor: pointer;
+      }
+      .queue button:last-child {
+        border-bottom: 0;
+      }
+      .queue button:hover {
+        background: var(--panel-2);
+      }
+      .queue button[aria-current="true"] {
+        background: var(--accent-dim);
+      }
+      .queue .cid {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--ink);
+      }
+      .queue .txt {
+        grid-column: 1 / -1;
+        color: var(--muted);
+        font-size: 11.5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .queue .note {
+        padding: 8px 10px;
+        color: var(--faint);
+        font-size: 11px;
+        border-top: 1px solid var(--line);
       }
       .controls {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 14px;
+        gap: 7px;
+        padding: 8px 10px;
         border-bottom: 1px solid var(--line);
         flex-wrap: wrap;
       }
-      .controls button {
-        font: inherit;
-        font-size: 13.5px;
-        font-weight: 600;
-        padding: 6px 13px;
-        border-radius: var(--r);
-        border: 1px solid var(--line-strong);
-        background: var(--panel);
-        color: var(--ink);
-        cursor: pointer;
-      }
-      .controls button:hover:not(:disabled) {
-        border-color: var(--accent);
-        color: var(--accent);
-      }
-      .controls button.primary {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: #fff;
-      }
-      .controls button:active:not(:disabled) {
-        transform: translateY(1px);
-      }
-      .controls button:disabled {
-        opacity: 0.45;
-        cursor: default;
-      }
-      .counter {
+      .controls .count {
         margin-left: auto;
-        font-size: 13px;
         color: var(--muted);
-        font-variant-numeric: tabular-nums;
+        font-family: var(--mono);
+        font-size: 11.5px;
       }
       .arms {
         display: grid;
         grid-template-columns: 1fr 1fr;
       }
-      .arm {
-        padding-bottom: 12px;
-      }
       .arm + .arm {
         border-left: 1px solid var(--line);
       }
-      .arm > header {
-        display: flex;
-        align-items: baseline;
-        gap: 10px;
-        padding: 10px 14px;
-        border-bottom: 1px solid var(--line);
-        flex-wrap: wrap;
-      }
-      .arm > header h3 {
-        font-size: 14px;
-      }
-      .arm > header .how {
-        color: var(--muted);
+      .arm > h3 {
+        margin: 0;
+        padding: 6px 10px;
         font-size: 12px;
+        font-weight: 650;
+        color: var(--ink-2);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .arm > h3 .how {
         font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--faint);
+        font-weight: 400;
       }
       .steps {
         list-style: none;
         margin: 0;
-        padding: 6px 14px 0;
+        padding: 4px 10px 8px;
       }
       .steps li {
         display: grid;
-        grid-template-columns: 16px 1fr;
-        gap: 8px;
-        padding: 7px 0;
+        grid-template-columns: 14px 1fr;
+        gap: 7px;
+        padding: 6px 0;
         border-bottom: 1px dashed var(--line);
         opacity: 0;
-        transform: translateY(3px);
-        transition: opacity 0.22s ease, transform 0.22s ease;
+        transform: translateY(2px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
       }
       .steps li.on {
         opacity: 1;
         transform: none;
       }
-      .steps li .idx {
+      .steps li:last-child {
+        border-bottom: 0;
+      }
+      .steps .idx {
         color: var(--faint);
         font-family: var(--mono);
-        font-size: 12px;
-        padding-top: 1px;
+        font-size: 11px;
       }
       .steps .act {
-        font-weight: 600;
-        font-size: 13.5px;
+        font-family: var(--mono);
+        font-size: 11.5px;
         display: flex;
-        align-items: baseline;
         gap: 7px;
+        align-items: baseline;
         flex-wrap: wrap;
       }
       .steps .kv {
         color: var(--muted);
-        font-size: 12px;
         font-family: var(--mono);
+        font-size: 10.5px;
         word-break: break-all;
       }
-      .steps .guard {
-        font-size: 12px;
+      .steps .gd {
         font-family: var(--mono);
+        font-size: 10.5px;
         color: var(--accent);
       }
-      .steps .waiting {
+      .steps .wait {
         color: var(--faint);
-        font-size: 12.5px;
-      }
-      .tag {
-        display: inline-block;
-        padding: 1px 6px;
-        border-radius: var(--r);
-        font-size: 11.5px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-      }
-      .tag.succeeded {
-        background: var(--ok-soft);
-        color: var(--ok);
-      }
-      .tag.timeout {
-        background: var(--warn-soft);
-        color: var(--warn);
-      }
-      .tag.failed,
-      .tag.refused,
-      .tag.unknown {
-        background: var(--danger-soft);
-        color: var(--danger);
-      }
-      .ledger {
-        margin: 10px 14px 0;
-        padding-top: 10px;
-        border-top: 1px solid var(--line-strong);
-        display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-      .ledger.on {
-        opacity: 1;
-      }
-      .ledger .cell .k {
-        display: block;
-        color: var(--muted);
         font-size: 11.5px;
       }
-      .ledger .cell .v {
-        font-family: var(--mono);
-        font-size: 15px;
-        font-weight: 600;
-      }
-      .ledger .cell .v.bad {
-        color: var(--danger);
-      }
-      .ledger .cell .v.good {
-        color: var(--ok);
-      }
-      .verdict {
-        margin: 10px 14px 0;
-        padding: 8px 10px;
-        border-radius: var(--r);
-        font-size: 13.5px;
-        font-weight: 600;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-      .verdict.on {
-        opacity: 1;
-      }
-      .verdict.bad {
-        background: var(--danger-soft);
-        color: var(--danger);
-      }
-      .verdict.good {
-        background: var(--ok-soft);
-        color: var(--ok);
-      }
-      .verdict.warn {
-        background: var(--warn-soft);
-        color: var(--warn);
-      }
-      .readline {
-        margin: 0;
-        padding: 10px 14px;
+      .readout {
         border-top: 1px solid var(--line);
-        font-size: 13px;
+        padding: 8px 10px;
+        color: var(--muted);
+        font-size: 11.5px;
+      }
+      .readout b {
+        color: var(--ink-2);
+        font-family: var(--mono);
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .kv-list {
+        margin: 0;
+        padding: 4px 10px 8px;
+        list-style: none;
+      }
+      .kv-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 5px 0;
+        border-bottom: 1px dashed var(--line);
+        font-size: 12px;
+      }
+      .kv-list li:last-child {
+        border-bottom: 0;
+      }
+      .kv-list .k {
         color: var(--muted);
       }
-      .readline b {
-        color: var(--ink);
+      .kv-list .v {
+        font-family: var(--mono);
         font-variant-numeric: tabular-nums;
       }
+      .kv-list .v.bad {
+        color: var(--danger);
+        font-weight: 700;
+      }
+      .kv-list .v.good {
+        color: var(--ok);
+        font-weight: 700;
+      }
+      .findings {
+        margin: 0;
+        padding: 4px 10px 8px;
+        list-style: none;
+      }
+      .findings li {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px dashed var(--line);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      .findings li:last-child {
+        border-bottom: 0;
+      }
+      .verdict {
+        margin: 0;
+        padding: 8px 10px;
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .verdict.bad {
+        color: var(--danger);
+        background: var(--danger-dim);
+      }
+      .verdict.good {
+        color: var(--ok);
+        background: var(--ok-dim);
+      }
+      .verdict.warn {
+        color: var(--warn);
+        background: var(--warn-dim);
+      }
 
-      /* ---------- diagram ---------- */
+      /* ---------------- 对照评测 ---------------- */
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .metric {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 9px 11px;
+      }
+      .metric .k {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .metric .v {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        font-size: 18px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .metric .v.bad {
+        color: var(--danger);
+      }
+      .metric .v.good {
+        color: var(--ok);
+      }
+      .metric .s {
+        color: var(--faint);
+        font-size: 10.5px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--line-2);
+        border-radius: var(--r);
+        overflow: hidden;
+      }
+      .seg button {
+        background: transparent;
+        border: 0;
+        border-right: 1px solid var(--line-2);
+        color: var(--muted);
+        padding: 4px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .seg button:last-child {
+        border-right: 0;
+      }
+      .seg button[aria-pressed="true"] {
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .toolbar input {
+        background: var(--panel-2);
+        border: 1px solid var(--line-2);
+        border-radius: var(--r);
+        color: var(--ink);
+        padding: 4px 9px;
+        font: inherit;
+        font-size: 12px;
+        min-width: 170px;
+      }
+      .toolbar .hint {
+        color: var(--muted);
+        font-size: 11.5px;
+        margin-left: auto;
+      }
+      .tablewrap {
+        max-height: calc(100dvh - 300px);
+        overflow: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 12px;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--panel-2);
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 11px;
+        text-align: left;
+        padding: 6px 9px;
+        border-bottom: 1px solid var(--line-2);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+      }
+      thead th.no-sort {
+        cursor: default;
+      }
+      thead th[aria-sort]::after {
+        content: " ↑";
+        color: var(--accent);
+      }
+      thead th[aria-sort="descending"]::after {
+        content: " ↓";
+      }
+      tbody td {
+        padding: 5px 9px;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      tbody tr:hover td {
+        background: var(--panel-2);
+      }
+      tbody td.m {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      tbody td.bad {
+        color: var(--danger);
+        font-weight: 600;
+      }
+      tbody td.good {
+        color: var(--ok);
+      }
+
+      /* ---------------- 门禁规则 ---------------- */
+      .rules {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 10px;
+      }
+      .rule h3 {
+        margin: 0;
+        padding: 8px 10px 0;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--accent);
+      }
+      .rule dl {
+        margin: 0;
+        padding: 6px 10px 8px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 3px 10px;
+        font-size: 12px;
+      }
+      .rule dt {
+        color: var(--muted);
+      }
+      .rule dd {
+        margin: 0;
+        color: var(--ink-2);
+      }
+      .vocab {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 8px 10px;
+      }
+      .vocab code {
+        font-family: var(--mono);
+        font-size: 11px;
+        background: var(--raise);
+        border: 1px solid var(--line-2);
+        border-radius: var(--r);
+        padding: 1px 6px;
+        color: var(--ink-2);
+      }
+      .cols2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 12px;
+      }
+
+      /* ---------------- 缺陷台账 ---------------- */
+      .issue {
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr) 118px;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .issue:last-child {
+        border-bottom: 0;
+      }
+      .issue .id {
+        font-family: var(--mono);
+        color: var(--faint);
+        font-size: 11.5px;
+      }
+      .issue h3 {
+        margin: 0 0 3px;
+        font-size: 13px;
+      }
+      .issue p {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .issue p b {
+        color: var(--ink-2);
+        font-weight: 600;
+      }
+      .issue .right {
+        text-align: right;
+      }
+      .issue code {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--muted);
+        word-break: break-all;
+      }
+
+      /* ---------------- 概览 ---------------- */
+      .overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+        align-items: start;
+      }
+      .big {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .big.bad {
+        color: var(--danger);
+      }
+      .big.good {
+        color: var(--ok);
+      }
+      .bound {
+        margin: 0;
+        padding: 4px 10px 8px;
+        list-style: none;
+      }
+      .bound li {
+        padding: 7px 0;
+        border-bottom: 1px dashed var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .bound li:last-child {
+        border-bottom: 0;
+      }
+      .bound b {
+        color: var(--ink-2);
+      }
       .frame {
         border: 1px solid var(--line);
         border-radius: var(--r);
-        background: var(--panel);
         overflow: hidden;
-        height: 620px;
+        height: calc(100dvh - 220px);
+        min-height: 460px;
+        background: #06131f;
       }
       .frame iframe {
         width: 100%;
@@ -418,373 +851,442 @@
         display: block;
       }
 
-      /* ---------- lists ---------- */
-      .scroller {
-        overflow-x: auto;
-        border: 1px solid var(--line);
-        border-radius: var(--r);
-      }
-      table {
-        border-collapse: collapse;
-        width: 100%;
-        min-width: 540px;
-        background: var(--panel);
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 9px 14px;
-        border-bottom: 1px solid var(--line);
-        font-variant-numeric: tabular-nums;
-        font-size: 14px;
-      }
-      thead th {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--muted);
-      }
-      tbody tr:last-child td {
-        border-bottom: 0;
-      }
-      td.win {
-        color: var(--ok);
-        font-weight: 600;
-      }
-      td.lose {
-        color: var(--danger);
-        font-weight: 600;
-      }
-      .cols {
+      /* ---------------- boot ---------------- */
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        background: var(--bg);
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0 34px;
+        place-items: center;
+        transition: opacity 0.4s ease;
       }
-      .item {
-        padding: 11px 0;
-        border-bottom: 1px solid var(--line);
+      #boot.done {
+        opacity: 0;
+        pointer-events: none;
       }
-      .item h3 {
-        font-size: 14px;
+      .boot-in {
+        width: min(680px, 88vw);
       }
-      .item h3 span {
+      .boot-in .kick {
+        color: var(--faint);
         font-family: var(--mono);
-        color: var(--accent);
-        font-size: 12.5px;
-        margin-right: 7px;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin: 0 0 10px;
       }
-      .item p {
-        margin: 4px 0 0;
-        color: var(--muted);
-        font-size: 13.5px;
-      }
-      pre {
-        margin: 0;
-        background: #0f172a;
-        color: #e2e8f0;
-        padding: 14px 16px;
-        border-radius: var(--r);
-        overflow-x: auto;
-        font-family: var(--mono);
-        font-size: 12.5px;
-        line-height: 1.75;
-      }
-      ul.bounds {
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      ul.bounds li {
-        padding: 11px 0;
-        border-bottom: 1px solid var(--line);
-        color: var(--ink-soft);
-        font-size: 14px;
-      }
-      ul.bounds li:last-child {
-        border-bottom: 0;
-      }
-      ul.bounds strong {
-        color: var(--ink);
-      }
-      footer {
-        padding: 22px 0 40px;
-        border-top: 1px solid var(--line);
-        color: var(--muted);
-        font-size: 13px;
-      }
-      footer p {
+      .boot-in h1 {
+        font-size: 22px;
         margin: 0 0 6px;
+        letter-spacing: -0.01em;
+      }
+      .boot-in .sub {
+        color: var(--muted);
+        font-size: 12.5px;
+        margin: 0 0 20px;
+      }
+      .boot-row {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr) 92px;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 9px;
+        opacity: 0;
+      }
+      .boot-row.on {
+        opacity: 1;
+        transition: opacity 0.3s ease;
+      }
+      .boot-row .tag {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        text-align: right;
+      }
+      .boot-row .cells {
+        display: grid;
+        grid-template-columns: repeat(15, 1fr);
+        gap: 4px;
+      }
+      .boot-row .cell {
+        height: 22px;
+        border-radius: 3px;
+        background: var(--raise);
+        border: 1px solid var(--line-2);
+      }
+      .boot-row .cell.bad {
+        background: var(--danger-dim);
+        border-color: var(--danger);
+      }
+      .boot-row .cell.good {
+        background: var(--ok-dim);
+        border-color: var(--ok);
+      }
+      .boot-row .cell.on {
+        animation: pop 0.28s ease;
+      }
+      @keyframes pop {
+        0% {
+          transform: scaleY(0.55);
+        }
+        100% {
+          transform: scaleY(1);
+        }
+      }
+      .boot-row .val {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .boot-row .val.bad {
+        color: var(--danger);
+      }
+      .boot-row .val.good {
+        color: var(--ok);
+      }
+      .boot-in .foot {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 22px;
+        color: var(--faint);
+        font-size: 11.5px;
+      }
+      .boot-in .foot button {
+        margin-left: auto;
       }
 
-      @media (max-width: 800px) {
-        .arms,
-        .cols {
+      @media (max-width: 1080px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        .rail {
+          overflow-x: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        #rail-items {
+          display: flex;
+          gap: 4px;
+        }
+        .rail .group,
+        .rail .legend {
+          display: none;
+        }
+        .rail button {
+          width: auto;
+          white-space: nowrap;
+        }
+        .rail button .n {
+          margin-left: 0;
+        }
+        .work,
+        .arms {
           grid-template-columns: 1fr;
         }
         .arm + .arm {
           border-left: 0;
           border-top: 1px solid var(--line);
         }
-        .frame {
-          height: 460px;
+        .queue {
+          max-height: 240px;
         }
-        .bar nav {
-          margin-left: 0;
+        body {
+          grid-template-rows: auto auto auto;
+          overflow: auto;
         }
       }
     </style>
   </head>
   <body>
-    <header class="bar">
-      <div class="wrap bar-in">
-        <span class="name">RuleArena</span>
-        <span class="claim">
-          同一份退款 Agent 跑两次：裸跑 <b>6/15</b> 张工单重复退款，加运行时门禁 <b>0/15</b>
-        </span>
-        <nav>
-          <a href="#demo">回放</a>
-          <a href="#flow">架构</a>
-          <a href="#numbers">全量数字</a>
-          <a href="./demo.html">搜索反例演示</a>
-          <a href="https://github.com/Ygrowly/RuleArena">源码</a>
-        </nav>
-      </div>
-    </header>
-
-    <main class="wrap">
-      <section id="demo">
-        <div class="lead">
-          <h2>逐步回放一次真实运行</h2>
-          <p>
-            每个步骤都来自真实记录：真实 Sandbox HTTP、真实回执、真实快照。按「单步」或「播放」推进，
-            两边的 Agent 代码完全相同，差别只在网关后面挂不挂门禁。
-          </p>
-        </div>
-
-        <div class="picker" role="tablist" aria-label="选择工单"></div>
-        <div class="ticket">
-          <p id="ticket-text"></p>
-          <p class="meta" id="ticket-meta"></p>
-        </div>
-
-        <div class="console">
-          <div class="controls">
-            <button type="button" class="primary" id="play">播放</button>
-            <button type="button" id="next">单步</button>
-            <button type="button" id="reset">重置</button>
-            <span class="counter" id="counter" aria-live="polite"></span>
-          </div>
-          <div class="arms">
-            <article class="arm" id="arm-bare">
-              <header>
-                <h3>裸跑</h3>
-                <span class="how">只有 ToolGateway</span>
-              </header>
-              <ol class="steps" id="steps-bare"></ol>
-              <div class="ledger" id="ledger-bare"></div>
-              <p class="verdict" id="verdict-bare"></p>
-            </article>
-            <article class="arm" id="arm-gated">
-              <header>
-                <h3>加运行时门禁</h3>
-                <span class="how">ToolGateway → RuntimeGate</span>
-              </header>
-              <ol class="steps" id="steps-gated"></ol>
-              <div class="ledger" id="ledger-gated"></div>
-              <p class="verdict" id="verdict-gated"></p>
-            </article>
-          </div>
-          <p class="readline" id="readline"></p>
-        </div>
-      </section>
-
-      <section id="flow">
-        <div class="lead">
-          <h2>一次退款调用经过什么</h2>
-          <p>
-            可拖动、可缩放，点节点聚焦，按 R 追一条路径。门禁挂在网关后面，只读不写；Oracle 从权威状态独立裁决，
-            不经过门禁也不问 Agent。
-            <a href="./diagram.html" target="_blank" rel="noopener">在新标签打开</a>
-          </p>
-        </div>
-        <div class="frame">
-          <iframe src="./diagram.html" title="RuleArena 运行时门禁架构图" loading="lazy"></iframe>
-        </div>
-      </section>
-
-      <section id="numbers">
-        <div class="lead">
-          <h2>全量实测</h2>
-          <p>
-            15 张工单（5 张正常、6 张回执丢失、4 张工单金额与实付不符），每种模式 3 次重复，共 90 次真实运行。
-            两个结论必须一起读：把事做对，和路上没多花钱。
-          </p>
-        </div>
-        <div class="scroller">
-          <table>
-            <thead>
-              <tr>
-                <th>指标</th>
-                <th>裸跑</th>
-                <th>加运行时门禁</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>终态正确率</td>
-                <td>9/15 = 60% [36-80%]</td>
-                <td class="win">15/15 = 100% [80-100%]</td>
-              </tr>
-              <tr>
-                <td>意外资损笔数</td>
-                <td class="lose">6 笔（每笔 ¥640）</td>
-                <td class="win">0 笔（¥0）</td>
-              </tr>
-              <tr>
-                <td>意外资损金额（跨 45 次运行合计）</td>
-                <td class="lose">¥1920</td>
-                <td class="win">¥0</td>
-              </tr>
-              <tr>
-                <td>正常工单误拦</td>
-                <td>不适用（无门禁）</td>
-                <td class="win">0</td>
-              </tr>
-              <tr>
-                <td>该转人工的转人工</td>
-                <td>4/4</td>
-                <td>4/4</td>
-              </tr>
-              <tr>
-                <td>工具调用 / 门禁检查</td>
-                <td>120 / 0</td>
-                <td>90 / 207</td>
-              </tr>
-              <tr>
-                <td>平均单工单耗时</td>
-                <td>5.78s</td>
-                <td class="win">5.48s</td>
-              </tr>
-              <tr>
-                <td>INFRA_FAILED</td>
-                <td>0</td>
-                <td>0</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="readline">
-          门禁组少发 30 次工具调用（超时后不再盲目重试），平均耗时反而低 0.3 秒：207 次只读检查没有换来更慢的运行。
-          回执丢失那 6 张工单必须同时声明第二个缺陷轴，因为忠实实现自己会拒绝第二笔超额退款，单靠回执丢失退不出第二笔钱，
-          Oracle 也就无从判定资损。每张工单的构造说明里写着这件事。
+    <div id="boot" role="dialog" aria-label="概览">
+      <div class="boot-in">
+        <p class="kick">RuleArena / 执行门禁控制台</p>
+        <h1>同一份退款 Agent，跑两次</h1>
+        <p class="sub">
+          15 张真实工单，两种环境：一次只有工具网关，一次在网关后面加一道运行时门禁。
         </p>
-      </section>
-
-      <section id="trust">
-        <div class="lead">
-          <h2>四条不变量，四个跑出来的缺陷</h2>
-          <p>不变量是约束，缺陷是实测产物。四个缺陷都不是想出来的，每一个都补了回归测试。</p>
+        <div id="boot-rows"></div>
+        <div class="foot">
+          <span id="boot-note">正在载入运行记录…</span>
+          <button type="button" class="btn" id="boot-skip">跳过概览</button>
         </div>
-        <div class="cols">
-          <div>
-            <div class="item">
-              <h3><span>INV-A</span>Agent 不知道门禁存在</h3>
-              <p>不 import 门禁任何符号（含 TYPE_CHECKING），门禁的理由码也不进它拿到的结果。</p>
+      </div>
+    </div>
+
+    <header class="appbar">
+      <span class="brand">RuleArena <span class="sub">执行门禁控制台</span></span>
+      <span class="runmeta">
+        <span>基准 <b id="meta-bench">-</b></span>
+        <span>seed <b id="meta-seed">-</b></span>
+        <span>重复 <b id="meta-reps">-</b></span>
+      </span>
+      <span class="spacer"></span>
+      <span class="badge"><span class="dot"></span>回放模式</span>
+      <a class="badge" href="./diagram.html" target="_blank" rel="noopener">架构图 ↗</a>
+      <a class="badge" href="./demo.html">搜索反例演示 ↗</a>
+      <a class="badge" href="https://github.com/Ygrowly/RuleArena">源码 ↗</a>
+    </header>
+    <div class="statusline">
+      <span>数据源 <b>冻结运行</b></span>
+      <span>录制 <b id="meta-recorded">-</b></span>
+      <span><b>回放真实记录，非实时连接</b></span>
+      <span id="meta-honesty"></span>
+    </div>
+
+    <div class="shell">
+      <nav class="rail" aria-label="工作区">
+        <p class="group">工作区</p>
+        <div id="rail-items"></div>
+        <p class="legend">
+          状态色只用在这三处：<br />
+          <span class="chip bad">资损</span> 多退了钱<br />
+          <span class="chip ok">达标</span> 符合期望终态<br />
+          <span class="chip warn">转人工</span> 该升级的升级了
+        </p>
+      </nav>
+
+      <main>
+        <section id="ws-overview" hidden>
+          <div class="ws-head">
+            <h1>概览</h1>
+            <p>三十秒版本。要动手就切到「工单处理」。</p>
+          </div>
+          <div class="overview">
+            <div class="panel">
+              <header>两组实测 <span class="hint">45 次运行 / 组</span></header>
+              <ul class="kv-list" id="ov-metrics"></ul>
+              <p class="verdict" id="ov-verdict"></p>
             </div>
-            <div class="item">
-              <h3><span>INV-B</span>门禁只做确定性算术</h3>
-              <p>读快照、读回执、比金额。不做语义判断、不调用模型、不写业务状态，用依赖白名单静态检查。</p>
+            <div class="panel">
+              <header>这个控制台里有什么</header>
+              <ul class="kv-list">
+                <li><span class="k">工单处理</span><span class="v">逐步回放真实调用</span></li>
+                <li><span class="k">对照评测</span><span class="v">90 行逐次记录</span></li>
+                <li><span class="k">门禁规则</span><span class="v">三段检查与理由码</span></li>
+                <li><span class="k">系统架构</span><span class="v">可交互调用路径</span></li>
+                <li><span class="k">缺陷台账</span><span class="v">4 个实测缺陷</span></li>
+              </ul>
+              <div class="vocab">
+                <button type="button" class="btn" id="replay">重播概览动画</button>
+              </div>
             </div>
-            <div class="item">
-              <h3><span>INV-C</span>任务成功与无资损分开统计</h3>
-              <p>终态正确不等于没多退钱，两个指标并列报，都是必过项。</p>
-            </div>
-            <div class="item">
-              <h3><span>INV-D</span>门禁不决定终态</h3>
-              <p>门禁只拦、放行或转未知。多退了钱必须由 Oracle 在权威状态上算出来，预算检查与违规判定不混为一谈。</p>
+            <div class="panel">
+              <header>这些数字的边界</header>
+              <ul class="bound">
+                <li><b>15 张工单上的一个对照</b>，不是「绝对安全」。没发现问题只能说成「在给定预算内没发现」。</li>
+                <li><b>被测环境是真实业务系统的替身</b>，不是任何客户的系统。</li>
+                <li><b>被测 Agent 是确定性策略，不接模型</b>，先把对照跑成立再谈换模型。</li>
+                <li><b>门禁的预算检查镜像忠实实现的边界</b>，在允许超额退款的环境里它会比沙箱更早拦住。</li>
+              </ul>
             </div>
           </div>
-          <div>
-            <div class="item">
-              <h3><span>缺陷 1</span>业务拒绝被读成了成功</h3>
-              <p>沙箱对业务拒绝返回 HTTP 200 加 REJECTED，工具层最初只看状态码，让裸跑组在 4 张工单上自述成功。</p>
+        </section>
+
+        <section id="ws-tickets" hidden>
+          <div class="ws-head">
+            <h1>工单处理</h1>
+            <p>左栏选工单，中栏逐步回放，右栏是权威状态与 Oracle 裁决。两栏的 Agent 代码完全相同。</p>
+          </div>
+          <div class="work">
+            <div class="panel">
+              <header>工单队列 <span class="hint" id="queue-count"></span></header>
+              <div class="queue" id="queue"></div>
             </div>
-            <div class="item">
-              <h3><span>缺陷 2</span>504 没走恢复路径</h3>
-              <p>等过沙箱延迟的调用方会先收到 504，被当成硬失败抛出，而那张回执就躺在库里。</p>
+            <div class="panel">
+              <header>
+                <span>工单</span> <span class="mono" id="detail-id"></span>
+                <span class="hint" id="detail-axes"></span>
+              </header>
+              <div class="controls">
+                <button type="button" class="btn primary" id="play">运行</button>
+                <button type="button" class="btn" id="next">单步</button>
+                <button type="button" class="btn" id="reset">重置</button>
+                <span class="count" id="counter" aria-live="polite"></span>
+              </div>
+              <div id="detail-body"></div>
             </div>
-            <div class="item">
-              <h3><span>缺陷 3</span>正确的重试反而被拦</h3>
-              <p>网关原先固定按预算、回执、生效的顺序走，于是「再发一次同一个键问结果」被当成新退款拒绝。现在先问回执。</p>
+            <div class="side" id="detail-side"></div>
+          </div>
+        </section>
+
+        <section id="ws-records" hidden>
+          <div class="ws-head">
+            <h1>对照评测</h1>
+            <p>每一次运行的逐行记录，可筛选可排序。点表头排序，点行看当时的运行号。</p>
+          </div>
+          <div class="metrics" id="rec-metrics"></div>
+          <div class="toolbar">
+            <span class="seg" role="group" aria-label="环境筛选">
+              <button type="button" data-env="ALL" aria-pressed="true">全部环境</button>
+              <button type="button" data-env="BARE" aria-pressed="false">裸跑</button>
+              <button type="button" data-env="GATED" aria-pressed="false">加门禁</button>
+            </span>
+            <span class="seg" role="group" aria-label="结果筛选">
+              <button type="button" data-res="ALL" aria-pressed="true">全部结果</button>
+              <button type="button" data-res="LOSS" aria-pressed="false">出现资损</button>
+              <button type="button" data-res="MISS" aria-pressed="false">终态不符</button>
+              <button type="button" data-res="ESC" aria-pressed="false">转人工</button>
+            </span>
+            <input type="search" id="rec-search" placeholder="按工单号筛选，例如 rf-acklost" />
+            <span class="hint" id="rec-count"></span>
+          </div>
+          <div class="panel tablewrap">
+            <table>
+              <thead>
+                <tr id="rec-head"></tr>
+              </thead>
+              <tbody id="rec-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="ws-rules" hidden>
+          <div class="ws-head">
+            <h1>门禁规则</h1>
+            <p>三段检查，只做确定性算术。任何一段读不到权威状态就返回 UNKNOWN，一律不当作成功。</p>
+          </div>
+          <div class="rules" id="rules-body"></div>
+          <div class="cols2" style="margin-top: 12px">
+            <div class="panel">
+              <header>判定词表 <span class="hint">来自 runtime_gate</span></header>
+              <div class="vocab" id="rules-decisions"></div>
             </div>
-            <div class="item">
-              <h3><span>缺陷 4</span>门禁的理由码泄给了 Agent</h3>
-              <p>结果里带着 REFUND_BUDGET_EXCEEDED 这类字符串，等于告诉调用方有个门禁、而且它刚说话了。</p>
+            <div class="panel">
+              <header>理由码 <span class="hint">机器可读</span></header>
+              <div class="vocab" id="rules-reasons"></div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="repro">
-        <div class="lead">
-          <h2>复现</h2>
-          <p>数字来自真实运行，任何人都能在本地重跑。原始记录与全部指纹都在仓库里。</p>
-        </div>
-        <pre><code># 起 Sandbox（真实 HTTP 服务 + PostgreSQL）
-docker compose up -d --build --wait commerce-sandbox
+        <section id="ws-arch" hidden>
+          <div class="ws-head">
+            <h1>系统架构</h1>
+            <p>可拖动缩放，点节点聚焦，按 R 追一条路径。门禁挂在网关后面，只读不写；Oracle 从权威状态独立裁决。</p>
+          </div>
+          <div class="frame">
+            <iframe src="./diagram.html" title="RuleArena 运行时门禁架构图" loading="lazy"></iframe>
+          </div>
+        </section>
 
-# 同一份 Agent 跑两次：裸跑 / 加门禁，各 3 次重复
-uv run rulearena refund-bench --suite benchmarks/refund_agents/development-v1.json \
-                              --modes bare,gated --repetitions 3
-
-# 复核最近一次判定（版本 / seed / 预算 / 三项门禁检查）
-uv run rulearena refund-verify --latest</code></pre>
-      </section>
-
-      <section id="bounds">
-        <div class="lead">
-          <h2>这些数字的边界</h2>
-        </div>
-        <ul class="bounds">
-          <li>
-            <strong>它是 15 张工单上的一个对照，不是「绝对安全」。</strong>门禁挡住这一类失败，
-            不等于能证明任何 Agent 都没问题；没发现问题的说法只能表述为「在给定预算内没发现」。
-          </li>
-          <li>
-            <strong>被测环境是真实业务系统的替身，不是任何客户的系统。</strong>它替代客户系统，
-            是为了让验证这件事成立，同时把危险动作关在笼子里。
-          </li>
-          <li>
-            <strong>被测 Agent 是确定性策略，不接模型。</strong>这是刻意的：先把对照跑成立、让失败面可复现，
-            再考虑换成模型，否则差异说不清是门禁起作用还是模型随机。
-          </li>
-          <li>
-            <strong>门禁的预算检查镜像的是忠实实现的边界。</strong>在一个本身就允许超额退款的环境里，
-            它会比沙箱更早拦住。对门禁来说，这是正确的错法。
-          </li>
-        </ul>
-      </section>
-    </main>
-
-    <footer class="wrap">
-      <p id="provenance"></p>
-      <p>
-        RuleArena：让模型去搜人想不到的路径，让确定性程序去证明路径是不是真的有问题。
-        本页数据由 <span class="mono">scripts/export_refund_gate_demo.py</span> 从一次真实运行导出。
-      </p>
-    </footer>
+        <section id="ws-defects" hidden>
+          <div class="ws-head">
+            <h1>缺陷台账</h1>
+            <p>四个都不是推演出来的，全是真实运行打出来的，每个都有回归测试。</p>
+          </div>
+          <div class="panel" id="defects-body"></div>
+        </section>
+      </main>
+    </div>
 
     <script id="refund-demo" type="application/json">__REFUND_DEMO_JSON__</script>
+    <script id="suite-results" type="application/json">__SUITE_RESULTS_JSON__</script>
     <script>
       (function () {
         "use strict";
 
-        var data = null;
-        var caseId = null;
-        var cursor = 0;
-        var timer = null;
+        var WORKSPACES = [
+          { id: "tickets", label: "工单处理", badge: "3" },
+          { id: "records", label: "对照评测", badge: "90" },
+          { id: "rules", label: "门禁规则", badge: "3 段" },
+          { id: "arch", label: "系统架构", badge: "" },
+          { id: "defects", label: "缺陷台账", badge: "4" },
+          { id: "overview", label: "概览", badge: "" }
+        ];
+
+        var RULE_STAGES = [
+          {
+            name: "retry_check",
+            when: "每一次写入之前，先问这一句",
+            reads: "按幂等键查回执 /internal/runs/{id}/receipts/{key}",
+            decide: "命中就返回那份回执，不重放；404 才允许继续",
+            unknown: "查询失败或读到非回执 → UNKNOWN",
+            yes: "同一个键重发，拿回第一次的结果",
+            no: "全新的键 → 404，照常走写前检查"
+          },
+          {
+            name: "pre_check",
+            when: "确认不是重放之后",
+            reads: "权威快照的订单：累计已退、实付、状态",
+            decide: "累计已退 + 本次 > 实付 → 拦；状态不可退 → 拦",
+            unknown: "读不到快照 → UNKNOWN",
+            yes: "实付 100、已退 0、退 90 → 放行",
+            no: "已退 90 还想再退 90 → 拦截"
+          },
+          {
+            name: "post_check",
+            when: "回执返回之后",
+            reads: "重读快照，比对写前后的 state_hash",
+            decide: "状态没动 → EFFECT_NOT_OBSERVED；对不上权威视图 → STALE_VIEW",
+            unknown: "读不到快照 → UNKNOWN",
+            yes: "刷新后 state_hash 变了 → 这笔真的生效了",
+            no: "回执说成功、状态没动 → 不当作成功"
+          }
+        ];
+
+        var DEFECTS = [
+          {
+            id: "AG-01",
+            title: "工具层把「业务拒绝」读成了成功",
+            symptom:
+              "沙箱对业务拒绝返回 HTTP 200 加 status: REJECTED，工具层最初只看状态码，于是裸跑组在 4 张金额不符的工单上「自述成功」。终态恰好没变，聚合指标看着完全正常。",
+            cause: "把传输层的 200 当成了业务结论，而回执自己就写着结论。",
+            fix: "一律以回执的 status 为准（SUCCEEDED / REJECTED / 其它即未知），不看 HTTP 码。",
+            test: "test_a_rejected_receipt_is_a_failure_not_a_success"
+          },
+          {
+            id: "AG-02",
+            title: "504 没有走恢复路径",
+            symptom:
+              "等过沙箱延迟的调用方会先收到 504，被当成硬失败抛出——而那张回执就躺在库里，没有任何人去读。",
+            cause: "恢复分支只挂在客户端超时上，而「没能回答」不止超时一种形态。",
+            fix: "502 / 503 / 504 与超时同路，一律按幂等键查回执；查不到才记 ACTION_UNKNOWN。",
+            test: "test_an_unanswered_write_queries_the_receipt_instead_of_failing"
+          },
+          {
+            id: "AG-03",
+            title: "正确的重试反而被拦",
+            symptom:
+              "网关原先固定按预算、回执、生效的顺序走，于是「再发一次同一个键问结果」这条唯一正确的恢复方式被当成新的退款：全额重放看起来超预算，部分重放看起来「什么都没发生」。",
+            cause: "把一次已经存在的写入当成了新的写入。",
+            fix: "先查回执：命中即短路返回该回执，不重放，也不再拿一对快照去确认一件早已发生的事。",
+            test: "test_replaying_a_committed_key_returns_its_receipt_not_a_second_refund"
+          },
+          {
+            id: "AG-04",
+            title: "门禁的理由码泄给了 Agent",
+            symptom:
+              "结果里带着 REFUND_BUDGET_EXCEEDED 这类字符串，等于告诉调用方「有一个门禁，而且它刚才说话了」。",
+            cause: "把门禁的内部词汇直接当成了对外的错误码。",
+            fix: "理由码只留在网关自己的调用记录里；交给 Agent 的是与门禁无关的结果形状。",
+            test: "test_no_gate_reason_code_reaches_the_agent"
+          }
+        ];
+
+        var state = {
+          demo: null,
+          suite: null,
+          ws: null,
+          caseId: null,
+          cursor: 0,
+          timer: null,
+          env: "ALL",
+          res: "ALL",
+          query: "",
+          sort: { key: "case_id", dir: 1 }
+        };
 
         function $(id) {
           return document.getElementById(id);
+        }
+
+        function el(tag, cls, text) {
+          var node = document.createElement(tag);
+          if (cls) node.className = cls;
+          if (text !== undefined) node.textContent = text;
+          return node;
         }
 
         function byId(list, id) {
@@ -792,29 +1294,216 @@ uv run rulearena refund-verify --latest</code></pre>
           return null;
         }
 
-        function fact(mode, id) {
-          return byId((data.modes[mode] || {}).tickets || [], id);
-        }
-
         function money(value) {
           var n = Number(value);
           return (n < 0 ? "-" : "") + "¥" + Math.abs(n).toFixed(2);
         }
 
-        function orderOf(f) {
-          return ((f.final_state && f.final_state.orders) || [])[0] || null;
+        function pct(value) {
+          return (Number(value) * 100).toFixed(0) + "%";
         }
 
-        function labelOf(ticket) {
-          var bare = fact("BARE", ticket.case_id);
-          var gated = fact("GATED", ticket.case_id);
-          if (bare.loss_order_ids.length) return "回执丢失 · 多退 " + money(bare.loss_amount);
-          if (bare.escalated && gated.escalated) return "工单与实付不符 · 转人工";
-          return "正常工单 · 两边都做对";
+        function factOf(mode, id, source) {
+          var bag = source || (state.demo && state.demo.modes);
+          var modeBag = (bag || {})[mode] || {};
+          return byId(modeBag.tickets || [], id);
+        }
+
+        /* ---------------- boot ---------------- */
+        var bootTimers = [];
+
+        function bootDone() {
+          bootTimers.forEach(clearTimeout);
+          bootTimers = [];
+          var boot = $("boot");
+          if (boot.classList.contains("done")) return;
+          boot.classList.add("done");
+          open("tickets");
+        }
+
+        function playBoot(force) {
+          var boot = $("boot");
+          if (!force && sessionStorage.getItem("rulearena.boot") === "1") {
+            boot.classList.add("done");
+            open("tickets");
+            return;
+          }
+          var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          if (reduce) {
+            sessionStorage.setItem("rulearena.boot", "1");
+            boot.classList.add("done");
+            open("tickets");
+            return;
+          }
+          boot.classList.remove("done");
+          bootTimers.forEach(clearTimeout);
+          bootTimers = [];
+          var rows = $("boot-rows");
+          rows.innerHTML = "";
+
+          var lossIds = (state.suite.modes.BARE.metrics.unexpected_loss_cases || {}).case_ids || [];
+          var tickets = state.suite.tickets;
+          var plan = [
+            { tag: "裸跑", cls: "bad", count: lossIds.length, key: "BARE" },
+            { tag: "加门禁", cls: "good", count: 0, key: "GATED" }
+          ];
+
+          plan.forEach(function (item, rowIndex) {
+            var row = el("div", "boot-row");
+            row.appendChild(el("span", "tag", item.tag));
+            var cells = el("div", "cells");
+            tickets.forEach(function (ticket) {
+              var cell = el("span", "cell");
+              cell.dataset.caseId = ticket.case_id;
+              cells.appendChild(cell);
+            });
+            row.appendChild(cells);
+            row.appendChild(el("span", "val", ""));
+            rows.appendChild(row);
+            bootTimers.push(
+              setTimeout(function () {
+                row.classList.add("on");
+              }, 200 + rowIndex * 1100)
+            );
+          });
+
+          var base = 600;
+          tickets.forEach(function (ticket, index) {
+            var isLoss = lossIds.indexOf(ticket.case_id) >= 0;
+            var cell = rows.querySelector('[data-case-id="' + ticket.case_id + '"]');
+            bootTimers.push(
+              setTimeout(function () {
+                cell.classList.add("on", isLoss ? "bad" : "dim");
+              }, base + index * 55)
+            );
+          });
+          var gatedBase = base + tickets.length * 55 + 500;
+          bootTimers.push(
+            setTimeout(function () {
+              rows.querySelectorAll(".boot-row")[1].querySelectorAll(".cell").forEach(function (c) {
+                c.classList.add("on", "good");
+              });
+              $("boot-note").textContent = "同样的 15 张工单，同一份 Agent 代码";
+            }, gatedBase)
+          );
+          bootTimers.push(
+            setTimeout(function () {
+              var vals = rows.querySelectorAll(".val");
+              vals[0].textContent = lossIds.length + "/15 多退 " + money(
+                (state.suite.modes.BARE.metrics.unexpected_loss_amount || {}).value || 0
+              );
+              vals[0].classList.add("bad");
+              vals[1].textContent = "0/15 多退 ¥0.00";
+              vals[1].classList.add("good");
+              $("boot-note").textContent = "真实运行 · 每个格子是一张工单 · 进入控制台查看逐步记录";
+            }, gatedBase + 700)
+          );
+          bootTimers.push(
+            setTimeout(function () {
+              sessionStorage.setItem("rulearena.boot", "1");
+              bootDone();
+            }, gatedBase + 1900)
+          );
+        }
+
+        /* ---------------- rail ---------------- */
+        function renderRail() {
+          var bag = $("rail-items");
+          bag.innerHTML = "";
+          WORKSPACES.forEach(function (ws) {
+            var b = el("button", null);
+            b.type = "button";
+            b.dataset.ws = ws.id;
+            b.setAttribute("aria-current", ws.id === state.ws ? "true" : "false");
+            b.appendChild(el("span", null, ws.label));
+            if (ws.badge) b.appendChild(el("span", "n", ws.badge));
+            b.addEventListener("click", function () {
+              open(ws.id);
+            });
+            bag.appendChild(b);
+          });
+        }
+
+        function open(id) {
+          state.ws = id;
+          WORKSPACES.forEach(function (ws) {
+            $("ws-" + ws.id).hidden = ws.id !== id;
+          });
+          Array.prototype.forEach.call($("rail-items").children, function (child) {
+            child.setAttribute("aria-current", child.dataset.ws === id ? "true" : "false");
+          });
+          if (id === "records") renderRecords();
+          if (id === "rules") renderRules();
+          if (id === "defects") renderDefects();
+          if (id === "overview") renderOverview();
+          if (id === "tickets") renderTickets();
+        }
+
+        /* ---------------- 工单处理 ---------------- */
+        function suiteTicket(caseId) {
+          return byId(state.suite.tickets, caseId);
+        }
+
+        function rowFor(caseId, mode) {
+          var rows = state.suite.rows.filter(function (r) {
+            return r.case_id === caseId && r.mode === mode;
+          });
+          return rows.sort(function (a, b) {
+            return a.repetition - b.repetition;
+          })[0];
+        }
+
+        function queueChip(caseId) {
+          var bare = rowFor(caseId, "BARE");
+          var gated = rowFor(caseId, "GATED");
+          if (bare && Number(bare.loss_amount) > 0) {
+            return { cls: "bad", text: "多退 " + money(bare.loss_amount) };
+          }
+          if (suiteTicket(caseId).expects_escalation) {
+            return { cls: "warn", text: "转人工" };
+          }
+          if (gated && gated.final_state_satisfied) {
+            return { cls: "ok", text: "达标" };
+          }
+          return { cls: "dim", text: "-" };
+        }
+
+        function renderQueue() {
+          var bag = $("queue");
+          bag.innerHTML = "";
+          var recorded = state.demo.ticket_ids || [];
+          state.suite.tickets.forEach(function (ticket) {
+            var b = el("button");
+            b.type = "button";
+            b.dataset.caseId = ticket.case_id;
+            b.setAttribute("aria-current", ticket.case_id === state.caseId ? "true" : "false");
+            b.appendChild(el("span", "cid", ticket.case_id));
+            var chip = queueChip(ticket.case_id);
+            var c = el("span", "chip " + chip.cls, chip.text);
+            b.appendChild(c);
+            b.appendChild(el("span", "txt", ticket.ticket_text));
+            if (recorded.indexOf(ticket.case_id) < 0) {
+              b.title = "这张工单只有汇总结果，没有逐步轨迹";
+            }
+            b.addEventListener("click", function () {
+              stop();
+              selectTicket(ticket.case_id);
+            });
+            bag.appendChild(b);
+          });
+          var note = el(
+            "div",
+            "note",
+            "队列里 15 张全部是真实工单；其中 " +
+              recorded.length +
+              " 张导出了逐步轨迹（导出脚本只回放这 3 张，其余只有汇总结果）。"
+          );
+          bag.appendChild(note);
+          $("queue-count").textContent = state.suite.tickets.length + " 张";
         }
 
         function stepsOf(mode) {
-          var f = fact(mode, caseId);
+          var f = factOf(mode, state.caseId);
           return (f && f.steps) || [];
         }
 
@@ -823,265 +1512,545 @@ uv run rulearena refund-verify --latest</code></pre>
         }
 
         function stepNode(step, index) {
-          var li = document.createElement("li");
-          var idx = document.createElement("span");
-          idx.className = "idx";
-          idx.textContent = String(index + 1);
-          li.appendChild(idx);
-
+          var li = el("li");
+          li.appendChild(el("span", "idx", String(index + 1)));
           var body = document.createElement("div");
-          var act = document.createElement("div");
-          act.className = "act";
+          var act = el("div", "act");
           act.appendChild(document.createTextNode(step.action_type));
-          var tag = document.createElement("span");
-          tag.className = "tag " + String(step.outcome).toLowerCase();
-          tag.textContent = step.outcome;
-          act.appendChild(tag);
+          var tone =
+            step.outcome === "SUCCEEDED"
+              ? "ok"
+              : step.outcome === "TIMEOUT"
+                ? "warn"
+                : "bad";
+          act.appendChild(el("span", "chip " + tone, step.outcome));
           body.appendChild(act);
-
           if (step.arguments && step.arguments.amount) {
-            var amount = document.createElement("div");
-            amount.className = "kv";
-            amount.textContent = "金额 " + step.arguments.amount;
-            body.appendChild(amount);
+            body.appendChild(el("div", "kv", "金额 " + step.arguments.amount));
           }
           if (step.idempotency_key) {
-            var key = document.createElement("div");
-            key.className = "kv";
-            key.textContent = "幂等键 " + step.idempotency_key;
-            body.appendChild(key);
+            body.appendChild(el("div", "kv", "key " + step.idempotency_key));
           }
           if (step.guard_decision) {
-            var guard = document.createElement("div");
-            guard.className = "guard";
-            guard.textContent = "门禁 " + step.guard_decision + " · " + step.guard_reason;
-            body.appendChild(guard);
+            body.appendChild(
+              el("div", "gd", "门禁 " + step.guard_decision + " · " + step.guard_reason)
+            );
           }
           li.appendChild(body);
           return li;
         }
 
-        function renderSteps(mode) {
-          var list = $("steps-" + mode.toLowerCase());
-          var steps = stepsOf(mode);
-          list.innerHTML = "";
-          if (!steps.length) {
-            var waiting = document.createElement("li");
-            waiting.className = "on";
-            waiting.innerHTML =
-              '<span class="idx">-</span><span class="waiting">这次运行没有工具调用</span>';
-            list.appendChild(waiting);
+        function renderArms() {
+          var host = $("detail-body");
+          host.innerHTML = "";
+          if (!factOf("BARE", state.caseId)) {
+            host.appendChild(
+              el(
+                "p",
+                "readout",
+                "这张工单没有逐步轨迹：导出脚本只回放 3 张工单。汇总结果见「对照评测」工作区。"
+              )
+            );
             return;
           }
-          for (var i = 0; i < steps.length; i++) {
-            var li = stepNode(steps[i], i);
-            if (i < cursor) li.className = "on";
-            list.appendChild(li);
-          }
-        }
-
-        function renderLedger(mode) {
-          var f = fact(mode, caseId);
-          var box = $("ledger-" + mode.toLowerCase());
-          var verdict = $("verdict-" + mode.toLowerCase());
-          var done = cursor >= maxCursor();
-          box.className = "ledger" + (done ? " on" : "");
-          verdict.className = "verdict" + (done ? " on" : "");
-          if (!f || !done) {
-            box.innerHTML = "";
-            verdict.textContent = "";
-            return;
-          }
-          var row = orderOf(f);
-          var paid = row ? Number(row.paid_amount) : 0;
-          var refunded = row ? Number(row.refunded_amount) : 0;
-          var excess = refunded - paid;
-          box.innerHTML = "";
-          [
-            ["实付", money(paid), ""],
-            ["累计已退", money(refunded), ""],
-            ["差额", money(excess), excess > 0 ? "bad" : excess === 0 ? "good" : ""]
-          ].forEach(function (pair) {
-            var cell = document.createElement("div");
-            cell.className = "cell";
-            var k = document.createElement("span");
-            k.className = "k";
-            k.textContent = pair[0];
-            var v = document.createElement("span");
-            v.className = "v " + pair[2];
-            v.textContent = pair[1];
-            cell.appendChild(k);
-            cell.appendChild(v);
-            box.appendChild(cell);
+          var arms = el("div", "arms");
+          ["BARE", "GATED"].forEach(function (mode) {
+            var arm = el("article", "arm");
+            var h = el("h3", null, mode === "BARE" ? "裸跑" : "加运行时门禁");
+            h.appendChild(
+              el("span", "how", mode === "BARE" ? "只有 ToolGateway" : "ToolGateway → RuntimeGate")
+            );
+            arm.appendChild(h);
+            var ol = el("ol", "steps");
+            var steps = stepsOf(mode);
+            if (!steps.length) {
+              var w = el("li", "on");
+              w.appendChild(el("span", "idx", "-"));
+              w.appendChild(el("span", "wait", "没有工具调用"));
+              ol.appendChild(w);
+            }
+            steps.forEach(function (step, index) {
+              var li = stepNode(step, index);
+              if (index < state.cursor) li.classList.add("on");
+              ol.appendChild(li);
+            });
+            arm.appendChild(ol);
+            arms.appendChild(arm);
           });
-
-          if ((f.loss_order_ids || []).length) {
-            verdict.className = "verdict on bad";
-            verdict.textContent =
-              "多退 " + money(f.loss_amount) + "。这是真实资损，Oracle 判 " +
-              f.violated_invariants.join(" + ") + " 违规。";
-          } else if (f.final_state_satisfied) {
-            verdict.className = "verdict on good";
-            verdict.textContent =
-              "符合期望终态。Agent " +
-              (f.claimed_complete ? "自述已完成" : "转人工") +
-              "，门禁检查 " + f.gate_checks + " 次。";
-          } else {
-            verdict.className = "verdict on warn";
-            verdict.textContent = "未达成期望终态。" + (f.escalation_reason || "");
-          }
+          host.appendChild(arms);
+          host.appendChild(el("p", "readout", readoutText()));
         }
 
-        function renderReadline() {
-          var text = $("readline");
-          if (cursor === 0) {
-            text.innerHTML = "按「单步」开始。左边是裸跑，右边是同一份代码加了一道门禁。";
-            return;
+        function readoutText() {
+          var total = maxCursor();
+          if (state.cursor === 0) {
+            return "按「单步」开始。左栏是裸跑，右栏是同一份代码加了一道门禁。";
           }
-          if (cursor < maxCursor()) {
+          var bare = factOf("BARE", state.caseId);
+          if (state.cursor < total) {
             var unknown = 0;
             var confirmed = 0;
             stepsOf("BARE")
-              .slice(0, cursor)
-              .forEach(function (step) {
-                if (step.action_type !== "REFUND_ORDER") return;
-                if (step.outcome === "TIMEOUT") unknown += 1;
-                if (step.outcome === "SUCCEEDED") confirmed += 1;
+              .slice(0, state.cursor)
+              .forEach(function (s) {
+                if (s.action_type !== "REFUND_ORDER") return;
+                if (s.outcome === "TIMEOUT") unknown += 1;
+                if (s.outcome === "SUCCEEDED") confirmed += 1;
               });
-            text.innerHTML =
-              "裸跑这边，调用方此刻知道的是：确认成功 <b>" + confirmed +
-              "</b> 笔，结果不确定 <b>" + unknown +
-              "</b> 笔。账本上真正发生了什么，要等运行结束由权威状态给出。";
-            return;
+            return (
+              "调用方此刻知道的是：确认成功 " +
+              confirmed +
+              " 笔，结果不确定 " +
+              unknown +
+              " 笔。账本上真正发生了什么，要等运行结束由权威状态给出。"
+            );
           }
-          var bare = fact("BARE", caseId);
-          var row = orderOf(bare);
           var timeouts = stepsOf("BARE").filter(function (s) {
             return s.action_type === "REFUND_ORDER" && s.outcome === "TIMEOUT";
           }).length;
-          text.innerHTML =
-            "裸跑结束：调用方看到 <b>" + timeouts + "</b> 笔超时，" +
+          var bareRow = ((bare.final_state || {}).orders || [])[0] || {};
+          return (
+            "裸跑结束：调用方看到 " +
+            timeouts +
+            " 笔超时，" +
             (bare.loss_order_ids.length ? "每一笔其实都已入账" : "没有任何一笔入账") +
-            "，账本是 <b>" + money(row ? row.refunded_amount : 0) +
-            "</b>。门禁这边，超时之后先按幂等键查回执，拿到结果就不再重试。";
+            "，账本是 " +
+            money(bareRow.refunded_amount || 0) +
+            "。门禁这边，超时之后先按幂等键查回执。"
+          );
         }
 
-        function renderPicker() {
-          var picker = document.querySelector(".picker");
-          picker.innerHTML = "";
-          (data.tickets || []).forEach(function (ticket) {
-            var b = document.createElement("button");
-            b.type = "button";
-            b.setAttribute("role", "tab");
-            b.title = ticket.case_id;
-            b.textContent = labelOf(ticket);
-            b.addEventListener("click", function () {
-              stop();
-              select(ticket.case_id);
+        function renderSide() {
+          var host = $("detail-side");
+          host.innerHTML = "";
+          if (!factOf("BARE", state.caseId)) {
+            var t = suiteTicket(state.caseId);
+            var p = el("div", "panel");
+            p.appendChild(el("header", null, "工单"));
+            var ul = el("ul", "kv-list");
+            [["工单号", t.case_id], ["期望", t.expects_escalation ? "转人工" : "退款落地"],
+             ["缺陷轴", (t.defect_axes || []).join(" + ") || "无（忠实实现）"]].forEach(function (pair) {
+              var li = el("li");
+              li.appendChild(el("span", "k", pair[0]));
+              li.appendChild(el("span", "v", pair[1]));
+              ul.appendChild(li);
             });
-            picker.appendChild(b);
+            p.appendChild(ul);
+            host.appendChild(p);
+            return;
+          }
+
+          var done = state.cursor >= maxCursor();
+          ["BARE", "GATED"].forEach(function (mode) {
+            var f = factOf(mode, state.caseId);
+            var p = el("div", "panel");
+            p.appendChild(
+              el("header", null, mode === "BARE" ? "裸跑 · 权威状态" : "加门禁 · 权威状态")
+            );
+            var ul = el("ul", "kv-list");
+            var row = ((f.final_state || {}).orders || [])[0] || {};
+            var paid = Number(row.paid_amount || 0);
+            var refunded = Number(row.refunded_amount || 0);
+            var excess = refunded - paid;
+            var items = done
+              ? [
+                  ["实付", money(paid), ""],
+                  ["累计已退", money(refunded), ""],
+                  ["差额", money(excess), excess > 0 ? "bad" : excess === 0 ? "good" : ""],
+                  ["订单状态", row.status || "-", ""],
+                  ["工具调用 / 门禁检查", f.tool_calls + " / " + f.gate_checks, ""]
+                ]
+              : [["状态", "运行未结束，账本要等权威状态说话", ""]];
+            items.forEach(function (item) {
+              var li = el("li");
+              li.appendChild(el("span", "k", item[0]));
+              li.appendChild(el("span", "v " + item[2], item[1]));
+              ul.appendChild(li);
+            });
+            p.appendChild(ul);
+            host.appendChild(p);
           });
-          Array.prototype.forEach.call(picker.children, function (child, i) {
-            var t = data.tickets[i];
-            child.setAttribute("aria-selected", t && t.case_id === caseId ? "true" : "false");
+
+          var oracle = el("div", "panel");
+          oracle.appendChild(el("header", null, "Oracle 裁决"));
+          var ol = el("ol", "findings");
+          var bare = factOf("BARE", state.caseId);
+          var expected = (suiteTicket(state.caseId).expected_invariants || []).concat(
+            (state.demo.tickets[0] || {}).expected_invariants || []
+          );
+          var checked = Array.from(new Set((state.demo.tickets || []).reduce(
+            function (acc, t) { return acc.concat(t.expected_invariants || []); }, []
+          )));
+          checked.forEach(function (name) {
+            var li = el("li");
+            li.appendChild(el("span", null, name));
+            var violated = done && bare.violated_invariants.indexOf(name) >= 0;
+            li.appendChild(
+              el("span", "chip " + (violated ? "bad" : "ok"), violated ? "VIOLATED" : "SATISFIED")
+            );
+            ol.appendChild(li);
           });
+          oracle.appendChild(ol);
+          var v = el("p", "verdict");
+          if (!done) {
+            v.className = "verdict warn";
+            v.textContent = "运行未结束";
+          } else if (bare.loss_order_ids.length) {
+            v.className = "verdict bad";
+            v.textContent = "裸跑：多退 " + money(bare.loss_amount) + "，判违规";
+          } else {
+            v.className = "verdict good";
+            v.textContent = "裸跑：未发现资损";
+          }
+          oracle.appendChild(v);
+          host.appendChild(oracle);
         }
 
         function paint() {
-          renderSteps("BARE");
-          renderSteps("GATED");
-          renderLedger("BARE");
-          renderLedger("GATED");
-          renderReadline();
-          $("counter").textContent = "步骤 " + cursor + " / " + maxCursor();
-          $("play").disabled = cursor >= maxCursor();
-          $("next").disabled = cursor >= maxCursor();
+          renderArms();
+          renderSide();
+          var total = maxCursor();
+          $("counter").textContent = "步骤 " + state.cursor + " / " + total;
+          $("play").disabled = state.cursor >= total;
+          $("next").disabled = state.cursor >= total;
         }
 
-        function select(id) {
-          caseId = id;
-          cursor = 1;
-          var ticket = byId(data.tickets || [], id);
-          $("ticket-text").textContent = ticket ? ticket.ticket_text : "";
-          $("ticket-meta").textContent = ticket
-            ? "环境缺陷轴：" +
-              ((ticket.defect_axes || []).length
-                ? ticket.defect_axes.join(" + ")
-                : "无（忠实实现）") +
-              "　" +
-              ticket.construction_reason
-            : "";
-          renderPicker();
+        function selectTicket(caseId) {
+          state.caseId = caseId;
+          state.cursor = rowFor(caseId, "BARE") ? 1 : 0;
+          var ticket = suiteTicket(caseId);
+          $("detail-id").textContent = caseId;
+          $("detail-axes").textContent = (ticket.defect_axes || []).join(" + ") || "忠实实现";
+          renderQueue();
           paint();
+        }
+
+        function renderTickets() {
+          renderQueue();
+          selectTicket(state.caseId || state.demo.ticket_ids[0]);
         }
 
         function stop() {
-          if (timer) {
-            clearInterval(timer);
-            timer = null;
+          if (state.timer) {
+            clearInterval(state.timer);
+            state.timer = null;
           }
-          $("play").textContent = "播放";
+          $("play").textContent = "运行";
         }
 
         function advance() {
-          if (cursor >= maxCursor()) {
+          if (state.cursor >= maxCursor()) {
             stop();
             return;
           }
-          cursor += 1;
+          state.cursor += 1;
           paint();
-          if (cursor >= maxCursor()) stop();
+          if (state.cursor >= maxCursor()) stop();
         }
 
-        function play() {
-          if (timer) {
-            stop();
-            return;
-          }
-          if (cursor >= maxCursor()) cursor = 0;
-          $("play").textContent = "暂停";
-          paint();
-          timer = setInterval(advance, 1100);
+        /* ---------------- 对照评测 ---------------- */
+        var COLUMNS = [
+          { key: "case_id", label: "工单" },
+          { key: "mode", label: "环境" },
+          { key: "repetition", label: "轮次", num: true },
+          { key: "outcome", label: "Agent 结论" },
+          { key: "final_state_satisfied", label: "终态", bool: true },
+          { key: "loss_amount", label: "资损", num: true, money: true },
+          { key: "tool_calls", label: "工具调用", num: true },
+          { key: "gate_checks", label: "门禁检查", num: true },
+          { key: "elapsed_seconds", label: "耗时", num: true },
+          { key: "run_id", label: "运行号" }
+        ];
+
+        function renderMetrics() {
+          var host = $("rec-metrics");
+          host.innerHTML = "";
+          ["BARE", "GATED"].forEach(function (mode) {
+            var m = state.suite.modes[mode].metrics;
+            var label = mode === "BARE" ? "裸跑" : "加门禁";
+            [
+              {
+                k: label + " · 终态正确率",
+                v: m.final_state_correct_rate.numerator + "/" + m.final_state_correct_rate.denominator,
+                s: "95% CI [" + pct(m.final_state_correct_rate.lower) + ", " + pct(m.final_state_correct_rate.upper) + "]",
+                cls: mode === "GATED" ? "good" : ""
+              },
+              {
+                k: label + " · 意外资损",
+                v: m.unexpected_loss_cases.value + " 笔",
+                s: "每笔 " + money(m.unexpected_loss_amount.value) + " · 合计 " + money(m.unexpected_loss_total_across_runs.value),
+                cls: m.unexpected_loss_cases.value > 0 ? "bad" : "good"
+              },
+              {
+                k: label + " · 工具调用 / 门禁检查",
+                v: m.gate_overhead.tool_calls + " / " + m.gate_overhead.guard_checks,
+                s: "平均 " + m.gate_overhead.mean_elapsed_seconds.toFixed(2) + "s / 工单",
+                cls: ""
+              },
+              {
+                k: label + " · 该转人工的转人工",
+                v: m.necessary_escalation_rate.numerator + "/" + m.necessary_escalation_rate.denominator,
+                s: mode === "GATED" ? "误拦 " + m.false_block_cases.value + " 张" : "不适用（无门禁）",
+                cls: mode === "GATED" ? "good" : ""
+              }
+            ].forEach(function (item) {
+              var box = el("div", "metric");
+              box.appendChild(el("div", "k", item.k));
+              box.appendChild(el("div", "v " + item.cls, item.v));
+              box.appendChild(el("div", "s", item.s));
+              host.appendChild(box);
+            });
+          });
         }
 
-        function start(payload) {
-          data = payload;
-          $("provenance").textContent = (payload.provenance && payload.provenance.honesty) || "";
-          $("play").addEventListener("click", play);
+        function visibleRows() {
+          var q = state.query.trim().toLowerCase();
+          var rows = state.suite.rows.filter(function (r) {
+            if (state.env !== "ALL" && r.mode !== state.env) return false;
+            if (q && r.case_id.toLowerCase().indexOf(q) < 0) return false;
+            if (state.res === "LOSS" && !(Number(r.loss_amount) > 0)) return false;
+            if (state.res === "MISS" && r.final_state_satisfied) return false;
+            if (state.res === "ESC" && !r.escalated) return false;
+            return true;
+          });
+          var key = state.sort.key;
+          rows.sort(function (a, b) {
+            var x = a[key];
+            var y = b[key];
+            if (typeof x === "boolean") x = x ? 1 : 0;
+            if (typeof y === "boolean") y = y ? 1 : 0;
+            if (typeof x === "number" && typeof y === "number") return (x - y) * state.sort.dir;
+            return String(x).localeCompare(String(y)) * state.sort.dir;
+          });
+          return rows;
+        }
+
+        function renderRecords() {
+          renderMetrics();
+          var head = $("rec-head");
+          head.innerHTML = "";
+          COLUMNS.forEach(function (col) {
+            var th = el("th", col.num ? "num" : null, col.label);
+            if (state.sort.key === col.key) {
+              th.setAttribute("aria-sort", state.sort.dir === 1 ? "ascending" : "descending");
+            }
+            th.addEventListener("click", function () {
+              if (state.sort.key === col.key) state.sort.dir *= -1;
+              else state.sort = { key: col.key, dir: 1 };
+              renderRecords();
+            });
+            head.appendChild(th);
+          });
+          var body = $("rec-body");
+          body.innerHTML = "";
+          var rows = visibleRows();
+          rows.forEach(function (r) {
+            var tr = document.createElement("tr");
+            COLUMNS.forEach(function (col) {
+              var td = document.createElement("td");
+              var value = r[col.key];
+              if (col.key === "outcome") {
+                value = r.agent_outcome || "（未记录）";
+              } else if (col.key === "run_id") {
+                value = String(value).slice(0, 8);
+              } else if (col.bool) {
+                value = value ? "达标" : "未达标";
+              } else if (col.money) {
+                var n = Number(value);
+                value = n > 0 ? money(n) : "-";
+                if (n > 0) td.className = "bad";
+              } else if (col.key === "elapsed_seconds") {
+                value = Number(value).toFixed(2) + "s";
+              }
+              if (col.num && !col.money) td.className = "m";
+              if (col.key === "mode") {
+                td.textContent = r.mode === "BARE" ? "裸跑" : "加门禁";
+              } else if (col.bool && value === "达标" && r.mode === "GATED") {
+                td.className = "good";
+                td.textContent = value;
+              } else {
+                td.textContent = value;
+              }
+              if (col.key === "case_id") td.className = "m";
+              tr.appendChild(td);
+            });
+            body.appendChild(tr);
+          });
+          $("rec-count").textContent =
+            "显示 " + rows.length + " / " + state.suite.rows.length + " 行";
+        }
+
+        /* ---------------- 门禁规则 ---------------- */
+        function renderRules() {
+          var host = $("rules-body");
+          host.innerHTML = "";
+          RULE_STAGES.forEach(function (stage) {
+            var panel = el("div", "panel rule");
+            panel.appendChild(el("h3", null, stage.name));
+            var dl = document.createElement("dl");
+            [
+              ["时机", stage.when],
+              ["读什么", stage.reads],
+              ["怎么判", stage.decide],
+              ["不确定时", stage.unknown],
+              ["放行的样子", stage.yes],
+              ["拦住的样子", stage.no]
+            ].forEach(function (pair) {
+              dl.appendChild(el("dt", null, pair[0]));
+              dl.appendChild(el("dd", null, pair[1]));
+            });
+            panel.appendChild(dl);
+            host.appendChild(panel);
+          });
+          var decisions = $("rules-decisions");
+          var reasons = $("rules-reasons");
+          decisions.innerHTML = "";
+          reasons.innerHTML = "";
+          state.suite.gate_vocabulary.decisions.forEach(function (name) {
+            decisions.appendChild(el("code", null, name));
+          });
+          state.suite.gate_vocabulary.reasons.forEach(function (name) {
+            reasons.appendChild(el("code", null, name));
+          });
+        }
+
+        /* ---------------- 缺陷台账 ---------------- */
+        function renderDefects() {
+          var host = $("defects-body");
+          host.innerHTML = "";
+          DEFECTS.forEach(function (item) {
+            var row = el("div", "issue");
+            row.appendChild(el("div", "id", item.id));
+            var body = document.createElement("div");
+            body.appendChild(el("h3", null, item.title));
+            var s = el("p");
+            s.appendChild(el("b", null, "现象 "));
+            s.appendChild(document.createTextNode(item.symptom));
+            body.appendChild(s);
+            var c = el("p");
+            c.appendChild(el("b", null, "根因 "));
+            c.appendChild(document.createTextNode(item.cause));
+            body.appendChild(c);
+            var f = el("p");
+            f.appendChild(el("b", null, "修法 "));
+            f.appendChild(document.createTextNode(item.fix));
+            body.appendChild(f);
+            row.appendChild(body);
+            var right = el("div", "right");
+            right.appendChild(el("span", "chip ok", "已修复"));
+            right.appendChild(el("div"));
+            right.appendChild(el("code", null, item.test));
+            row.appendChild(right);
+            host.appendChild(row);
+          });
+        }
+
+        /* ---------------- 概览 ---------------- */
+        function renderOverview() {
+          var host = $("ov-metrics");
+          host.innerHTML = "";
+          ["BARE", "GATED"].forEach(function (mode) {
+            var m = state.suite.modes[mode].metrics;
+            [
+              ["重复退款工单", m.unexpected_loss_cases.value + " / 15"],
+              ["终态正确率", pct(m.final_state_correct_rate.value)],
+              ["多退金额（每张出问题的工单）", money(m.unexpected_loss_amount.value)],
+              ["平均单工单耗时", m.gate_overhead.mean_elapsed_seconds.toFixed(2) + "s"]
+            ].forEach(function (pair) {
+              var li = el("li");
+              li.appendChild(el("span", "k", (mode === "BARE" ? "裸跑 · " : "加门禁 · ") + pair[0]));
+              var v = el("span", "v", pair[1]);
+              if (pair[0].indexOf("重复退款") === 0) {
+                v.classList.add(mode === "BARE" ? "bad" : "good");
+              }
+              li.appendChild(v);
+              host.appendChild(li);
+            });
+          });
+          var gate = state.suite.gate;
+          var v = $("ov-verdict");
+          v.className = "verdict " + (gate.passed ? "good" : "warn");
+          v.textContent = gate.passed
+            ? "发布门禁 refund-verify --latest：通过（" + Object.keys(gate.checks).length + " 项检查）"
+            : "发布门禁：未通过 · " + gate.reasons.join(", ");
+        }
+
+        /* ---------------- start ---------------- */
+        function start(demo, suite) {
+          state.demo = demo;
+          state.suite = suite;
+          $("meta-bench").textContent = suite.modes.BARE.versions.benchmark_version;
+          $("meta-seed").textContent = suite.modes.BARE.random_seed;
+          $("meta-reps").textContent = suite.modes.BARE.repetitions + " 次";
+          $("meta-recorded").textContent = suite.modes.BARE.started_at.slice(0, 16).replace("T", " ");
+          $("meta-honesty").textContent = demo.provenance.scope || "";
+          renderRail();
+          $("play").addEventListener("click", function () {
+            if (state.timer) {
+              stop();
+              return;
+            }
+            if (state.cursor >= maxCursor()) state.cursor = 0;
+            $("play").textContent = "暂停";
+            paint();
+            state.timer = setInterval(advance, 1000);
+          });
           $("next").addEventListener("click", function () {
             stop();
             advance();
           });
           $("reset").addEventListener("click", function () {
             stop();
-            cursor = 1;
+            state.cursor = 1;
             paint();
           });
-          var tickets = payload.tickets || [];
-          var moving = tickets.filter(function (t) {
-            return fact("BARE", t.case_id).loss_order_ids.length > 0;
+          $("boot-skip").addEventListener("click", bootDone);
+          $("replay").addEventListener("click", function () {
+            sessionStorage.removeItem("rulearena.boot");
+            playBoot(true);
           });
-          select((moving[0] || tickets[0] || {}).case_id || null);
+          document.querySelectorAll(".toolbar .seg button").forEach(function (b) {
+            b.addEventListener("click", function () {
+              var group = b.parentElement;
+              Array.prototype.forEach.call(group.children, function (sibling) {
+                sibling.setAttribute("aria-pressed", sibling === b ? "true" : "false");
+              });
+              if (b.dataset.env) state.env = b.dataset.env;
+              if (b.dataset.res) state.res = b.dataset.res;
+              renderRecords();
+            });
+          });
+          $("rec-search").addEventListener("input", function (event) {
+            state.query = event.target.value;
+            renderRecords();
+          });
+          document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && !$("boot").classList.contains("done")) bootDone();
+          });
+          playBoot(false);
         }
 
-        function boot() {
-          var raw = $("refund-demo").textContent.trim();
+        function readPayload(id, url, next) {
+          var raw = $(id).textContent.trim();
           if (raw.charAt(0) === "{") {
-            start(JSON.parse(raw));
+            next(JSON.parse(raw));
             return;
           }
-          fetch("./refund-gate-demo.json")
-            .then(function (response) {
-              return response.json();
+          fetch(url, { cache: "no-store" })
+            .then(function (r) {
+              return r.json();
             })
-            .then(start)
+            .then(next)
             .catch(function () {
-              $("readline").textContent =
-                "演示数据未加载：本地预览请先运行 scripts/build_site.py。";
+              $("meta-honesty").textContent = "数据未加载：本地预览请先运行 scripts/build_site.py。";
             });
         }
 
-        boot();
+        readPayload("refund-demo", "./refund-gate-demo.json", function (demo) {
+          readPayload("suite-results", "./refund-suite-results.json", function (suite) {
+            start(demo, suite);
+          });
+        });
       })();
     </script>
   </body>

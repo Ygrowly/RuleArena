@@ -127,6 +127,9 @@ async def main() -> int:
                 "ticket_text": case.ticket_text,
                 "defect_axes": list(case.replay_defect_axes),
                 "expected_final_state": case.expected_final_state,
+                "expected_invariants": sorted(
+                    item.value for item in case.expected_invariants
+                ),
                 "construction_reason": case.construction_reason,
             }
             for case in cases
