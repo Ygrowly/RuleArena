@@ -118,6 +118,19 @@ async def main() -> int:
         },
         "suite": "benchmarks/refund_agents/development-v1.json",
         "ticket_ids": list(ticket_ids),
+        # The tickets as they were handed to the agent, so the page can show what was
+        # asked for next to what happened. The expected end state travels with it: a
+        # comparison against a standard is honest only if the standard is visible.
+        "tickets": [
+            {
+                "case_id": case.case_id,
+                "ticket_text": case.ticket_text,
+                "defect_axes": list(case.replay_defect_axes),
+                "expected_final_state": case.expected_final_state,
+                "construction_reason": case.construction_reason,
+            }
+            for case in cases
+        ],
         "repetitions": 1,
         "gate": gate.model_dump(mode="json"),
         "modes": {

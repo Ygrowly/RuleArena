@@ -28,7 +28,7 @@ from rulearena_attack_runtime import BudgetUsage
 from rulearena_domain_contracts import DefectAxis, unreachable_axes
 from rulearena_oracle import InvariantId
 from rulearena_policy_schema import RuleSpec, ScenarioType
-from rulearena_refund_agent import AgentOutcome
+from rulearena_refund_agent import AgentOutcome, ToolCallRecord
 
 from .models import BenchmarkStatus, VersionTuple, Visibility
 
@@ -112,6 +112,12 @@ class RefundCaseRun(StrictModel):
     tool_calls: int = Field(default=0, ge=0)
     refused_writes: int = Field(default=0, ge=0)
     gate_checks: int = Field(default=0, ge=0)
+    # Every call the agent made, and every check the gate made around it. Kept so a
+    # reader can follow what actually happened without re-running anything -- the
+    # evidence is the point, and a count is not evidence.
+    steps: tuple[ToolCallRecord, ...] = ()
+    # The authoritative end state, as the Sandbox reported it.
+    final_state: dict[str, Any] = {}
     status: BenchmarkStatus = BenchmarkStatus.COMPLETED
     failure_reason: str | None = None
     usage: BudgetUsage = BudgetUsage()

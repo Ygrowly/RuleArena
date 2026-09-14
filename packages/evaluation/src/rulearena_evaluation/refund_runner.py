@@ -172,6 +172,8 @@ class RefundCaseExecutor:
             tool_calls=len(calls),
             refused_writes=sum(1 for item in calls if item.outcome is ToolOutcome.REFUSED),
             gate_checks=sum(item.guard_checks for item in calls),
+            steps=tuple(calls),
+            final_state=dict(_state(after)),
             usage=BudgetUsage(
                 steps=len(calls), elapsed_seconds=time.monotonic() - started
             ),

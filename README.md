@@ -1,6 +1,15 @@
 # RuleArena 在线 Demo（技术预览）
 
-> 一句话：**AI 搜索电商规则的异常操作组合，真实 API 重放，确定性 Oracle 裁决。**
+> **在线演示（无需安装，直接打开）**：https://ygrowly.github.io/RuleArena/
+> 一页看完对照数字，并逐步展开同一张退款工单在「裸跑 / 加门禁」下的原始记录。
+
+**两条主线，同一条方法论**——模型负责提议，确定性程序负责裁决：
+
+- **Agent 执行门禁（当前主线）**：同一份退款 Agent 代码跑两次——裸跑有 **6/15** 张工单重复退款、
+  合计多退 ¥1920，加上运行时门禁后 **0/15**，且正常工单误拦 0。见
+  [Agent 执行门禁](#agent-执行门禁)。
+- **规则搜索（在线 Demo 的另一个方向）**：AI 搜索电商规则的异常操作组合，候选经真实 REST 重放，
+  由确定性 Oracle 裁决，最小化后的反例可复现、可回归。
 
 RuleArena 不是“智能审查产品方案”。它在给定规则下让三个隔离的策略 Agent
 （价值流 / 生命周期 / 边界）在 Reference Simulator 中搜索可疑操作组合，
@@ -234,6 +243,29 @@ uv run python scripts/export_refund_gate_demo.py   # 导出冻结对照演示
 
 [演示脚本](docs/demo-script.md)。
 
+### 在线站点（简历/审阅入口）
+
+`https://ygrowly.github.io/RuleArena/` —— 由本仓库的 `site/` 与冻结运行记录构建，
+内容全部可从 `benchmarks/` 与 `.cache/` 之外的原始运行记录复算：
+
+| 页面 | 内容 |
+| --- | --- |
+| `index.html` | 落地页：对照数字、同一张工单的两种命运（可切换三张工单）、四条不变量与四个实测缺陷、复现命令与口径边界 |
+| `demo.html` | 原有的单文件搜索反例演示（另一个方向：离线搜索规则组合漏洞） |
+
+本地构建与预览：
+
+```bash
+pnpm --dir frontend run build          # 产出 frontend/dist
+uv run python scripts/build_standalone_demo.py   # 产出单文件搜索演示
+uv run python scripts/build_site.py              # 组装 _site/
+python -m http.server -d _site 8000              # 打开 http://127.0.0.1:8000
+```
+
+推送 `main` 时 `.github/workflows/pages.yml` 会自动重建并发布；页面里引用的数字来自
+`frontend/public/frozen/refund-gate-demo.json`，由 `scripts/export_refund_gate_demo.py`
+从一次真实运行导出，构建脚本会把两者拼在一起——页面与实测数据**不可能各写一遍**。
+
 ### 直接看：单文件演示（无需任何依赖）
 
 `frontend/dist-standalone/rulearena-demo.html` —— **双击即可在浏览器打开，不需要
@@ -253,12 +285,9 @@ pnpm --dir frontend run build && uv run python scripts/build_standalone_demo.py
 前者构建前端，后者把构建产物与冻结运行快照内联成单文件（同时输出一个不含文档外壳的
 fragment 版本，供自带 `<body>` 的托管方使用）。
 
-**怎么把它变成一条可分享的链接**（单文件无需构建、无需后端，所以任选其一）：
-
-- **Netlify Drop**：打开 `app.netlify.com/drop`，把 `rulearena-demo.html` 拖进去，立刻得到 URL。
-- **GitHub Pages**：把文件放进仓库，Settings → Pages 指向该目录（或改名为 `index.html`）。
-- **任意静态托管 / 对象存储**：直接上传该 HTML，公开读即可。
-- **零托管**：把文件本身发给对方，双击打开——不联网也能看。
+它本身不需要构建、不需要后端，所以托管在哪都行：本仓库用 GitHub Pages 发布
+（见上面的[在线站点](#在线站点简历审阅入口)）；也可以拖进 Netlify Drop、丢进任意静态托管或对象存储；
+或者干脆把文件发给对方，双击打开——不联网也能看。
 
 ### 完整栈（含限额 Live Run）
 

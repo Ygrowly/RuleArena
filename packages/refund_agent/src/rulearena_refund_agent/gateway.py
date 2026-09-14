@@ -123,6 +123,10 @@ class ToolCallRecord(StrictModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     action_type: ActionType
+    # What was asked for, kept so a stored run can be read back call by call
+    # without the reader having to re-derive it from the tickets.
+    target_id: str | None = None
+    arguments: dict[str, str | int | bool] = {}
     idempotency_key: str | None = None
     outcome: ToolOutcome
     guard_decision: str | None = None
@@ -290,6 +294,8 @@ class ToolGateway:
         self._calls.append(
             ToolCallRecord(
                 action_type=action.action_type,
+                target_id=action.target_id,
+                arguments=dict(action.arguments),
                 idempotency_key=action.idempotency_key,
                 outcome=result.outcome,
                 guard_decision=trace.decision,

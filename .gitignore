@@ -88,3 +88,6 @@ $RECYCLE.BIN/
 
 frontend/test-results/
 frontend/playwright-report/
+
+# Built site (published to GitHub Pages)
+_site/
