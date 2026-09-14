@@ -24,8 +24,11 @@ from rulearena_attack_runtime import (
     validate_rule_spec,
 )
 from rulearena_evaluation import (
+    AgentMode,
     BaselineType,
     BenchmarkStore,
+    RefundBenchmarkStore,
+    RefundReleaseGate,
     Visibility,
     public_metric_summary,
     scan_forbidden_markers,
@@ -192,6 +195,7 @@ def runtime_router(
     benchmark_store: BenchmarkStore | None = None,
     trace_store: TraceSink | None = None,
     limiter: RunRateLimiter | None = None,
+    refund_store: RefundBenchmarkStore | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api")
     selected_enqueuer = enqueuer or NullRunEnqueuer()
@@ -303,6 +307,94 @@ def runtime_router(
             "metrics": public_metric_summary(benchmark.metrics),
             "started_at": benchmark.started_at,
             "finished_at": benchmark.finished_at,
+        }
+
+    @router.get("/refund-runs/{run_id}")
+    async def refund_run(run_id: str) -> object:
+        """One refund benchmark run, ticket by ticket. Read-only, and no expectations.
+
+        The facts a reader gets back are what the run *observed*: the agent's claim, the
+        Oracle's findings, the money that moved. What the ticket was *supposed* to end
+        with stays in the suite, so this cannot be used to read off the answers.
+        """
+        if refund_store is None:
+            raise HTTPException(status_code=404, detail="refund benchmark run not found")
+        try:
+            run = refund_store.get(run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="refund benchmark run not found") from exc
+        return {
+            "benchmark_run_id": run.benchmark_run_id,
+            "versions": run.versions.model_dump(mode="json"),
+            "mode": run.mode.value,
+            "suite": run.suite.value,
+            "status": run.status.value,
+            "random_seed": run.random_seed,
+            "repetitions": run.repetitions,
+            "metrics": public_metric_summary(run.metrics),
+            "tickets": [
+                {
+                    "case_id": fact.case_id,
+                    "repetition": fact.repetition,
+                    # The Sandbox run this fact was read from, so a reader can go and
+                    # check the receipts and events behind it themselves.
+                    "sandbox_run_id": fact.sandbox_run_id,
+                    "agent_outcome": (
+                        fact.agent_outcome.value if fact.agent_outcome else None
+                    ),
+                    "claimed_complete": fact.claimed_complete,
+                    "escalated": fact.escalated,
+                    "escalation_reason": fact.escalation_reason,
+                    "final_state_satisfied": fact.final_state_satisfied,
+                    "invariants_satisfied": fact.invariants_satisfied,
+                    "violated_invariants": sorted(
+                        item.value for item in fact.violated_invariants
+                    ),
+                    "loss_order_ids": list(fact.loss_order_ids),
+                    "loss_amount": fact.loss_amount,
+                    "tool_calls": fact.tool_calls,
+                    "refused_writes": fact.refused_writes,
+                    "gate_checks": fact.gate_checks,
+                    "status": fact.status.value,
+                    "failure_reason": fact.failure_reason,
+                }
+                for fact in run.raw_runs
+            ],
+            "started_at": run.started_at,
+            "finished_at": run.finished_at,
+        }
+
+    @router.get("/refund-benchmarks/latest")
+    async def latest_refund_benchmark() -> object:
+        """The newest finished run of each mode, and the gate's verdict on the pair.
+
+        The verdict is reported even when only one arm is present, so "there is nothing
+        to compare yet" is a visible answer rather than a 404 that reads like an outage.
+        """
+        runs = {}
+        if refund_store is not None:
+            for mode in AgentMode:
+                found = refund_store.latest_completed(mode=mode)
+                if found is not None:
+                    runs[mode] = found
+        if not runs:
+            raise HTTPException(status_code=404, detail="completed refund benchmark not found")
+        gate = RefundReleaseGate().evaluate(runs)
+        return {
+            "gate": gate.model_dump(mode="json"),
+            "modes": {
+                mode.value: {
+                    "benchmark_run_id": run.benchmark_run_id,
+                    "versions": run.versions.model_dump(mode="json"),
+                    "status": run.status.value,
+                    "random_seed": run.random_seed,
+                    "repetitions": run.repetitions,
+                    "metrics": public_metric_summary(run.metrics),
+                    "started_at": run.started_at,
+                    "finished_at": run.finished_at,
+                }
+                for mode, run in runs.items()
+            },
         }
 
     @router.get("/runs/{run_id}/events")

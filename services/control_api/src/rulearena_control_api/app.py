@@ -18,7 +18,12 @@ from rulearena_attack_runtime import (
     VersionStore,
     structured_response_format_enabled,
 )
-from rulearena_evaluation import BenchmarkStore, PostgresBenchmarkStore
+from rulearena_evaluation import (
+    BenchmarkStore,
+    PostgresBenchmarkStore,
+    PostgresRefundBenchmarkStore,
+    RefundBenchmarkStore,
+)
 from rulearena_observability import (
     ControlSettings,
     PostgresTraceStore,
@@ -45,6 +50,7 @@ def create_app(
     run_enqueuer: RunEnqueuer | None = None,
     benchmark_store: BenchmarkStore | None = None,
     trace_store: TraceSink | None = None,
+    refund_store: RefundBenchmarkStore | None = None,
 ) -> FastAPI:
     resolved = settings or ControlSettings()
     configure_logging(resolved.log_level)
@@ -53,6 +59,7 @@ def create_app(
     owns_runtime_store = runtime_store is None
     owns_version_store = version_store is None
     owns_benchmark_store = benchmark_store is None
+    owns_refund_store = refund_store is None
     owns_trace_store = trace_store is None
     enqueuer = run_enqueuer or (
         NullRunEnqueuer()
@@ -65,6 +72,9 @@ def create_app(
         str(resolved.database_url)
     )
     selected_trace_store = trace_store or PostgresTraceStore(str(resolved.database_url))
+    selected_refund_store = refund_store or PostgresRefundBenchmarkStore(
+        str(resolved.database_url)
+    )
     if compiler is None:
         if resolved.llm_base_url and resolved.llm_api_key and resolved.llm_model:
             adapter: LLMAdapter = OpenAICompatibleLLMAdapter(
@@ -106,6 +116,10 @@ def create_app(
             selected_benchmark_store.close()
         if owns_trace_store and isinstance(selected_trace_store, PostgresTraceStore):
             selected_trace_store.close()
+        if owns_refund_store and isinstance(
+            selected_refund_store, PostgresRefundBenchmarkStore
+        ):
+            selected_refund_store.close()
         if isinstance(enqueuer, ArqRunEnqueuer):
             await enqueuer.close()
 
@@ -138,6 +152,7 @@ def create_app(
             enqueuer,
             selected_benchmark_store,
             selected_trace_store,
+            refund_store=selected_refund_store,
         )
     )
 

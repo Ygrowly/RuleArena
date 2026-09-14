@@ -335,3 +335,44 @@ sa.Index(
     benchmark_case_run.c.case_id,
     benchmark_case_run.c.repetition,
 )
+
+refund_benchmark_run = sa.Table(
+    "refund_benchmark_run",
+    metadata,
+    sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+    sa.Column("benchmark_version", sa.Text(), nullable=False),
+    sa.Column("runtime_version", sa.Text(), nullable=False),
+    sa.Column("rule_set_version", sa.Text(), nullable=False),
+    sa.Column("scenario_set_version", sa.Text(), nullable=False),
+    sa.Column("sandbox_version", sa.Text(), nullable=False),
+    sa.Column("oracle_version", sa.Text(), nullable=False),
+    sa.Column("model_config_hash", sa.String(64), nullable=False),
+    sa.Column("prompt_version", sa.Text(), nullable=False),
+    sa.Column("mode", sa.Text(), nullable=False),
+    sa.Column("random_seed", sa.BigInteger(), nullable=False),
+    sa.Column("repetitions", sa.Integer(), nullable=False),
+    sa.Column("suite", sa.Text(), nullable=False),
+    sa.Column("status", sa.Text(), nullable=False),
+    sa.Column("raw_runs", postgresql.JSONB(), nullable=False),
+    sa.Column("metrics", postgresql.JSONB(), nullable=False),
+    sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("finished_at", sa.DateTime(timezone=True)),
+    sa.CheckConstraint("mode IN ('BARE','GATED')", name="ck_refund_benchmark_mode"),
+    sa.CheckConstraint("suite IN ('development','hidden')", name="ck_refund_suite"),
+    sa.CheckConstraint(
+        "status IN ('RUNNING','COMPLETED','FAILED')", name="ck_refund_status"
+    ),
+    sa.CheckConstraint("repetitions > 0", name="ck_refund_repetitions"),
+)
+sa.Index(
+    "ix_refund_benchmark_lookup",
+    refund_benchmark_run.c.benchmark_version,
+    refund_benchmark_run.c.runtime_version,
+    refund_benchmark_run.c.sandbox_version,
+    refund_benchmark_run.c.oracle_version,
+    refund_benchmark_run.c.model_config_hash,
+    refund_benchmark_run.c.prompt_version,
+    refund_benchmark_run.c.mode,
+    refund_benchmark_run.c.status,
+    refund_benchmark_run.c.started_at,
+)

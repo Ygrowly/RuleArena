@@ -2,6 +2,8 @@
 
 - `development-v1.json` contains the 16 public development cases and their replay evidence.
 - `hidden-manifest.json` contains only non-answer metadata for the 8 hidden cases.
+- `refund_agents/development-v1.json` contains the 15 public refund tickets for the
+  agent-gateway comparison (see below).
 - The full hidden suite is not stored in the public repository. Deployment mounts it and sets
   `RULEARENA_PROCESS_ROLE=evaluation` plus `RULEARENA_HIDDEN_SUITE_PATH` for the evaluation job.
 
@@ -61,3 +63,31 @@ final deployment boundary, not Python object privacy.
 验收测试：`tests/sandbox/test_defect_axes.py` 证明单轴环境的单位矩阵与轴组合；
 `tests/evaluation/test_case_environments.py` 证明**每个 Case 的 Ground Truth 只在它自己
 声明的轴下被确认**——在忠实环境下不确认，在同 scenario 的兄弟轴下也不确认。
+
+### 传输缺陷轴（不在上表内）
+
+`REFUND_ACK_LOST`（PROMOTION / REFUND_POINTS）与上表的区别是：它**不改动任何业务事实**，
+只让回执在已提交之后丢失，调用方看到超时。因此没有任何搜索路径能在它之下"确认"一条不变量
+——它由运行结果（调用方最终有没有多退钱）而不是由 Oracle finding 来度量。它在
+`rulearena_domain_contracts` 里被单独列为 `TRANSPORT_DEFECT_AXES`，并从"每个业务轴都有
+Case 支撑"的检查中排除；那条性质由下面的退款工单集来承担。
+
+## 退款工单集（`refund_agents/development-v1.json`）
+
+15 张工单，测的是**一个 Agent 处理工单的过程**，而不是一条搜索路径。同一份 Agent 代码跑两次
+（`bare` / `gated`），唯一差别是网关后面挂不挂运行时门禁。结构与上面的 case 集同形：
+`rule_specs` + `cases`，每张工单声明 `defect_axes` / `expected_final_state` /
+`expected_invariants` / `expects_escalation` / `construction_reason`。
+
+| 组 | 数量 | 环境 | 期望 |
+| --- | --- | --- | --- |
+| 正常全额/部分退款 | 5 | 忠实 | 退款落地，门禁不得误拦 |
+| 回执丢失 | 6 | `REFUND_ACK_LOST` + `REFUND_AGAINST_ORIGINAL` | 只退一次；裸跑会退两次 |
+| 工单金额与实付不符 | 4 | 忠实 | 转人工；不产生资损 |
+
+回执丢失组必须**同时**声明 `REFUND_AGAINST_ORIGINAL`：忠实实现自己会拒绝第二笔超额退款
+（`refunded + amount > paid`），单靠 `REFUND_ACK_LOST` 退不出第二笔钱，Oracle 也就没有
+可判定的事实。这是这两个轴必须同时出现的**测量原因**，不是随手叠加。
+
+生成脚本：`scripts/generate_refund_suite.py`（每张工单的期望终态由退款金额算出，避免手写
+期望值与实际动作各写一遍）。

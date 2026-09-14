@@ -75,9 +75,13 @@ PostgreSQL 使用 control 和 sandbox 两个 Schema 及不同角色：
     │   ├── attack_runtime/
     │   ├── reference_simulator/
     │   ├── oracle/
+    │   ├── evaluation/
+    │   ├── runtime_gate/
+    │   ├── refund_agent/
     │   └── observability/
     ├── benchmarks/
     │   ├── development/
+    │   ├── refund_agents/
     │   └── hidden/
     ├── tests/
     ├── docker-compose.yml
@@ -102,6 +106,8 @@ PostgreSQL 使用 control 和 sandbox 两个 Schema 及不同角色：
 | POST | /api/counterexamples/{id}/minimize | 最小化 |
 | POST | /api/regressions | 运行历史反例 |
 | GET | /api/benchmarks/latest | 最新评测结果 |
+| GET | /api/refund-runs/{id} | 单次退款评测的逐工单事实（只读，不含期望答案） |
+| GET | /api/refund-benchmarks/latest | 裸跑 / 加门禁两组的对照与门禁判定（只读） |
 
 创建 Policy、Run、Replay 等写接口支持 Idempotency-Key。
 
