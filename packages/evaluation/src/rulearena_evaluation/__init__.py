@@ -3,7 +3,7 @@ from .baselines import (
     DelegatingCaseExecutor,
     SearchBaselineExecutor,
 )
-from .gate import ReleaseGate
+from .gate import RefundReleaseGate, ReleaseGate
 from .ground_truth import (
     GroundTruthEvidence,
     parse_ground_truth_actions,
@@ -37,6 +37,24 @@ from .models import (
     VersionTuple,
     Visibility,
 )
+from .refund_loader import RefundSuiteLoader
+from .refund_models import (
+    AgentMode,
+    RefundBenchmarkRun,
+    RefundCaseRun,
+    RefundTicketCase,
+    expected_state_satisfied,
+)
+from .refund_runner import (
+    RefundBenchmarkRunner,
+    RefundCaseExecutor,
+    compute_refund_metrics,
+)
+from .refund_store import (
+    InMemoryRefundBenchmarkStore,
+    PostgresRefundBenchmarkStore,
+    RefundBenchmarkStore,
+)
 from .runner import BenchmarkRunner, CaseExecutor
 from .security import (
     hidden_answer_fingerprints,
@@ -48,6 +66,7 @@ from .store import BenchmarkStore, InMemoryBenchmarkStore, PostgresBenchmarkStor
 
 __all__ = [
     "AgentBaselineExecutor",
+    "AgentMode",
     "BaselineType",
     "BenchmarkCase",
     "BenchmarkRun",
@@ -65,15 +84,27 @@ __all__ = [
     "HiddenCaseLoader",
     "HistoricalP0Case",
     "InMemoryBenchmarkStore",
+    "InMemoryRefundBenchmarkStore",
     "MetricValue",
     "PostgresBenchmarkStore",
+    "PostgresRefundBenchmarkStore",
     "PublicCaseMetadata",
     "RawCaseRun",
+    "RefundBenchmarkRun",
+    "RefundBenchmarkRunner",
+    "RefundBenchmarkStore",
+    "RefundCaseExecutor",
+    "RefundCaseRun",
+    "RefundReleaseGate",
+    "RefundSuiteLoader",
+    "RefundTicketCase",
     "ReleaseGate",
     "SearchBaselineExecutor",
     "VersionTuple",
     "Visibility",
     "compute_metrics",
+    "compute_refund_metrics",
+    "expected_state_satisfied",
     "hidden_answer_fingerprints",
     "historical_p0_pass_rate",
     "intervals_overlap",

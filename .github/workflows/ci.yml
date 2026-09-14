@@ -49,7 +49,7 @@ jobs:
           TEST_CONTROL_DATABASE_URL: postgresql+asyncpg://rulearena_control:ci-control-password@127.0.0.1:15432/rulearena
           TEST_SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:ci-sandbox-password@127.0.0.1:15432/rulearena
       - run: docker compose up -d --build --wait commerce-sandbox
-      - run: uv run pytest -q tests/sandbox tests/integration tests/concurrency tests/replay
+      - run: uv run pytest -q tests/sandbox tests/integration tests/concurrency tests/replay tests/refund
         env:
           SANDBOX_HTTP_URL: http://127.0.0.1:8001
           SANDBOX_TEST_TOKEN: ci-token-that-is-at-least-32-characters

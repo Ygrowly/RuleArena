@@ -62,7 +62,13 @@ def intervals_overlap(left: MetricValue, right: MetricValue) -> bool:
     return left_interval[0] <= right_interval[1] and right_interval[0] <= left_interval[1]
 
 
-def _ratio(numerator: int, denominator: int, run_ids: Sequence[str]) -> MetricValue:
+def ratio(numerator: int, denominator: int, run_ids: Sequence[str]) -> MetricValue:
+    """A rate with its Wilson interval, on the denominator it was measured over.
+
+    Public because every suite needs the same shape: a rate reported next to the
+    sample it was computed from, so two runs cannot be compared off one point
+    estimate. `source_run_ids` keeps the aggregate recomputable from the rows.
+    """
     interval = wilson_interval(numerator, denominator)
     return MetricValue(
         value=(numerator / denominator if denominator else None),
@@ -78,7 +84,7 @@ def pass_at_k(successes_by_case: Mapping[str, Sequence[bool]], k: int) -> Metric
     if k <= 0:
         raise ValueError("k must be positive")
     eligible = [tuple(values[:k]) for values in successes_by_case.values() if len(values) >= k]
-    return _ratio(sum(any(values) for values in eligible), len(eligible), ())
+    return ratio(sum(any(values) for values in eligible), len(eligible), ())
 
 
 def pass_to_k(successes_by_case: Mapping[str, Sequence[bool]], k: int) -> MetricValue:
@@ -86,7 +92,7 @@ def pass_to_k(successes_by_case: Mapping[str, Sequence[bool]], k: int) -> Metric
     if k <= 0:
         raise ValueError("k must be positive")
     eligible = [tuple(values[:k]) for values in successes_by_case.values() if len(values) >= k]
-    return _ratio(sum(all(values) for values in eligible), len(eligible), ())
+    return ratio(sum(all(values) for values in eligible), len(eligible), ())
 
 
 def _summary(values: Sequence[float], run_ids: Sequence[str]) -> dict[str, MetricValue]:
@@ -160,23 +166,23 @@ def compute_metrics(
     replay_successes = sum(run.replay_successes for run in eligible)
 
     return {
-        "rule_spec_schema_pass_rate": _ratio(
+        "rule_spec_schema_pass_rate": ratio(
             schema_valid, len(compile_runs), [run.run_id for run in compile_runs]
         ).model_dump(mode="json"),
-        "vulnerability_discovery_rate": _ratio(
+        "vulnerability_discovery_rate": ratio(
             len(discovered),
             len(vulnerable_evaluable),
             [run.run_id for case in vulnerable_evaluable for run in by_case[case.case_id]],
         ).model_dump(mode="json"),
-        "normal_confirmed_false_positive_rate": _ratio(
+        "normal_confirmed_false_positive_rate": ratio(
             len(false_positive),
             len(normal_evaluable),
             [run.run_id for case in normal_evaluable for run in by_case[case.case_id]],
         ).model_dump(mode="json"),
-        "candidate_confirmation_rate": _ratio(
+        "candidate_confirmation_rate": ratio(
             confirmed, replayed, valid_ids
         ).model_dump(mode="json"),
-        "replay_stability_rate": _ratio(
+        "replay_stability_rate": ratio(
             replay_successes, replay_attempts, valid_ids
         ).model_dump(mode="json"),
         "elapsed_seconds": {

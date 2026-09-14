@@ -19,7 +19,7 @@ from rulearena_attack_runtime import (
 )
 
 from .baselines import AgentBaselineExecutor, DelegatingCaseExecutor, SearchBaselineExecutor
-from .gate import ReleaseGate
+from .gate import RefundReleaseGate, ReleaseGate
 from .historical_p0 import historical_p0_pass_rate
 from .loader import (
     DevelopmentCaseLoader,
@@ -28,6 +28,10 @@ from .loader import (
     load_hidden_manifest,
 )
 from .models import BaselineType, VersionTuple, Visibility
+from .refund_loader import RefundSuiteLoader
+from .refund_models import AgentMode
+from .refund_runner import RefundBenchmarkRunner, RefundCaseExecutor
+from .refund_store import PostgresRefundBenchmarkStore
 from .runner import BenchmarkRunner
 from .store import PostgresBenchmarkStore
 
@@ -100,8 +104,8 @@ def _versions(args: argparse.Namespace) -> VersionTuple:
     )
 
 
-def _common(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--benchmark-version", default="golden-v4")
+def _common(parser: argparse.ArgumentParser, *, benchmark_version: str = "golden-v4") -> None:
+    parser.add_argument("--benchmark-version", default=benchmark_version)
     parser.add_argument("--runtime-version", default="runtime-v1")
     parser.add_argument("--rule-set-version", default="rules-v1")
     parser.add_argument("--scenario-set-version", default="scenarios-v1")
@@ -214,6 +218,68 @@ def _verify(args: argparse.Namespace) -> int:
         store.close()
 
 
+def _suite_path(raw: Path) -> Path:
+    return raw if raw.is_absolute() else Path(__file__).resolve().parents[4] / raw
+
+
+async def _refund_bench(args: argparse.Namespace) -> int:
+    cases = RefundSuiteLoader(_suite_path(args.suite)).load()
+    try:
+        modes = tuple(AgentMode(item.strip().upper()) for item in args.modes.split(","))
+    except ValueError as error:
+        raise ValueError(f"unknown mode: {error.args[0]}") from error
+    executor = RefundCaseExecutor(
+        _required("SANDBOX_HTTP_URL"), _required("INTERNAL_SERVICE_TOKEN")
+    )
+    store = PostgresRefundBenchmarkStore(_required("CONTROL_DATABASE_URL"))
+    try:
+        runner = RefundBenchmarkRunner(store, executor)
+        for mode in modes:
+            result = await runner.run(
+                cases,
+                versions=_versions(args),
+                mode=mode,
+                repetitions=args.repetitions,
+                random_seed=args.seed,
+                concurrency=args.concurrency,
+            )
+            print(
+                json.dumps(
+                    {
+                        "benchmark_run_id": result.benchmark_run_id,
+                        "mode": mode.value,
+                        "metrics": result.metrics,
+                    },
+                    ensure_ascii=False,
+                )
+            )
+    finally:
+        store.close()
+    return 0
+
+
+def _refund_verify(args: argparse.Namespace) -> int:
+    """Pair the newest finished run of each mode and re-check it.
+
+    Re-matched on the version tuple rather than by recency alone: two runs of different
+    suites (or of different code) are not a comparison, and reporting one as though it
+    were is the failure this check exists to prevent.
+    """
+    store = PostgresRefundBenchmarkStore(_required("CONTROL_DATABASE_URL"))
+    try:
+        versions = _versions(args)
+        runs = {}
+        for mode in AgentMode:
+            found = store.latest_completed(versions=versions, mode=mode)
+            if found is not None:
+                runs[mode] = found
+        gate = RefundReleaseGate().evaluate(runs)
+        print(gate.model_dump_json())
+        return 0 if gate.passed else 1
+    finally:
+        store.close()
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rulearena")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -239,6 +305,35 @@ def _parser() -> argparse.ArgumentParser:
         help="cases run in parallel when >1; wall-clock budgets stay per-case but "
         "provider contention may inflate latencies, so 1 keeps budget fairness strict",
     )
+
+    refund_bench = commands.add_parser(
+        "refund-bench",
+        help="run the refund-ticket suite in one or both modes",
+    )
+    _common(refund_bench, benchmark_version="refund-v1")
+    refund_bench.add_argument("--suite", required=True, type=Path)
+    refund_bench.add_argument(
+        "--modes",
+        default="bare,gated",
+        help="which arms to run; both are stored under the same version tuple so "
+        "`refund-verify` can pair them",
+    )
+    refund_bench.add_argument("--repetitions", type=int, default=1)
+    refund_bench.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="tickets run in parallel when >1; the acknowledgement-loss delay is "
+        "wall-clock, so 1 keeps the two arms strictly comparable",
+    )
+
+    refund_verify = commands.add_parser(
+        "refund-verify",
+        help="re-check the latest refund comparison against its gate",
+    )
+    _common(refund_verify, benchmark_version="refund-v1")
+    refund_verify.add_argument("action", nargs="?", choices=("verify",))
+    refund_verify.add_argument("--latest", action="store_true")
     return parser
 
 
@@ -251,14 +346,21 @@ def main() -> None:
     load_dotenv(override=False)
     args = _parser().parse_args()
     try:
-        if args.action == "verify":
-            if not args.latest:
-                _die("benchmark verify requires --latest")
-            code = _verify(args)
+        if args.command == "benchmark":
+            if args.action == "verify":
+                if not args.latest:
+                    _die("benchmark verify requires --latest")
+                code = _verify(args)
+            else:
+                if args.suite is None:
+                    _die("benchmark run requires --suite")
+                code = asyncio.run(_run(args))
+        elif args.command == "refund-bench":
+            code = asyncio.run(_refund_bench(args))
         else:
-            if args.suite is None:
-                _die("benchmark run requires --suite")
-            code = asyncio.run(_run(args))
+            if not args.latest:
+                _die("refund-verify requires --latest")
+            code = _refund_verify(args)
     except (PermissionError, RuntimeError, ValueError) as error:
         _die(str(error))
     raise SystemExit(code)

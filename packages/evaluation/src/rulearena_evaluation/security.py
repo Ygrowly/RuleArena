@@ -74,6 +74,8 @@ def public_metric_summary(metrics: dict[str, Any]) -> dict[str, Any]:
         "evaluable_run_ids",
         "false_positive_case_ids",
         "source_run_ids",
+        "case_ids",
+        "false_success_case_ids",
     }
 
     def clean(value: Any) -> Any:
