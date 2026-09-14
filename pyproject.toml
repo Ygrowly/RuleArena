@@ -13,6 +13,8 @@ dependencies = [
   "rulearena-oracle",
   "rulearena-policy-schema",
   "rulearena-reference-simulator",
+  "rulearena-refund-agent",
+  "rulearena-runtime-gate",
 ]
 
 [dependency-groups]
@@ -33,6 +35,8 @@ members = [
   "packages/oracle",
   "packages/policy_schema",
   "packages/reference_simulator",
+  "packages/refund_agent",
+  "packages/runtime_gate",
   "services/commerce_sandbox",
   "services/attack_worker",
   "services/control_api",
@@ -49,6 +53,8 @@ rulearena-observability = { workspace = true }
 rulearena-oracle = { workspace = true }
 rulearena-policy-schema = { workspace = true }
 rulearena-reference-simulator = { workspace = true }
+rulearena-refund-agent = { workspace = true }
+rulearena-runtime-gate = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

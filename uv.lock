@@ -15,6 +15,8 @@ members = [
     "rulearena-oracle",
     "rulearena-policy-schema",
     "rulearena-reference-simulator",
+    "rulearena-refund-agent",
+    "rulearena-runtime-gate",
 ]
 
 [[package]]
@@ -572,6 +574,8 @@ dependencies = [
     { name = "rulearena-oracle" },
     { name = "rulearena-policy-schema" },
     { name = "rulearena-reference-simulator" },
+    { name = "rulearena-refund-agent" },
+    { name = "rulearena-runtime-gate" },
 ]
 
 [package.dev-dependencies]
@@ -595,6 +599,8 @@ requires-dist = [
     { name = "rulearena-oracle", editable = "packages/oracle" },
     { name = "rulearena-policy-schema", editable = "packages/policy_schema" },
     { name = "rulearena-reference-simulator", editable = "packages/reference_simulator" },
+    { name = "rulearena-refund-agent", editable = "packages/refund_agent" },
+    { name = "rulearena-runtime-gate", editable = "packages/runtime_gate" },
 ]
 
 [package.metadata.requires-dev]
@@ -740,6 +746,8 @@ dependencies = [
     { name = "rulearena-oracle" },
     { name = "rulearena-policy-schema" },
     { name = "rulearena-reference-simulator" },
+    { name = "rulearena-refund-agent" },
+    { name = "rulearena-runtime-gate" },
     { name = "sqlalchemy" },
 ]
 
@@ -753,6 +761,8 @@ requires-dist = [
     { name = "rulearena-oracle", editable = "packages/oracle" },
     { name = "rulearena-policy-schema", editable = "packages/policy_schema" },
     { name = "rulearena-reference-simulator", editable = "packages/reference_simulator" },
+    { name = "rulearena-refund-agent", editable = "packages/refund_agent" },
+    { name = "rulearena-runtime-gate", editable = "packages/runtime_gate" },
     { name = "sqlalchemy", specifier = ">=2.0.43,<3" },
 ]
 
@@ -810,6 +820,40 @@ dependencies = [
 requires-dist = [
     { name = "rulearena-domain-contracts", editable = "packages/domain_contracts" },
     { name = "rulearena-policy-schema", editable = "packages/policy_schema" },
+]
+
+[[package]]
+name = "rulearena-refund-agent"
+version = "0.1.0"
+source = { editable = "packages/refund_agent" }
+dependencies = [
+    { name = "httpx" },
+    { name = "rulearena-domain-contracts" },
+    { name = "rulearena-reference-simulator" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1,<0.29" },
+    { name = "rulearena-domain-contracts", editable = "packages/domain_contracts" },
+    { name = "rulearena-reference-simulator", editable = "packages/reference_simulator" },
+]
+
+[[package]]
+name = "rulearena-runtime-gate"
+version = "0.1.0"
+source = { editable = "packages/runtime_gate" }
+dependencies = [
+    { name = "httpx" },
+    { name = "rulearena-domain-contracts" },
+    { name = "rulearena-reference-simulator" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1,<0.29" },
+    { name = "rulearena-domain-contracts", editable = "packages/domain_contracts" },
+    { name = "rulearena-reference-simulator", editable = "packages/reference_simulator" },
 ]
 
 [[package]]

@@ -10,7 +10,9 @@ dependencies = [
   "rulearena-domain-contracts",
   "rulearena-oracle",
   "rulearena-policy-schema",
+  "rulearena-refund-agent",
   "rulearena-reference-simulator",
+  "rulearena-runtime-gate",
   "sqlalchemy>=2.0.43,<3",
 ]
 
@@ -29,4 +31,6 @@ rulearena-attack-runtime = { workspace = true }
 rulearena-domain-contracts = { workspace = true }
 rulearena-oracle = { workspace = true }
 rulearena-policy-schema = { workspace = true }
+rulearena-refund-agent = { workspace = true }
 rulearena-reference-simulator = { workspace = true }
+rulearena-runtime-gate = { workspace = true }
