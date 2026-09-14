@@ -250,17 +250,22 @@ uv run python scripts/export_refund_gate_demo.py   # 导出冻结对照演示
 
 | 页面 | 内容 |
 | --- | --- |
-| `index.html` | 落地页：对照数字、同一张工单的两种命运（可切换三张工单）、四条不变量与四个实测缺陷、复现命令与口径边界 |
+| `index.html` | 交互演示：逐步回放三张真实工单在「裸跑 / 加门禁」下的每一步、账本与 Oracle 判定，外加全量数字、四条不变量与四个实测缺陷 |
+| `diagram.html` | 可交互架构图：一次退款调用经过的每一道检查（由 archify 从 `site/gate-diagram.json` 渲染） |
 | `demo.html` | 原有的单文件搜索反例演示（另一个方向：离线搜索规则组合漏洞） |
 
 本地构建与预览：
 
 ```bash
-pnpm --dir frontend run build          # 产出 frontend/dist
+pnpm --dir frontend run build                    # 产出 frontend/dist
 uv run python scripts/build_standalone_demo.py   # 产出单文件搜索演示
-uv run python scripts/build_site.py              # 组装 _site/
+uv run python scripts/build_site.py              # 组装 _site/（含已渲染的架构图）
 python -m http.server -d _site 8000              # 打开 http://127.0.0.1:8000
 ```
+
+架构图由 archify 从 `site/gate-diagram.json` 渲染并**随仓库提交**（渲染器不是本仓库的依赖，
+所以提交的是产物本身）；改图时编辑那份 JSON 后重新渲染：
+`node bin/archify.mjs validate architecture site/gate-diagram.json --quality showcase`。
 
 推送 `main` 时 `.github/workflows/pages.yml` 会自动重建并发布；页面里引用的数字来自
 `frontend/public/frozen/refund-gate-demo.json`，由 `scripts/export_refund_gate_demo.py`

@@ -3,21 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RuleArena · 业务 Agent 上线前的执行门禁</title>
+    <title>RuleArena 运行时门禁 · 交互演示</title>
     <meta
       name="description"
-      content="同一份退款 Agent 跑两次：裸跑有 6/15 张工单重复退款，加上运行时门禁后 0/15。真实 Sandbox HTTP、真实回执与快照、确定性 Oracle 裁决。"
+      content="同一份退款 Agent 代码跑两次：裸跑 6/15 张工单重复退款，加上运行时门禁后 0/15。可逐步回放真实运行记录。"
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="RuleArena · 同一份 Agent，裸跑 6/15 重复退款，加门禁 0/15" />
+    <meta
+      property="og:title"
+      content="RuleArena 运行时门禁：同一份 Agent，裸跑 6/15 重复退款，加门禁 0/15"
+    />
     <meta
       property="og:description"
-      content="真实 Sandbox HTTP、真实回执与快照、确定性 Oracle 裁决：同一份退款 Agent 代码跑两次，唯一的差别是网关后面挂不挂运行时门禁。"
+      content="真实 Sandbox HTTP、真实回执与快照、确定性 Oracle 裁决。页面里的每一步都来自真实运行记录。"
     />
     <meta name="twitter:card" content="summary" />
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M9 21.5 15 10l3 8 2-3.5h3' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%232563eb'/%3E%3Cpath d='M9 21.5 15 10l3 8 2-3.5h3' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
     />
     <style>
       :root {
@@ -25,17 +28,21 @@
         --bg: #f6f7fb;
         --panel: #ffffff;
         --ink: #111827;
+        --ink-soft: #374151;
         --muted: #6b7280;
-        --line: #e5e7eb;
+        --faint: #9ca3af;
+        --line: #dfe3ea;
+        --line-strong: #c7cdd8;
         --accent: #2563eb;
-        --accent-soft: #eff4ff;
-        --danger: #dc2626;
+        --accent-soft: #eef4ff;
+        --danger: #b91c1c;
         --danger-soft: #fef2f2;
-        --warn: #b45309;
+        --warn: #92600a;
         --warn-soft: #fffbeb;
-        --ok: #047857;
+        --ok: #04684a;
         --ok-soft: #ecfdf5;
-        --radius: 10px;
+        --r: 4px;
+        --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
         font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
       }
       * {
@@ -47,350 +54,394 @@
           transition: none !important;
         }
       }
-      html {
-        scroll-behavior: smooth;
-      }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--ink);
-        line-height: 1.6;
         font-size: 15px;
+        line-height: 1.6;
       }
       .wrap {
-        max-width: 1040px;
+        max-width: 1180px;
         margin: 0 auto;
         padding: 0 20px;
       }
       a {
         color: var(--accent);
-        text-decoration-thickness: 1px;
         text-underline-offset: 2px;
       }
-      code,
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
-        font-size: 0.9em;
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
       }
       h1,
       h2,
       h3 {
-        line-height: 1.3;
         margin: 0;
+        line-height: 1.35;
+        font-weight: 650;
       }
       h2 {
-        font-size: 20px;
-        margin-bottom: 4px;
-      }
-      section > h2 + p.sub {
-        margin: 0 0 20px;
-        color: var(--muted);
-      }
-      section {
-        padding: 34px 0;
-        border-top: 1px solid var(--line);
-      }
-
-      /* ---------- hero ---------- */
-      .hero {
-        padding: 44px 0 34px;
-      }
-      .eyebrow {
-        color: var(--accent);
-        font-weight: 600;
-        font-size: 13px;
-        letter-spacing: 0.06em;
-        margin: 0 0 10px;
-      }
-      .hero h1 {
-        font-size: 34px;
-        letter-spacing: -0.01em;
-      }
-      .hero .lead {
-        margin: 14px 0 0;
         font-size: 17px;
-        max-width: 60ch;
+        letter-spacing: 0.01em;
       }
-      .hero .lead strong {
-        background: linear-gradient(transparent 62%, #dbeafe 62%);
-      }
-      .stats {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        gap: 14px;
-        align-items: center;
-        margin: 26px 0 0;
-      }
-      .stat {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: var(--radius);
-        padding: 16px 18px;
-      }
-      .stat .label {
-        color: var(--muted);
-        font-size: 13px;
-        margin: 0 0 6px;
-      }
-      .stat .value {
-        font-size: 30px;
-        font-weight: 700;
-        line-height: 1.1;
+      .num {
         font-variant-numeric: tabular-nums;
       }
-      .stat .note {
+      .mono {
+        font-family: var(--mono);
+        font-size: 0.88em;
+      }
+
+      /* ---------- toolbar ---------- */
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(246, 247, 251, 0.94);
+        border-bottom: 1px solid var(--line);
+      }
+      .bar-in {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-height: 56px;
+        flex-wrap: wrap;
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+      .bar .name {
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        font-size: 16px;
+      }
+      .bar .claim {
+        color: var(--muted);
+        font-size: 13.5px;
+      }
+      .bar .claim b {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .bar nav {
+        margin-left: auto;
+        display: flex;
+        gap: 16px;
+        font-size: 13.5px;
+        flex-wrap: wrap;
+      }
+
+      /* ---------- sections ---------- */
+      section {
+        padding: 30px 0;
+        border-top: 1px solid var(--line);
+      }
+      section:first-of-type {
+        border-top: 0;
+      }
+      .lead {
+        margin-bottom: 18px;
+      }
+      .lead p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13.5px;
+        max-width: 78ch;
+      }
+
+      /* ---------- the instrument ---------- */
+      .picker {
+        display: flex;
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        overflow: hidden;
+        background: var(--panel);
+        width: fit-content;
+        max-width: 100%;
+        flex-wrap: wrap;
+      }
+      .picker button {
+        font: inherit;
+        font-size: 13.5px;
+        padding: 8px 14px;
+        border: 0;
+        border-right: 1px solid var(--line);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .picker button:last-child {
+        border-right: 0;
+      }
+      .picker button[aria-selected="true"] {
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .ticket {
+        margin: 14px 0 0;
+        padding: 12px 14px;
+        border-left: 2px solid var(--accent);
+        background: var(--panel);
+        border-radius: 0 var(--r) var(--r) 0;
+      }
+      .ticket p {
+        margin: 0;
+      }
+      .ticket .meta {
+        margin-top: 6px;
         color: var(--muted);
         font-size: 13px;
-        margin: 6px 0 0;
       }
-      .stat.bad .value {
-        color: var(--danger);
-      }
-      .stat.good .value {
-        color: var(--ok);
-      }
-      .arrow {
-        color: var(--muted);
-        font-size: 22px;
-      }
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin: 24px 0 0;
-      }
-      .btn {
-        display: inline-block;
-        padding: 9px 16px;
-        border-radius: 8px;
+
+      .console {
+        margin-top: 16px;
         border: 1px solid var(--line);
+        border-radius: var(--r);
+        background: var(--panel);
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      .controls button {
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 600;
+        padding: 6px 13px;
+        border-radius: var(--r);
+        border: 1px solid var(--line-strong);
         background: var(--panel);
         color: var(--ink);
-        font: inherit;
-        font-weight: 600;
         cursor: pointer;
-        text-decoration: none;
       }
-      .btn.primary {
+      .controls button:hover:not(:disabled) {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .controls button.primary {
         background: var(--accent);
         border-color: var(--accent);
         color: #fff;
       }
-      .btn:hover {
-        border-color: var(--accent);
+      .controls button:active:not(:disabled) {
+        transform: translateY(1px);
       }
-
-      /* ---------- problem ---------- */
-      .channels {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin: 0 0 16px;
+      .controls button:disabled {
+        opacity: 0.45;
+        cursor: default;
       }
-      .channel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-left: 3px solid var(--accent);
-        border-radius: var(--radius);
-        padding: 14px 16px;
-      }
-      .channel h3 {
-        font-size: 15px;
-        margin-bottom: 4px;
-      }
-      .channel p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 14px;
-      }
-
-      /* ---------- the two fates ---------- */
-      .ticket-picker {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
-      }
-      .tab {
-        padding: 7px 13px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        background: var(--panel);
-        font: inherit;
+      .counter {
+        margin-left: auto;
         font-size: 13px;
         color: var(--muted);
-        cursor: pointer;
+        font-variant-numeric: tabular-nums;
       }
-      .tab[aria-selected="true"] {
-        border-color: var(--accent);
-        color: var(--accent);
-        font-weight: 600;
-        background: var(--accent-soft);
-      }
-      .ticket-quote {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: var(--radius);
-        padding: 12px 16px;
-        margin-bottom: 16px;
-      }
-      .ticket-quote p {
-        margin: 0;
-      }
-      .ticket-quote .meta {
-        color: var(--muted);
-        font-size: 13px;
-        margin-top: 6px;
-      }
-      .fates {
+      .arms {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 14px;
       }
-      .fate {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: var(--radius);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
+      .arm {
+        padding-bottom: 12px;
       }
-      .fate > header {
+      .arm + .arm {
+        border-left: 1px solid var(--line);
+      }
+      .arm > header {
         display: flex;
         align-items: baseline;
-        justify-content: space-between;
         gap: 10px;
-        padding: 12px 16px;
+        padding: 10px 14px;
         border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
       }
-      .fate > header h3 {
-        font-size: 15px;
+      .arm > header h3 {
+        font-size: 14px;
       }
-      .fate > header .how {
+      .arm > header .how {
         color: var(--muted);
         font-size: 12px;
-      }
-      .fate.loss > header {
-        background: var(--danger-soft);
-      }
-      .fate.clean > header {
-        background: var(--ok-soft);
+        font-family: var(--mono);
       }
       .steps {
         list-style: none;
         margin: 0;
-        padding: 12px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        flex: 1;
+        padding: 6px 14px 0;
       }
       .steps li {
-        border-left: 2px solid var(--line);
-        padding-left: 12px;
+        display: grid;
+        grid-template-columns: 16px 1fr;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px dashed var(--line);
+        opacity: 0;
+        transform: translateY(3px);
+        transition: opacity 0.22s ease, transform 0.22s ease;
       }
-      .steps .action {
+      .steps li.on {
+        opacity: 1;
+        transform: none;
+      }
+      .steps li .idx {
+        color: var(--faint);
+        font-family: var(--mono);
+        font-size: 12px;
+        padding-top: 1px;
+      }
+      .steps .act {
         font-weight: 600;
-        font-size: 14px;
+        font-size: 13.5px;
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        flex-wrap: wrap;
       }
-      .steps .key {
+      .steps .kv {
         color: var(--muted);
         font-size: 12px;
+        font-family: var(--mono);
         word-break: break-all;
       }
       .steps .guard {
         font-size: 12px;
+        font-family: var(--mono);
         color: var(--accent);
-        margin-top: 2px;
       }
-      .badge {
+      .steps .waiting {
+        color: var(--faint);
+        font-size: 12.5px;
+      }
+      .tag {
         display: inline-block;
-        padding: 1px 7px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        margin-left: 6px;
-        vertical-align: 1px;
+        padding: 1px 6px;
+        border-radius: var(--r);
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
       }
-      .badge.succeeded {
+      .tag.succeeded {
         background: var(--ok-soft);
         color: var(--ok);
       }
-      .badge.timeout {
+      .tag.timeout {
         background: var(--warn-soft);
         color: var(--warn);
       }
-      .badge.failed,
-      .badge.refused,
-      .badge.unknown {
+      .tag.failed,
+      .tag.refused,
+      .tag.unknown {
         background: var(--danger-soft);
         color: var(--danger);
       }
       .ledger {
-        border-top: 1px solid var(--line);
-        padding: 12px 16px;
+        margin: 10px 14px 0;
+        padding-top: 10px;
+        border-top: 1px solid var(--line-strong);
         display: flex;
-        gap: 18px;
+        gap: 20px;
         flex-wrap: wrap;
-        font-variant-numeric: tabular-nums;
+        opacity: 0;
+        transition: opacity 0.3s ease;
       }
-      .ledger div .k {
-        color: var(--muted);
-        font-size: 12px;
+      .ledger.on {
+        opacity: 1;
+      }
+      .ledger .cell .k {
         display: block;
+        color: var(--muted);
+        font-size: 11.5px;
       }
-      .ledger div .v {
+      .ledger .cell .v {
+        font-family: var(--mono);
+        font-size: 15px;
         font-weight: 600;
+      }
+      .ledger .cell .v.bad {
+        color: var(--danger);
+      }
+      .ledger .cell .v.good {
+        color: var(--ok);
       }
       .verdict {
-        padding: 10px 16px;
-        border-top: 1px solid var(--line);
-        font-size: 14px;
+        margin: 10px 14px 0;
+        padding: 8px 10px;
+        border-radius: var(--r);
+        font-size: 13.5px;
         font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      .verdict.on {
+        opacity: 1;
       }
       .verdict.bad {
-        color: var(--danger);
         background: var(--danger-soft);
+        color: var(--danger);
       }
       .verdict.good {
-        color: var(--ok);
         background: var(--ok-soft);
+        color: var(--ok);
       }
       .verdict.warn {
-        color: var(--warn);
         background: var(--warn-soft);
+        color: var(--warn);
       }
-      .foot-note {
-        color: var(--muted);
+      .readline {
+        margin: 0;
+        padding: 10px 14px;
+        border-top: 1px solid var(--line);
         font-size: 13px;
-        margin: 14px 0 0;
+        color: var(--muted);
+      }
+      .readline b {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
       }
 
-      /* ---------- tables ---------- */
-      .table-scroll {
+      /* ---------- diagram ---------- */
+      .frame {
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        background: var(--panel);
+        overflow: hidden;
+        height: 620px;
+      }
+      .frame iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+
+      /* ---------- lists ---------- */
+      .scroller {
         overflow-x: auto;
         border: 1px solid var(--line);
-        border-radius: var(--radius);
-        background: var(--panel);
+        border-radius: var(--r);
       }
       table {
         border-collapse: collapse;
         width: 100%;
-        min-width: 560px;
-        font-variant-numeric: tabular-nums;
+        min-width: 540px;
+        background: var(--panel);
       }
       th,
       td {
         text-align: left;
-        padding: 10px 14px;
+        padding: 9px 14px;
         border-bottom: 1px solid var(--line);
+        font-variant-numeric: tabular-nums;
         font-size: 14px;
       }
       thead th {
-        background: #fafbfc;
-        font-size: 13px;
-        color: var(--muted);
+        font-size: 12px;
         font-weight: 600;
+        color: var(--muted);
       }
       tbody tr:last-child td {
         border-bottom: 0;
@@ -403,52 +454,59 @@
         color: var(--danger);
         font-weight: 600;
       }
-      ul.plain {
-        margin: 14px 0 0;
-        padding-left: 20px;
-      }
-      ul.plain li {
-        margin-bottom: 8px;
-      }
-
-      /* ---------- cards ---------- */
-      .cards {
+      .cols {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 14px;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 34px;
       }
-      .card {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: var(--radius);
-        padding: 14px 16px;
+      .item {
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
       }
-      .card h3 {
-        font-size: 15px;
-        margin-bottom: 6px;
-      }
-      .card h3 .tag {
-        color: var(--accent);
-        font-weight: 700;
-        margin-right: 6px;
-      }
-      .card p {
-        margin: 0;
-        color: var(--muted);
+      .item h3 {
         font-size: 14px;
       }
+      .item h3 span {
+        font-family: var(--mono);
+        color: var(--accent);
+        font-size: 12.5px;
+        margin-right: 7px;
+      }
+      .item p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13.5px;
+      }
       pre {
+        margin: 0;
         background: #0f172a;
         color: #e2e8f0;
         padding: 14px 16px;
-        border-radius: var(--radius);
+        border-radius: var(--r);
         overflow-x: auto;
-        font-size: 13px;
-        line-height: 1.7;
-        margin: 0 0 14px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.75;
+      }
+      ul.bounds {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      ul.bounds li {
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-soft);
+        font-size: 14px;
+      }
+      ul.bounds li:last-child {
+        border-bottom: 0;
+      }
+      ul.bounds strong {
+        color: var(--ink);
       }
       footer {
-        padding: 26px 0 40px;
+        padding: 22px 0 40px;
         border-top: 1px solid var(--line);
         color: var(--muted);
         font-size: 13px;
@@ -457,88 +515,66 @@
         margin: 0 0 6px;
       }
 
-      @media (max-width: 860px) {
-        .stats,
-        .channels,
-        .fates,
-        .cards {
+      @media (max-width: 800px) {
+        .arms,
+        .cols {
           grid-template-columns: 1fr;
         }
-        .arrow {
-          display: none;
+        .arm + .arm {
+          border-left: 0;
+          border-top: 1px solid var(--line);
         }
-        .hero h1 {
-          font-size: 28px;
+        .frame {
+          height: 460px;
+        }
+        .bar nav {
+          margin-left: 0;
         }
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <header class="hero">
-        <p class="eyebrow">业务 Agent 上线前的执行门禁</p>
-        <h1>RuleArena</h1>
-        <p class="lead">
-          Agent 调了工具，却无法确定业务上到底成功没有——工具超时了，钱可能已经退了。它当成失败重试，
-          <strong>一笔退款就变成两笔</strong>。RuleArena 把这件事做成可复现的对照：<strong
-            >同一份 Agent 代码、同一批工单，跑两次</strong
-          >，一次让它自己重试，一次在网关后面加一道只做确定性算术的门禁。
-        </p>
-        <div class="stats">
-          <div class="stat bad">
-            <p class="label">裸跑（只有工具）</p>
-            <p class="value">6/15</p>
-            <p class="note">张工单重复退款 · 合计多退 ¥1920</p>
-          </div>
-          <div class="arrow" aria-hidden="true">→</div>
-          <div class="stat good">
-            <p class="label">加运行时门禁</p>
-            <p class="value">0/15</p>
-            <p class="note">重复退款 0 笔 · 正常工单误拦 0 张</p>
-          </div>
-        </div>
-        <div class="actions">
-          <a class="btn primary" href="#fates">看同一张工单的两种命运</a>
-          <a class="btn" href="./demo.html">搜索反例演示（另一个方向）</a>
-          <a class="btn" href="https://github.com/Ygrowly/RuleArena">源码与实测报告</a>
-        </div>
-      </header>
+    <header class="bar">
+      <div class="wrap bar-in">
+        <span class="name">RuleArena</span>
+        <span class="claim">
+          同一份退款 Agent 跑两次：裸跑 <b>6/15</b> 张工单重复退款，加运行时门禁 <b>0/15</b>
+        </span>
+        <nav>
+          <a href="#demo">回放</a>
+          <a href="#flow">架构</a>
+          <a href="#numbers">全量数字</a>
+          <a href="./demo.html">搜索反例演示</a>
+          <a href="https://github.com/Ygrowly/RuleArena">源码</a>
+        </nav>
+      </div>
+    </header>
 
-      <main>
-        <section id="problem">
-          <h2>问题不在 Agent 笨，在两个通道不同步</h2>
-          <p class="sub">
-            这是 2026 年被形式化为「非原子工具调用」的一类失败，也是本项目全部设计的起点。
-          </p>
-          <div class="channels">
-            <div class="channel">
-              <h3>响应通道</h3>
-              <p>Agent 收到的回执：成功、失败、超时、空响应。它只能看见这个。</p>
-            </div>
-            <div class="channel">
-              <h3>效果通道</h3>
-              <p>服务端真正发生的事：钱退没退、账本记没记。它看不见。</p>
-            </div>
-          </div>
+    <main class="wrap">
+      <section id="demo">
+        <div class="lead">
+          <h2>逐步回放一次真实运行</h2>
           <p>
-            两者不同步时，最常见的反应就是重试——而重试正好是重复退款的生产线。下面的工单里，
-            第一笔退款其实已经入账，只是回执丢了；Agent 看不到答案，换了个幂等键又退了一次。
+            每个步骤都来自真实记录：真实 Sandbox HTTP、真实回执、真实快照。按「单步」或「播放」推进，
+            两边的 Agent 代码完全相同，差别只在网关后面挂不挂门禁。
           </p>
-        </section>
+        </div>
 
-        <section id="fates">
-          <h2>同一张工单，两种命运</h2>
-          <p class="sub">
-            下面是三次真实运行的原始记录（真实 Sandbox HTTP、真实回执与快照）。左边让 Agent
-            自己重试，右边把它的工具调用接到门禁上。除了这一点，两边完全一样。
-          </p>
-          <div class="ticket-picker" role="tablist" aria-label="选择工单"></div>
-          <div class="ticket-quote">
-            <p id="ticket-text"></p>
-            <p class="meta" id="ticket-meta"></p>
+        <div class="picker" role="tablist" aria-label="选择工单"></div>
+        <div class="ticket">
+          <p id="ticket-text"></p>
+          <p class="meta" id="ticket-meta"></p>
+        </div>
+
+        <div class="console">
+          <div class="controls">
+            <button type="button" class="primary" id="play">播放</button>
+            <button type="button" id="next">单步</button>
+            <button type="button" id="reset">重置</button>
+            <span class="counter" id="counter" aria-live="polite"></span>
           </div>
-          <div class="fates">
-            <article class="fate" id="fate-bare">
+          <div class="arms">
+            <article class="arm" id="arm-bare">
               <header>
                 <h3>裸跑</h3>
                 <span class="how">只有 ToolGateway</span>
@@ -547,7 +583,7 @@
               <div class="ledger" id="ledger-bare"></div>
               <p class="verdict" id="verdict-bare"></p>
             </article>
-            <article class="fate" id="fate-gated">
+            <article class="arm" id="arm-gated">
               <header>
                 <h3>加运行时门禁</h3>
                 <span class="how">ToolGateway → RuntimeGate</span>
@@ -557,392 +593,491 @@
               <p class="verdict" id="verdict-gated"></p>
             </article>
           </div>
-          <p class="foot-note" id="fates-note"></p>
-        </section>
+          <p class="readline" id="readline"></p>
+        </div>
+      </section>
 
-        <section id="results">
+      <section id="flow">
+        <div class="lead">
+          <h2>一次退款调用经过什么</h2>
+          <p>
+            可拖动、可缩放，点节点聚焦，按 R 追一条路径。门禁挂在网关后面，只读不写；Oracle 从权威状态独立裁决，
+            不经过门禁也不问 Agent。
+            <a href="./diagram.html" target="_blank" rel="noopener">在新标签打开</a>
+          </p>
+        </div>
+        <div class="frame">
+          <iframe src="./diagram.html" title="RuleArena 运行时门禁架构图" loading="lazy"></iframe>
+        </div>
+      </section>
+
+      <section id="numbers">
+        <div class="lead">
           <h2>全量实测</h2>
-          <p class="sub">
-            15 张工单（5 张正常、6 张回执丢失、4 张工单金额与实付不符）× 每种模式 3 次重复，
-            共 90 次真实运行。两条结论必须并列读：把事做对，和路上没多花钱。
+          <p>
+            15 张工单（5 张正常、6 张回执丢失、4 张工单金额与实付不符），每种模式 3 次重复，共 90 次真实运行。
+            两个结论必须一起读：把事做对，和路上没多花钱。
           </p>
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>指标</th>
-                  <th>裸跑</th>
-                  <th>加门禁</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>终态正确率</td>
-                  <td>9/15 = 60% [36–80%]</td>
-                  <td class="win">15/15 = 100% [80–100%]</td>
-                </tr>
-                <tr>
-                  <td>意外资损笔数</td>
-                  <td class="lose">6 笔（¥640）</td>
-                  <td class="win">0 笔（¥0）</td>
-                </tr>
-                <tr>
-                  <td>意外资损金额（跨 45 次运行合计）</td>
-                  <td class="lose">¥1920</td>
-                  <td class="win">¥0</td>
-                </tr>
-                <tr>
-                  <td>正常工单误拦</td>
-                  <td>—（无门禁）</td>
-                  <td class="win">0</td>
-                </tr>
-                <tr>
-                  <td>该转人工的转人工</td>
-                  <td>4/4</td>
-                  <td>4/4</td>
-                </tr>
-                <tr>
-                  <td>工具调用 / 门禁检查</td>
-                  <td>120 / 0</td>
-                  <td>90 / 207</td>
-                </tr>
-                <tr>
-                  <td>平均单工单耗时</td>
-                  <td>5.78s</td>
-                  <td class="win">5.48s</td>
-                </tr>
-                <tr>
-                  <td>INFRA_FAILED</td>
-                  <td>0</td>
-                  <td>0</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <ul class="plain">
-            <li>
-              <strong>资损与任务完成是两件事。</strong>裸跑组丢的是钱，不是"答错了"；这两个指标在任何报告里
-              都不合并。任务做对了路上多退一笔，仍然是不可上线的。
-            </li>
-            <li>
-              <strong>门禁更省，不是更贵。</strong>它少发 30 次工具调用（超时后不再盲目重试），平均耗时
-              反而低 0.3 秒——207 次只读检查没有换来更慢的运行。
-            </li>
-            <li>
-              <strong>回执丢失组必须同时声明第二个缺陷轴。</strong>忠实实现自己会拒绝第二笔超额退款，
-              单靠"回执丢失"退不出第二笔钱，Oracle 也就无从判定资损。这是让失败<em>可观察</em>的必要条件，
-              写在每张工单的构造说明里。
-            </li>
-          </ul>
-        </section>
+        </div>
+        <div class="scroller">
+          <table>
+            <thead>
+              <tr>
+                <th>指标</th>
+                <th>裸跑</th>
+                <th>加运行时门禁</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>终态正确率</td>
+                <td>9/15 = 60% [36-80%]</td>
+                <td class="win">15/15 = 100% [80-100%]</td>
+              </tr>
+              <tr>
+                <td>意外资损笔数</td>
+                <td class="lose">6 笔（每笔 ¥640）</td>
+                <td class="win">0 笔（¥0）</td>
+              </tr>
+              <tr>
+                <td>意外资损金额（跨 45 次运行合计）</td>
+                <td class="lose">¥1920</td>
+                <td class="win">¥0</td>
+              </tr>
+              <tr>
+                <td>正常工单误拦</td>
+                <td>不适用（无门禁）</td>
+                <td class="win">0</td>
+              </tr>
+              <tr>
+                <td>该转人工的转人工</td>
+                <td>4/4</td>
+                <td>4/4</td>
+              </tr>
+              <tr>
+                <td>工具调用 / 门禁检查</td>
+                <td>120 / 0</td>
+                <td>90 / 207</td>
+              </tr>
+              <tr>
+                <td>平均单工单耗时</td>
+                <td>5.78s</td>
+                <td class="win">5.48s</td>
+              </tr>
+              <tr>
+                <td>INFRA_FAILED</td>
+                <td>0</td>
+                <td>0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="readline">
+          门禁组少发 30 次工具调用（超时后不再盲目重试），平均耗时反而低 0.3 秒：207 次只读检查没有换来更慢的运行。
+          回执丢失那 6 张工单必须同时声明第二个缺陷轴，因为忠实实现自己会拒绝第二笔超额退款，单靠回执丢失退不出第二笔钱，
+          Oracle 也就无从判定资损。每张工单的构造说明里写着这件事。
+        </p>
+      </section>
 
-        <section id="why">
-          <h2>它凭什么可信</h2>
-          <p class="sub">四条不许违反的不变量，和四个靠"真跑一遍"才发现的问题。</p>
-          <div class="cards">
-            <div class="card">
-              <h3><span class="tag">INV-A</span>Agent 不知道门禁存在</h3>
-              <p>
-                Agent 包不 import 门禁包的任何符号（含 <span class="mono">TYPE_CHECKING</span>），
-                门禁的理由码也不会出现在它拿到的结果里——否则它可以学着绕开。
-              </p>
+      <section id="trust">
+        <div class="lead">
+          <h2>四条不变量，四个跑出来的缺陷</h2>
+          <p>不变量是约束，缺陷是实测产物。四个缺陷都不是想出来的，每一个都补了回归测试。</p>
+        </div>
+        <div class="cols">
+          <div>
+            <div class="item">
+              <h3><span>INV-A</span>Agent 不知道门禁存在</h3>
+              <p>不 import 门禁任何符号（含 TYPE_CHECKING），门禁的理由码也不进它拿到的结果。</p>
             </div>
-            <div class="card">
-              <h3><span class="tag">INV-B</span>门禁只做确定性算术</h3>
-              <p>
-                读快照、读回执、比较金额。不做语义判断、不调用模型、不写业务状态——用依赖白名单静态检查。
-              </p>
+            <div class="item">
+              <h3><span>INV-B</span>门禁只做确定性算术</h3>
+              <p>读快照、读回执、比金额。不做语义判断、不调用模型、不写业务状态，用依赖白名单静态检查。</p>
             </div>
-            <div class="card">
-              <h3><span class="tag">INV-C</span>任务成功与无资损分开统计</h3>
-              <p>终态正确 ≠ 没多退钱，两个指标并列报、都设成必过项。</p>
+            <div class="item">
+              <h3><span>INV-C</span>任务成功与无资损分开统计</h3>
+              <p>终态正确不等于没多退钱，两个指标并列报，都是必过项。</p>
             </div>
-            <div class="card">
-              <h3><span class="tag">INV-D</span>门禁不决定终态</h3>
-              <p>
-                门禁只会拦、放行或转未知；"这笔钱确实多退了"必须由 Oracle
-                在权威状态上算出来。预算检查与违规判定不能混为一谈。
-              </p>
-            </div>
-            <div class="card">
-              <h3><span class="tag">缺陷 1</span>业务拒绝被读成了成功</h3>
-              <p>
-                沙箱对业务拒绝返回 HTTP 200 + <span class="mono">status: REJECTED</span>，
-                工具层最初只看状态码。首轮实测里裸跑组因此在 4 张工单上"自述成功"，而聚合指标看着完全正常。
-              </p>
-            </div>
-            <div class="card">
-              <h3><span class="tag">缺陷 2</span>504 没走恢复路径</h3>
-              <p>
-                等待超过沙箱延迟的调用方会先收到 504，被当成硬失败抛出——而那张回执就躺在库里。
-                这是既有测试在真实沙箱上跑出来的。
-              </p>
-            </div>
-            <div class="card">
-              <h3><span class="tag">缺陷 3</span>正确的重试反而被拦</h3>
-              <p>
-                网关原先固定按"预算 → 回执 → 生效"的顺序走，于是"再发一次同一个幂等键问结果"——
-                唯一正确的恢复方式——被当成新的退款拒绝了。现在先问回执：一次已经存在的写入不是新的写入。
-              </p>
-            </div>
-            <div class="card">
-              <h3><span class="tag">缺陷 4</span>门禁的理由码泄给了 Agent</h3>
-              <p>
-                结果里带着 <span class="mono">REFUND_BUDGET_EXCEEDED</span> 这类字符串，
-                等于告诉调用方有一个门禁、而且它刚说话了，违反 INV-A 的运行时语义。
-              </p>
+            <div class="item">
+              <h3><span>INV-D</span>门禁不决定终态</h3>
+              <p>门禁只拦、放行或转未知。多退了钱必须由 Oracle 在权威状态上算出来，预算检查与违规判定不混为一谈。</p>
             </div>
           </div>
-          <p class="foot-note">
-            四个都是跑出来的，不是想出来的，每一个都补了回归测试。README 与
-            <span class="mono">docs/agent-gateway-spec.md</span> §8 里记录了完整过程。
-          </p>
-        </section>
+          <div>
+            <div class="item">
+              <h3><span>缺陷 1</span>业务拒绝被读成了成功</h3>
+              <p>沙箱对业务拒绝返回 HTTP 200 加 REJECTED，工具层最初只看状态码，让裸跑组在 4 张工单上自述成功。</p>
+            </div>
+            <div class="item">
+              <h3><span>缺陷 2</span>504 没走恢复路径</h3>
+              <p>等过沙箱延迟的调用方会先收到 504，被当成硬失败抛出，而那张回执就躺在库里。</p>
+            </div>
+            <div class="item">
+              <h3><span>缺陷 3</span>正确的重试反而被拦</h3>
+              <p>网关原先固定按预算、回执、生效的顺序走，于是「再发一次同一个键问结果」被当成新退款拒绝。现在先问回执。</p>
+            </div>
+            <div class="item">
+              <h3><span>缺陷 4</span>门禁的理由码泄给了 Agent</h3>
+              <p>结果里带着 REFUND_BUDGET_EXCEEDED 这类字符串，等于告诉调用方有个门禁、而且它刚说话了。</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <section id="repro">
+      <section id="repro">
+        <div class="lead">
           <h2>复现</h2>
-          <p class="sub">数字来自真实运行，任何人都能在本地重跑。</p>
-          <pre><code># 起 Sandbox（真实 HTTP 服务 + PostgreSQL）
+          <p>数字来自真实运行，任何人都能在本地重跑。原始记录与全部指纹都在仓库里。</p>
+        </div>
+        <pre><code># 起 Sandbox（真实 HTTP 服务 + PostgreSQL）
 docker compose up -d --build --wait commerce-sandbox
 
-# 同一份 Agent 跑两次：裸跑 vs 加门禁，各 3 次重复
+# 同一份 Agent 跑两次：裸跑 / 加门禁，各 3 次重复
 uv run rulearena refund-bench --suite benchmarks/refund_agents/development-v1.json \
                               --modes bare,gated --repetitions 3
 
 # 复核最近一次判定（版本 / seed / 预算 / 三项门禁检查）
 uv run rulearena refund-verify --latest</code></pre>
-          <p>
-            复现命令、原始运行记录与全部指纹都在
-            <a href="https://github.com/Ygrowly/RuleArena">GitHub 仓库</a>；本页数据由
-            <span class="mono">scripts/export_refund_gate_demo.py</span> 从一次真实运行导出。
-          </p>
-        </section>
+      </section>
 
-        <section id="bounds">
-          <h2>这个数字的边界</h2>
-          <ul class="plain">
-            <li>
-              <strong>它是 15 张工单上的一个对照，不是"绝对安全"。</strong>门禁把这一类失败挡住，
-              不等于这套系统能证明任何 Agent 都没问题。没有发现问题的说法，只能表述为"在给定预算内没发现"。
-            </li>
-            <li>
-              <strong>被测环境是真实业务系统的替身，不是任何客户的系统。</strong>它替代客户系统，
-              是为了让"验证"这件事成立，同时把危险动作关在笼子里。
-            </li>
-            <li>
-              <strong>被测 Agent 是确定性策略，不接模型。</strong>这是刻意的：先把对照跑成立、让失败面
-              可复现，再考虑换成模型——否则差异说不清是门禁起作用还是模型随机。
-            </li>
-            <li>
-              <strong>门禁的预算检查镜像的是"忠实实现"的边界。</strong>在一个本身就允许超额退款的环境里，
-              它会比沙箱更早拦住——对门禁来说，这是正确的错法。
-            </li>
-          </ul>
-        </section>
-      </main>
+      <section id="bounds">
+        <div class="lead">
+          <h2>这些数字的边界</h2>
+        </div>
+        <ul class="bounds">
+          <li>
+            <strong>它是 15 张工单上的一个对照，不是「绝对安全」。</strong>门禁挡住这一类失败，
+            不等于能证明任何 Agent 都没问题；没发现问题的说法只能表述为「在给定预算内没发现」。
+          </li>
+          <li>
+            <strong>被测环境是真实业务系统的替身，不是任何客户的系统。</strong>它替代客户系统，
+            是为了让验证这件事成立，同时把危险动作关在笼子里。
+          </li>
+          <li>
+            <strong>被测 Agent 是确定性策略，不接模型。</strong>这是刻意的：先把对照跑成立、让失败面可复现，
+            再考虑换成模型，否则差异说不清是门禁起作用还是模型随机。
+          </li>
+          <li>
+            <strong>门禁的预算检查镜像的是忠实实现的边界。</strong>在一个本身就允许超额退款的环境里，
+            它会比沙箱更早拦住。对门禁来说，这是正确的错法。
+          </li>
+        </ul>
+      </section>
+    </main>
 
-      <footer>
-        <p id="provenance"></p>
-        <p>
-          RuleArena：让模型去搜人想不到的路径，让确定性程序去证明路径是不是真的有问题。
-        </p>
-      </footer>
-    </div>
+    <footer class="wrap">
+      <p id="provenance"></p>
+      <p>
+        RuleArena：让模型去搜人想不到的路径，让确定性程序去证明路径是不是真的有问题。
+        本页数据由 <span class="mono">scripts/export_refund_gate_demo.py</span> 从一次真实运行导出。
+      </p>
+    </footer>
 
     <script id="refund-demo" type="application/json">__REFUND_DEMO_JSON__</script>
     <script>
       (function () {
         "use strict";
-        var MODES = [
-          { key: "BARE", panel: "bare", label: "裸跑", modifier: "loss" },
-          { key: "GATED", panel: "gated", label: "加门禁", modifier: "clean" },
-        ];
+
+        var data = null;
+        var caseId = null;
+        var cursor = 0;
+        var timer = null;
+
+        function $(id) {
+          return document.getElementById(id);
+        }
 
         function byId(list, id) {
           for (var i = 0; i < list.length; i++) if (list[i].case_id === id) return list[i];
           return null;
         }
 
-        function money(text) {
-          var value = Number(text);
-          return (value < 0 ? "-" : "") + "¥" + Math.abs(value).toFixed(2);
+        function fact(mode, id) {
+          return byId((data.modes[mode] || {}).tickets || [], id);
         }
 
-        function order(fact) {
-          var orders = (fact.final_state && fact.final_state.orders) || [];
-          return orders[0] || null;
+        function money(value) {
+          var n = Number(value);
+          return (n < 0 ? "-" : "") + "¥" + Math.abs(n).toFixed(2);
         }
 
-        function factOf(data, mode, caseId) {
-          return byId((data.modes[mode] || {}).tickets || [], caseId);
+        function orderOf(f) {
+          return ((f.final_state && f.final_state.orders) || [])[0] || null;
         }
 
-        function label(data, ticket) {
-          var bare = factOf(data, "BARE", ticket.case_id);
-          var gated = factOf(data, "GATED", ticket.case_id);
+        function labelOf(ticket) {
+          var bare = fact("BARE", ticket.case_id);
+          var gated = fact("GATED", ticket.case_id);
           if (bare.loss_order_ids.length) return "回执丢失 · 多退 " + money(bare.loss_amount);
           if (bare.escalated && gated.escalated) return "工单与实付不符 · 转人工";
-          return "正常工单 · 两侧都做对";
+          return "正常工单 · 两边都做对";
         }
 
-        function render(data) {
-          var tickets = data.tickets || [];
-          var picker = document.querySelector(".ticket-picker");
-          var selected = null;
+        function stepsOf(mode) {
+          var f = fact(mode, caseId);
+          return (f && f.steps) || [];
+        }
 
-          tickets.forEach(function (ticket) {
-            var button = document.createElement("button");
-            button.type = "button";
-            button.className = "tab";
-            button.setAttribute("role", "tab");
-            button.title = ticket.case_id;
-            button.textContent = label(data, ticket);
-            button.addEventListener("click", function () {
-              selected = ticket.case_id;
-              Array.prototype.forEach.call(picker.children, function (child) {
-                child.setAttribute("aria-selected", child === button ? "true" : "false");
+        function maxCursor() {
+          return Math.max(stepsOf("BARE").length, stepsOf("GATED").length, 1);
+        }
+
+        function stepNode(step, index) {
+          var li = document.createElement("li");
+          var idx = document.createElement("span");
+          idx.className = "idx";
+          idx.textContent = String(index + 1);
+          li.appendChild(idx);
+
+          var body = document.createElement("div");
+          var act = document.createElement("div");
+          act.className = "act";
+          act.appendChild(document.createTextNode(step.action_type));
+          var tag = document.createElement("span");
+          tag.className = "tag " + String(step.outcome).toLowerCase();
+          tag.textContent = step.outcome;
+          act.appendChild(tag);
+          body.appendChild(act);
+
+          if (step.arguments && step.arguments.amount) {
+            var amount = document.createElement("div");
+            amount.className = "kv";
+            amount.textContent = "金额 " + step.arguments.amount;
+            body.appendChild(amount);
+          }
+          if (step.idempotency_key) {
+            var key = document.createElement("div");
+            key.className = "kv";
+            key.textContent = "幂等键 " + step.idempotency_key;
+            body.appendChild(key);
+          }
+          if (step.guard_decision) {
+            var guard = document.createElement("div");
+            guard.className = "guard";
+            guard.textContent = "门禁 " + step.guard_decision + " · " + step.guard_reason;
+            body.appendChild(guard);
+          }
+          li.appendChild(body);
+          return li;
+        }
+
+        function renderSteps(mode) {
+          var list = $("steps-" + mode.toLowerCase());
+          var steps = stepsOf(mode);
+          list.innerHTML = "";
+          if (!steps.length) {
+            var waiting = document.createElement("li");
+            waiting.className = "on";
+            waiting.innerHTML =
+              '<span class="idx">-</span><span class="waiting">这次运行没有工具调用</span>';
+            list.appendChild(waiting);
+            return;
+          }
+          for (var i = 0; i < steps.length; i++) {
+            var li = stepNode(steps[i], i);
+            if (i < cursor) li.className = "on";
+            list.appendChild(li);
+          }
+        }
+
+        function renderLedger(mode) {
+          var f = fact(mode, caseId);
+          var box = $("ledger-" + mode.toLowerCase());
+          var verdict = $("verdict-" + mode.toLowerCase());
+          var done = cursor >= maxCursor();
+          box.className = "ledger" + (done ? " on" : "");
+          verdict.className = "verdict" + (done ? " on" : "");
+          if (!f || !done) {
+            box.innerHTML = "";
+            verdict.textContent = "";
+            return;
+          }
+          var row = orderOf(f);
+          var paid = row ? Number(row.paid_amount) : 0;
+          var refunded = row ? Number(row.refunded_amount) : 0;
+          var excess = refunded - paid;
+          box.innerHTML = "";
+          [
+            ["实付", money(paid), ""],
+            ["累计已退", money(refunded), ""],
+            ["差额", money(excess), excess > 0 ? "bad" : excess === 0 ? "good" : ""]
+          ].forEach(function (pair) {
+            var cell = document.createElement("div");
+            cell.className = "cell";
+            var k = document.createElement("span");
+            k.className = "k";
+            k.textContent = pair[0];
+            var v = document.createElement("span");
+            v.className = "v " + pair[2];
+            v.textContent = pair[1];
+            cell.appendChild(k);
+            cell.appendChild(v);
+            box.appendChild(cell);
+          });
+
+          if ((f.loss_order_ids || []).length) {
+            verdict.className = "verdict on bad";
+            verdict.textContent =
+              "多退 " + money(f.loss_amount) + "。这是真实资损，Oracle 判 " +
+              f.violated_invariants.join(" + ") + " 违规。";
+          } else if (f.final_state_satisfied) {
+            verdict.className = "verdict on good";
+            verdict.textContent =
+              "符合期望终态。Agent " +
+              (f.claimed_complete ? "自述已完成" : "转人工") +
+              "，门禁检查 " + f.gate_checks + " 次。";
+          } else {
+            verdict.className = "verdict on warn";
+            verdict.textContent = "未达成期望终态。" + (f.escalation_reason || "");
+          }
+        }
+
+        function renderReadline() {
+          var text = $("readline");
+          if (cursor === 0) {
+            text.innerHTML = "按「单步」开始。左边是裸跑，右边是同一份代码加了一道门禁。";
+            return;
+          }
+          if (cursor < maxCursor()) {
+            var unknown = 0;
+            var confirmed = 0;
+            stepsOf("BARE")
+              .slice(0, cursor)
+              .forEach(function (step) {
+                if (step.action_type !== "REFUND_ORDER") return;
+                if (step.outcome === "TIMEOUT") unknown += 1;
+                if (step.outcome === "SUCCEEDED") confirmed += 1;
               });
-              show(data, selected);
-            });
-            picker.appendChild(button);
-          });
-          // Open on the ticket that shows the money moving, not on the tidy one.
-          var moving = tickets.filter(function (ticket) {
-            return factOf(data, "BARE", ticket.case_id).loss_order_ids.length > 0;
-          });
-          selected = (moving[0] || tickets[0] || {}).case_id || null;
-          Array.prototype.forEach.call(picker.children, function (child, index) {
-            var ticket = tickets[index];
-            child.setAttribute(
-              "aria-selected",
-              ticket && ticket.case_id === selected ? "true" : "false"
-            );
-          });
-
-          document.getElementById("provenance").textContent =
-            (data.provenance && data.provenance.honesty) || "";
-          document.getElementById("fates-note").textContent =
-            (data.provenance && data.provenance.scope) || "";
-          if (selected) show(data, selected);
+            text.innerHTML =
+              "裸跑这边，调用方此刻知道的是：确认成功 <b>" + confirmed +
+              "</b> 笔，结果不确定 <b>" + unknown +
+              "</b> 笔。账本上真正发生了什么，要等运行结束由权威状态给出。";
+            return;
+          }
+          var bare = fact("BARE", caseId);
+          var row = orderOf(bare);
+          var timeouts = stepsOf("BARE").filter(function (s) {
+            return s.action_type === "REFUND_ORDER" && s.outcome === "TIMEOUT";
+          }).length;
+          text.innerHTML =
+            "裸跑结束：调用方看到 <b>" + timeouts + "</b> 笔超时，" +
+            (bare.loss_order_ids.length ? "每一笔其实都已入账" : "没有任何一笔入账") +
+            "，账本是 <b>" + money(row ? row.refunded_amount : 0) +
+            "</b>。门禁这边，超时之后先按幂等键查回执，拿到结果就不再重试。";
         }
 
-        function show(data, caseId) {
-          var ticket = byId(data.tickets || [], caseId);
-          if (!ticket) return;
-          document.getElementById("ticket-text").textContent = ticket.ticket_text;
-          var axes = ticket.defect_axes || [];
-          document.getElementById("ticket-meta").textContent =
-            "环境缺陷轴：" +
-            (axes.length ? axes.join(" + ") : "无（忠实实现）") +
-            "　·　" +
-            ticket.construction_reason;
-
-          MODES.forEach(function (mode) {
-            var fact = byId((data.modes[mode.key] || {}).tickets || [], caseId);
-            var panel = document.getElementById("fate-" + mode.panel);
-            var steps = document.getElementById("steps-" + mode.panel);
-            var ledger = document.getElementById("ledger-" + mode.panel);
-            var verdict = document.getElementById("verdict-" + mode.panel);
-            steps.innerHTML = "";
-            if (!fact) {
-              verdict.className = "verdict warn";
-              verdict.textContent = "该模式没有这次运行的记录。";
-              return;
-            }
-
-            (fact.steps || []).forEach(function (step) {
-              var item = document.createElement("li");
-              var title = document.createElement("div");
-              title.className = "action";
-              title.appendChild(document.createTextNode(step.action_type));
-              var badge = document.createElement("span");
-              badge.className = "badge " + String(step.outcome).toLowerCase();
-              badge.textContent = step.outcome;
-              title.appendChild(badge);
-              item.appendChild(title);
-
-              var detail = (step.arguments && step.arguments.amount) || "";
-              if (detail) {
-                var amount = document.createElement("div");
-                amount.className = "key";
-                amount.textContent = "金额 " + detail;
-                item.appendChild(amount);
-              }
-              if (step.idempotency_key) {
-                var key = document.createElement("div");
-                key.className = "key";
-                key.textContent = "幂等键 " + step.idempotency_key;
-                item.appendChild(key);
-              }
-              if (step.guard_decision) {
-                var guard = document.createElement("div");
-                guard.className = "guard";
-                guard.textContent = "门禁 " + step.guard_decision + " · " + step.guard_reason;
-                item.appendChild(guard);
-              }
-              steps.appendChild(item);
+        function renderPicker() {
+          var picker = document.querySelector(".picker");
+          picker.innerHTML = "";
+          (data.tickets || []).forEach(function (ticket) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.setAttribute("role", "tab");
+            b.title = ticket.case_id;
+            b.textContent = labelOf(ticket);
+            b.addEventListener("click", function () {
+              stop();
+              select(ticket.case_id);
             });
-
-            var row = order(fact);
-            var paid = row ? Number(row.paid_amount) : 0;
-            var refunded = row ? Number(row.refunded_amount) : 0;
-            ledger.innerHTML = "";
-            [
-              ["实付", money(paid)],
-              ["累计已退", money(refunded)],
-              ["差额", money(refunded - paid)],
-            ].forEach(function (pair) {
-              var cell = document.createElement("div");
-              var k = document.createElement("span");
-              k.className = "k";
-              k.textContent = pair[0];
-              var v = document.createElement("span");
-              v.className = "v";
-              v.textContent = pair[1];
-              cell.appendChild(k);
-              cell.appendChild(v);
-              ledger.appendChild(cell);
-            });
-
-            var losses = fact.loss_order_ids || [];
-            panel.className = "fate " + (losses.length ? "loss" : "clean");
-            if (losses.length) {
-              verdict.className = "verdict bad";
-              verdict.textContent =
-                "多退 " + money(fact.loss_amount) + "（这是一笔真实的资损）";
-            } else if (fact.final_state_satisfied) {
-              verdict.className = "verdict good";
-              verdict.textContent =
-                "符合期望终态 · Agent " +
-                (fact.claimed_complete ? "自述已完成" : "转人工") +
-                " · 门禁检查 " +
-                fact.gate_checks +
-                " 次";
-            } else {
-              verdict.className = "verdict warn";
-              verdict.textContent =
-                "未达成期望终态 · " + (fact.escalation_reason || "无可用动作");
-            }
+            picker.appendChild(b);
+          });
+          Array.prototype.forEach.call(picker.children, function (child, i) {
+            var t = data.tickets[i];
+            child.setAttribute("aria-selected", t && t.case_id === caseId ? "true" : "false");
           });
         }
 
-        // Dispatched last, after every declaration above has been evaluated: the data is
-        // already in the document when the page is published, so this runs immediately.
+        function paint() {
+          renderSteps("BARE");
+          renderSteps("GATED");
+          renderLedger("BARE");
+          renderLedger("GATED");
+          renderReadline();
+          $("counter").textContent = "步骤 " + cursor + " / " + maxCursor();
+          $("play").disabled = cursor >= maxCursor();
+          $("next").disabled = cursor >= maxCursor();
+        }
+
+        function select(id) {
+          caseId = id;
+          cursor = 1;
+          var ticket = byId(data.tickets || [], id);
+          $("ticket-text").textContent = ticket ? ticket.ticket_text : "";
+          $("ticket-meta").textContent = ticket
+            ? "环境缺陷轴：" +
+              ((ticket.defect_axes || []).length
+                ? ticket.defect_axes.join(" + ")
+                : "无（忠实实现）") +
+              "　" +
+              ticket.construction_reason
+            : "";
+          renderPicker();
+          paint();
+        }
+
+        function stop() {
+          if (timer) {
+            clearInterval(timer);
+            timer = null;
+          }
+          $("play").textContent = "播放";
+        }
+
+        function advance() {
+          if (cursor >= maxCursor()) {
+            stop();
+            return;
+          }
+          cursor += 1;
+          paint();
+          if (cursor >= maxCursor()) stop();
+        }
+
+        function play() {
+          if (timer) {
+            stop();
+            return;
+          }
+          if (cursor >= maxCursor()) cursor = 0;
+          $("play").textContent = "暂停";
+          paint();
+          timer = setInterval(advance, 1100);
+        }
+
+        function start(payload) {
+          data = payload;
+          $("provenance").textContent = (payload.provenance && payload.provenance.honesty) || "";
+          $("play").addEventListener("click", play);
+          $("next").addEventListener("click", function () {
+            stop();
+            advance();
+          });
+          $("reset").addEventListener("click", function () {
+            stop();
+            cursor = 1;
+            paint();
+          });
+          var tickets = payload.tickets || [];
+          var moving = tickets.filter(function (t) {
+            return fact("BARE", t.case_id).loss_order_ids.length > 0;
+          });
+          select((moving[0] || tickets[0] || {}).case_id || null);
+        }
+
         function boot() {
-          var node = document.getElementById("refund-demo");
-          var raw = node.textContent.trim();
+          var raw = $("refund-demo").textContent.trim();
           if (raw.charAt(0) === "{") {
-            render(JSON.parse(raw));
+            start(JSON.parse(raw));
             return;
           }
           fetch("./refund-gate-demo.json")
             .then(function (response) {
               return response.json();
             })
-            .then(render)
+            .then(start)
             .catch(function () {
-              document.getElementById("fates-note").textContent =
-                "演示数据未加载（本地预览时请先运行 scripts/build_site.py）。";
+              $("readline").textContent =
+                "演示数据未加载：本地预览请先运行 scripts/build_site.py。";
             });
         }
 

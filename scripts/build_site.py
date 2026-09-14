@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site" / "index.html"
 FROZEN = ROOT / "frontend" / "public" / "frozen" / "refund-gate-demo.json"
 SEARCH_DEMO = ROOT / "frontend" / "dist-standalone" / "rulearena-demo.html"
+GATE_DIAGRAM = ROOT / "site" / "gate-diagram.html"
 OUTPUT = ROOT / "_site"
 
 PAYLOAD_TOKEN = "__REFUND_DEMO_JSON__"
@@ -37,11 +38,12 @@ def _payload() -> str:
 
 
 def main() -> int:
-    if not SEARCH_DEMO.exists():
-        raise SystemExit(
-            f"{SEARCH_DEMO} is missing; run the frontend build and "
-            "`scripts/build_standalone_demo.py` first"
-        )
+    for required in (SEARCH_DEMO, GATE_DIAGRAM):
+        if not required.exists():
+            raise SystemExit(
+                f"{required} is missing; run the frontend build, "
+                "`scripts/build_standalone_demo.py`, and the archify render first"
+            )
     page = SOURCE.read_text(encoding="utf-8")
     if PAYLOAD_TOKEN not in page:
         raise SystemExit(f"{SOURCE} no longer contains {PAYLOAD_TOKEN}")
@@ -52,8 +54,11 @@ def main() -> int:
     (OUTPUT / "demo.html").write_text(
         SEARCH_DEMO.read_text(encoding="utf-8"), encoding="utf-8"
     )
-    print(f"wrote {OUTPUT / 'index.html'}")
-    print(f"wrote {OUTPUT / 'demo.html'}")
+    (OUTPUT / "diagram.html").write_text(
+        GATE_DIAGRAM.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    for name in ("index.html", "demo.html", "diagram.html"):
+        print(f"wrote {OUTPUT / name}")
     return 0
 
 

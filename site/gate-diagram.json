@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RuleArena 运行时门禁",
+    "subtitle": "一次退款调用经过的每一道检查，以及裁决为什么不属于门禁",
+    "output": "diagram.html",
+    "quality_profile": "showcase",
+    "visual_preset": "blueprint",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "一次退款的调用路径",
+        "focus": [
+          "ticket",
+          "agent",
+          "gateway",
+          "gate",
+          "sandbox",
+          "postgres"
+        ],
+        "note": "工单进来，经过网关与门禁，最后落到沙箱的事务里。"
+      },
+      {
+        "id": "independent-verdict",
+        "label": "裁决是独立读出来的",
+        "focus": [
+          "sandbox",
+          "oracle"
+        ],
+        "note": "Oracle 不经过门禁，也不问 Agent：它只读快照、回执与事件。"
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      40,
+      60
+    ],
+    "cols": 6,
+    "cellW": 176,
+    "cellH": 76,
+    "gapX": 62,
+    "gapY": 74
+  },
+  "components": [
+    {
+      "id": "ticket",
+      "type": "external",
+      "label": "客服工单",
+      "sublabel": "用户诉求",
+      "row": 0,
+      "col": 0
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Refund Agent",
+      "sublabel": "确定性策略",
+      "row": 0,
+      "col": 1
+    },
+    {
+      "id": "gateway",
+      "type": "backend",
+      "label": "ToolGateway",
+      "sublabel": "唯一对外通道",
+      "row": 0,
+      "col": 2
+    },
+    {
+      "id": "gate",
+      "type": "security",
+      "label": "RuntimeGate",
+      "sublabel": "三段确定性检查",
+      "tag": "只读",
+      "row": 0,
+      "col": 3
+    },
+    {
+      "id": "sandbox",
+      "type": "backend",
+      "label": "Commerce Sandbox",
+      "sublabel": "真实 HTTP",
+      "row": 0,
+      "col": 4
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "权威状态",
+      "row": 1,
+      "col": 4
+    },
+    {
+      "id": "oracle",
+      "type": "security",
+      "label": "Oracle",
+      "sublabel": "独立裁决 8 条不变量",
+      "row": 1,
+      "col": 5
+    }
+  ],
+  "connections": [
+    {
+      "from": "ticket",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "to": "gateway"
+    },
+    {
+      "from": "gateway",
+      "to": "gate",
+      "label": "写入"
+    },
+    {
+      "from": "gate",
+      "to": "sandbox",
+      "label": "放行后写入"
+    },
+    {
+      "from": "gate",
+      "to": "sandbox",
+      "label": "读快照 / 查回执",
+      "variant": "dashed",
+      "labelDy": -24
+    },
+    {
+      "from": "sandbox",
+      "to": "postgres"
+    },
+    {
+      "from": "sandbox",
+      "to": "oracle",
+      "label": "快照 / 回执 / 事件",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "三段检查，只做确定性算术",
+      "items": [
+        "retry_check：按幂等键查回执，命中就直接用，不重放",
+        "pre_check：累计已退 + 本次 > 实付，拦住",
+        "post_check：重读快照，确认这笔动作真的发生了",
+        "任何一段读不到权威状态：UNKNOWN，一律不当作成功"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "为什么裁决不属于门禁",
+      "items": [
+        "门禁只回答「会不会超预算」「有没有生效」",
+        "「这笔钱确实多退了」必须由 Oracle 在权威状态上算出来",
+        "门禁不写业务状态，不做语义判断，不调用模型"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Agent 看不见门禁",
+      "items": [
+        "Agent 包不 import 门禁任何符号，含 TYPE_CHECKING",
+        "门禁的理由码只留在网关的调用记录里",
+        "Agent 只知道「这次调用没发生」或「结果不确定」"
+      ]
+    }
+  ]
+}
