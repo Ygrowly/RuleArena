@@ -20,8 +20,11 @@ jobs:
         with: {version: "0.11.19", enable-cache: true}
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
+      # Matches the frontend image, which builds on node:22-alpine. The tests were
+      # running on node 20 while the artifact was built on 22, and jsdom@30 pulls
+      # undici@8, whose webidl helpers do not exist in the older runtime.
       - uses: actions/setup-node@v4
-        with: {node-version: "20"}
+        with: {node-version: "22"}
       - uses: pnpm/action-setup@v4
         with: {version: "10.15.0", run_install: false}
       - run: uv sync --frozen --all-groups
