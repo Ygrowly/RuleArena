@@ -148,6 +148,11 @@ class DefectAxis(StrEnum):
 
     COUPON_RESTORED_ON_REFUND = "COUPON_RESTORED_ON_REFUND"
     REFUND_AGAINST_ORIGINAL = "REFUND_AGAINST_ORIGINAL"
+    # The refund commits and then the acknowledgement is lost, so the caller sees a
+    # timeout for a write that already happened. Unlike the axes above it changes no
+    # business fact: it is the environment's *transport* deviating, which is what makes
+    # "the tool timed out but the money moved" reproducible instead of staged.
+    REFUND_ACK_LOST = "REFUND_ACK_LOST"
     POINTS_GRANTED_AGAIN_ON_REFUND = "POINTS_GRANTED_AGAIN_ON_REFUND"
     POINTS_OVERREDEMPTION = "POINTS_OVERREDEMPTION"
     FULL_REFUND_AFTER_CONSUMPTION = "FULL_REFUND_AFTER_CONSUMPTION"
@@ -162,12 +167,17 @@ class DefectAxis(StrEnum):
 AXES_BY_SCENARIO: Mapping[ScenarioType, frozenset[DefectAxis]] = MappingProxyType(
     {
         ScenarioType.PROMOTION: frozenset(
-            {DefectAxis.COUPON_RESTORED_ON_REFUND, DefectAxis.REFUND_AGAINST_ORIGINAL}
+            {
+                DefectAxis.COUPON_RESTORED_ON_REFUND,
+                DefectAxis.REFUND_AGAINST_ORIGINAL,
+                DefectAxis.REFUND_ACK_LOST,
+            }
         ),
         ScenarioType.REFUND_POINTS: frozenset(
             {
                 DefectAxis.POINTS_GRANTED_AGAIN_ON_REFUND,
                 DefectAxis.POINTS_OVERREDEMPTION,
+                DefectAxis.REFUND_ACK_LOST,
             }
         ),
         ScenarioType.MEMBERSHIP_ENTITLEMENT: frozenset(
@@ -186,6 +196,15 @@ def unreachable_axes(
 ) -> frozenset[DefectAxis]:
     reachable = AXES_BY_SCENARIO[scenario]
     return frozenset(axis for axis in axes if axis not in reachable)
+
+
+# Axes that change what the caller *learns*, not what the business *did*. An environment
+# exhibiting only these still gets every business fact right, so no path can confirm an
+# invariant under them -- they are measured by a run's outcome (did the caller end up
+# with a duplicate refund?), never by an Oracle finding. Keeping them out of the
+# business vocabulary is what lets "every axis has a case behind it" stay checkable for
+# the axes it can actually be checked on.
+TRANSPORT_DEFECT_AXES: frozenset[DefectAxis] = frozenset({DefectAxis.REFUND_ACK_LOST})
 
 
 class BusinessEventType(StrEnum):

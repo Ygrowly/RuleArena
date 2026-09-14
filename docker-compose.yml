@@ -76,6 +76,7 @@ services:
       SANDBOX_DATABASE_URL: postgresql+asyncpg://rulearena_sandbox:${SANDBOX_DB_PASSWORD}@postgres:5432/rulearena
       REDIS_URL: redis://redis:6379/0
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN}
+      SANDBOX_ACK_LOST_DELAY_SECONDS: ${SANDBOX_ACK_LOST_DELAY_SECONDS:-12}
       PORT: "8001"
     ports: ["8001:8001"]
     depends_on:

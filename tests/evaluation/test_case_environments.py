@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 from rulearena_attack_runtime import ReplayClassification, SandboxReplayRunner
-from rulearena_domain_contracts import AXES_BY_SCENARIO
+from rulearena_domain_contracts import AXES_BY_SCENARIO, TRANSPORT_DEFECT_AXES
 from rulearena_evaluation.ground_truth import parse_ground_truth_actions
 from rulearena_evaluation.loader import DevelopmentCaseLoader
 from rulearena_evaluation.models import BenchmarkCase, ExpectedOutcome
@@ -38,9 +38,15 @@ def _vulnerable(cases: Iterable[BenchmarkCase]) -> list[BenchmarkCase]:
 
 
 def test_every_declared_axis_is_measured_by_some_case() -> None:
-    """A defect axis with no case behind it is a capability nothing reports on."""
+    """A defect axis with no case behind it is a capability nothing reports on.
+
+    Business axes only. A transport axis (the acknowledgement is lost, the business fact
+    is faithful) cannot be confirmed by any Oracle finding, so no search case can carry
+    it; the refund-agent suite measures it by outcome instead and asserts that coverage
+    itself -- see `tests/refund/test_refund_suite.py`.
+    """
     covered = {axis for case in _development_cases() for axis in case.defect_axes}
-    measured = set().union(*AXES_BY_SCENARIO.values())
+    measured = set().union(*AXES_BY_SCENARIO.values()) - TRANSPORT_DEFECT_AXES
     assert measured - covered == set(), sorted(axis.value for axis in measured - covered)
 
 

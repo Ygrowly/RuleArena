@@ -16,6 +16,15 @@ class ActionUnknownError(RuntimeError):
     """A timed-out write had no authoritative receipt and must not be guessed or retried blindly."""
 
 
+# Statuses that mean "this service did not process the answer", not "the request was
+# rejected". The Commerce Sandbox answers a committed refund whose acknowledgement was
+# lost with a 504 once its own delay elapses. A caller that waited that long is in
+# exactly the same position as one that timed out, and must recover the same way.
+UNANSWERED_STATUSES = frozenset(
+    {httpx.codes.BAD_GATEWAY, httpx.codes.SERVICE_UNAVAILABLE, httpx.codes.GATEWAY_TIMEOUT}
+)
+
+
 def classify_replay(status: OracleStatus) -> ReplayClassification:
     """Keep missing evidence distinct from a clean, non-violating replay."""
     if status is OracleStatus.VIOLATED:
@@ -87,19 +96,21 @@ class SandboxReplayRunner:
                 key = str(payload["idempotency_key"])
                 try:
                     response = await client.post(f"/internal/runs/{run_id}/actions", json=payload)
-                    response.raise_for_status()
-                    receipt = dict(response.json())
                 except httpx.TimeoutException as exc:
-                    authoritative = await client.get(
-                        f"/internal/runs/{run_id}/receipts/{key}"
-                    )
-                    if authoritative.status_code == 404:
-                        raise ActionUnknownError(
-                            f"ACTION_UNKNOWN for stable idempotency key {key}"
-                        ) from exc
-                    authoritative.raise_for_status()
-                    receipt = dict(authoritative.json())
+                    receipt = await self._authoritative_receipt(client, run_id, key, exc)
+                else:
+                    if response.status_code in UNANSWERED_STATUSES:
+                        receipt = await self._authoritative_receipt(
+                            client,
+                            run_id,
+                            key,
+                            RuntimeError(f"sandbox answered {response.status_code}"),
+                        )
+                    else:
+                        response.raise_for_status()
+                        receipt = dict(response.json())
                 receipts.append(receipt)
+
                 result = receipt.get("result")
                 if isinstance(result, dict):
                     for name, value in result.items():
@@ -133,6 +144,23 @@ class SandboxReplayRunner:
             receipts=tuple(receipts),
             events=events,
         )
+
+    @staticmethod
+    async def _authoritative_receipt(
+        client: httpx.AsyncClient, run_id: str, key: str, cause: Exception
+    ) -> dict[str, object]:
+        """Ask the durable receipt what happened, or refuse to guess.
+
+        The only two honest outcomes here: the receipt exists and says what happened, or
+        nothing was ever committed under this key and the caller must not invent one.
+        """
+        authoritative = await client.get(f"/internal/runs/{run_id}/receipts/{key}")
+        if authoritative.status_code == httpx.codes.NOT_FOUND:
+            raise ActionUnknownError(
+                f"ACTION_UNKNOWN for stable idempotency key {key}"
+            ) from cause
+        authoritative.raise_for_status()
+        return dict(authoritative.json())
 
     async def replay_repeated(
         self,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hmac
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -14,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from .db import create_engine, session_factory
-from .errors import DomainError
+from .errors import AckLost, DomainError
 from .schemas import ActionCommand, CreateRunRequest
 from .service import SandboxService
 
@@ -167,12 +168,25 @@ def create_app(
         run_id: str,
         command: ActionCommand,
         sandbox: SandboxService = Depends(get_service),  # noqa: B008
-    ) -> dict[str, object]:
+    ) -> Response:
         try:
             receipt = await sandbox.execute(run_id, command)
         except DomainError as error:
             raise domain_http_error(error) from error
-        return receipt.model_dump(mode="json")
+        except AckLost:
+            # The write committed; only the answer is missing. Holding the response past
+            # the caller's timeout is the whole point -- answered early, with or without
+            # an error body, this would read as "the refund did not happen", which is the
+            # one thing it must never mean. `Service Unavailable` never reaches a caller
+            # that times out first; it is what a patient caller gets instead of a guess.
+            logger.warning(
+                "acknowledgement lost for a committed %s",
+                command.action.value,
+                extra={"run_id": run_id},
+            )
+            await asyncio.sleep(resolved.ack_lost_delay_seconds)
+            return Response(status_code=status.HTTP_504_GATEWAY_TIMEOUT)
+        return JSONResponse(content=receipt.model_dump(mode="json"))
 
     @app.get(
         "/internal/runs/{run_id}/snapshot",

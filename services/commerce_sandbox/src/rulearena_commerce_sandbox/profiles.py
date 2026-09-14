@@ -3,9 +3,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from rulearena_domain_contracts import TRANSPORT_DEFECT_AXES
+
 from .schemas import DefectAxis, SandboxVersion
 
-ALL_AXES: frozenset[DefectAxis] = frozenset(DefectAxis)
+# The whole-suite `vulnerable` profile carries every *business* defect. A transport
+# defect is left out on purpose: it changes no business fact, only whether the caller
+# learns the answer, and every refund under it costs the caller its full timeout. A run
+# that is measuring it names it, which is how the refund suite asks for it -- and that
+# keeps `vulnerable` meaning exactly what it meant before this axis existed.
+ALL_AXES: frozenset[DefectAxis] = frozenset(DefectAxis) - TRANSPORT_DEFECT_AXES
 
 
 @dataclass(frozen=True)
@@ -40,6 +47,10 @@ class SandboxProfile:
     @property
     def allows_refund_against_original_amount(self) -> bool:
         return DefectAxis.REFUND_AGAINST_ORIGINAL in self.axes
+
+    @property
+    def loses_refund_acknowledgement(self) -> bool:
+        return DefectAxis.REFUND_ACK_LOST in self.axes
 
     @property
     def grants_points_again_on_refund(self) -> bool:

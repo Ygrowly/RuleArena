@@ -87,3 +87,52 @@ async def test_timed_out_write_without_receipt_is_action_unknown() -> None:
     )
     with pytest.raises(ActionUnknownError, match="ACTION_UNKNOWN"):
         await runner.replay(spec, [action], InvariantId.NET_PAID_NON_NEGATIVE)
+
+
+@pytest.mark.asyncio
+async def test_an_unanswered_write_queries_the_receipt_instead_of_failing() -> None:
+    """A 504 is the Sandbox saying it could not answer, not that it refused.
+
+    It is what a caller gets from a refund whose acknowledgement was lost, once it waits
+    past the Sandbox's own delay. Treating it as a hard failure would lose the receipt
+    that is sitting right there -- and make a committed refund look like a rejected one.
+    """
+    spec = rule_spec(ScenarioType.PROMOTION)
+    initial = ReferenceSimulator(spec).initial_state()
+    action = SimAction.build(ActionType.CREATE_USER, initial_balance="500.00")
+    receipt_calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal receipt_calls
+        if request.method == "POST" and request.url.path == "/internal/runs":
+            return httpx.Response(
+                200,
+                json={
+                    "run_id": "sandbox-1",
+                    "snapshot": {"state": initial.normalized(), "state_hash": initial.state_hash()},
+                },
+            )
+        if request.method == "POST" and request.url.path.endswith("/actions"):
+            return httpx.Response(504, request=request)  # no body, deliberately
+        if request.method == "GET" and "/receipts/" in request.url.path:
+            receipt_calls += 1
+            return httpx.Response(
+                200,
+                json={
+                    "receipt_id": "receipt-1",
+                    "status": "SUCCEEDED",
+                    "result": {"user_id": "user-1"},
+                    "occurred_at": datetime.now(UTC).isoformat(),
+                },
+            )
+        if request.method == "GET" and request.url.path.endswith("/snapshot"):
+            return httpx.Response(
+                200, json={"state": initial.normalized(), "state_hash": initial.state_hash()}
+            )
+        if request.method == "GET" and request.url.path.endswith("/events"):
+            return httpx.Response(200, json={"events": []})
+        raise AssertionError(request.url)
+
+    runner = SandboxReplayRunner("http://sandbox", "x" * 32, transport=httpx.MockTransport(handler))
+    await runner.replay(spec, [action], InvariantId.NET_PAID_NON_NEGATIVE)
+    assert receipt_calls == 1

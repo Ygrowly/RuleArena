@@ -1,5 +1,6 @@
 from .models import (
     AXES_BY_SCENARIO,
+    TRANSPORT_DEFECT_AXES,
     ActionReceipt,
     ActionRequest,
     ActionStatus,
@@ -33,5 +34,6 @@ __all__ = [
     "IdempotencyKey",
     "RunId",
     "StateSnapshot",
+    "TRANSPORT_DEFECT_AXES",
     "unreachable_axes",
 ]

@@ -18,7 +18,7 @@ from rulearena_policy_schema import Currency, Money, ScenarioType
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from .errors import DomainError
+from .errors import AckLost, DomainError
 from .models import (
     ActionReceiptRecord,
     BusinessEvent,
@@ -99,6 +99,9 @@ class SandboxService:
         if command.requires_idempotency_key() and not command.idempotency_key:
             raise DomainError("IDEMPOTENCY_KEY_REQUIRED", "write actions require idempotency_key")
 
+        receipt: ActionReceipt | None = None
+        lost_acknowledgement = False
+
         async with self.sessions() as session:
             async with session.begin():
                 run = await self._get_run(session, run_id, lock=True)
@@ -114,38 +117,63 @@ class SandboxService:
                     .with_for_update()
                 )
                 if existing is not None:
-                    return self._receipt_from_record(existing, command.action)
+                    receipt = self._receipt_from_record(existing, command.action)
+                else:
+                    status = ActionStatus.SUCCEEDED
+                    result: dict[str, Any] = {}
+                    effects: list[Money] = []
+                    error: DomainError | None = None
+                    try:
+                        async with session.begin_nested():
+                            result, effects = await self._dispatch(session, run, command, key)
+                            if command.action is not ActionName.INSPECT_STATE:
+                                run.snapshot_version += 1
+                                run.updated_at = datetime.now(UTC)
+                    except DomainError as caught:
+                        status = ActionStatus.REJECTED
+                        error = caught
 
-                status = ActionStatus.SUCCEEDED
-                result: dict[str, Any] = {}
-                effects: list[Money] = []
-                error: DomainError | None = None
-                try:
-                    async with session.begin_nested():
-                        result, effects = await self._dispatch(session, run, command, key)
-                        if command.action is not ActionName.INSPECT_STATE:
-                            run.snapshot_version += 1
-                            run.updated_at = datetime.now(UTC)
-                except DomainError as caught:
-                    status = ActionStatus.REJECTED
-                    error = caught
-
-                occurred_at = datetime.now(UTC)
-                record = ActionReceiptRecord(
-                    receipt_id=str(uuid4()),
-                    run_id=run.id,
-                    epoch=run.epoch,
-                    idempotency_key=key,
-                    action_type=command.action.value,
-                    status=status.value,
-                    monetary_effects_json=[self._money_json(effect) for effect in effects],
-                    result_json=result,
-                    error_json=self._error_json(error) if error else None,
-                    occurred_at=occurred_at,
+                    occurred_at = datetime.now(UTC)
+                    record = ActionReceiptRecord(
+                        receipt_id=str(uuid4()),
+                        run_id=run.id,
+                        epoch=run.epoch,
+                        idempotency_key=key,
+                        action_type=command.action.value,
+                        status=status.value,
+                        monetary_effects_json=[self._money_json(effect) for effect in effects],
+                        result_json=result,
+                        error_json=self._error_json(error) if error else None,
+                        occurred_at=occurred_at,
+                    )
+                    session.add(record)
+                    await session.flush()
+                    receipt = self._receipt_from_record(record, command.action)
+                # Read while the run row is still attached, and read *inside* the
+                # transaction: the acknowledgement the caller loses is the answer to a
+                # write that has already happened, so the decision must be made from the
+                # state the commit produced, never from state read afterwards.
+                #
+                # An idempotent replay loses it too. The defect is a property of the
+                # environment -- the *answer* to a refund does not come back -- not of
+                # one attempt, and the caller's recovery is the same either way: read the
+                # durable receipt under this key.
+                lost_acknowledgement = (
+                    command.action is ActionName.REFUND_ORDER
+                    and SandboxProfile.for_run(
+                        run.sandbox_version, run.defect_axes
+                    ).loses_refund_acknowledgement
                 )
-                session.add(record)
-                await session.flush()
-                return self._receipt_from_record(record, command.action)
+
+        # Outside the transaction, therefore after it committed. Raising inside would
+        # roll the refund back and turn the defect into "the write never happened".
+        if lost_acknowledgement:
+            assert receipt is not None
+            raise AckLost(
+                f"receipt {receipt.receipt_id} is durable but its acknowledgement was lost"
+            )
+        assert receipt is not None
+        return receipt
 
     async def get_snapshot(self, run_id: str) -> dict[str, Any]:
         async with self.sessions() as session:

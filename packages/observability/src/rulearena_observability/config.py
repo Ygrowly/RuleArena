@@ -24,3 +24,10 @@ class ControlSettings(BaseServiceSettings):
 
 class SandboxSettings(BaseServiceSettings):
     database_url: PostgresDsn = Field(validation_alias="SANDBOX_DATABASE_URL")
+    # How long the sandbox holds a `REFUND_ACK_LOST` write's response open before
+    # answering 504. The caller has to reach its own timeout for the defect to mean
+    # "timed out, but the money moved", so this must stay above every caller's tool
+    # timeout and above the platform's own request timeout.
+    ack_lost_delay_seconds: float = Field(
+        default=12.0, gt=0, validation_alias="SANDBOX_ACK_LOST_DELAY_SECONDS"
+    )
