@@ -1472,6 +1472,7 @@
           var bag = $("queue");
           bag.innerHTML = "";
           var recorded = state.demo.ticket_ids || [];
+          var traced = recorded.length;
           state.suite.tickets.forEach(function (ticket) {
             var b = el("button");
             b.type = "button";
@@ -1483,7 +1484,7 @@
             b.appendChild(c);
             b.appendChild(el("span", "txt", ticket.ticket_text));
             if (recorded.indexOf(ticket.case_id) < 0) {
-              b.title = "这张工单只有汇总结果，没有逐步轨迹";
+              b.title = "这张工单这次没有导出轨迹，只有汇总结果";
             }
             b.addEventListener("click", function () {
               stop();
@@ -1494,9 +1495,9 @@
           var note = el(
             "div",
             "note",
-            "队列里 15 张全部是真实工单；其中 " +
-              recorded.length +
-              " 张导出了逐步轨迹（导出脚本只回放这 3 张，其余只有汇总结果）。"
+            "15 张全部可逐步回放：每张工单在两种环境下各跑了一次真实回放（" +
+              traced +
+              " 张 × 2 种模式）。这里的轨迹来自这次回放，汇总指标来自另一组 90 次全量运行。"
           );
           bag.appendChild(note);
           $("queue-count").textContent = state.suite.tickets.length + " 张";
@@ -1548,7 +1549,7 @@
               el(
                 "p",
                 "readout",
-                "这张工单没有逐步轨迹：导出脚本只回放 3 张工单。汇总结果见「对照评测」工作区。"
+                "这张工单这次没有导出逐步轨迹，只有汇总结果。汇总见「对照评测」工作区。"
               )
             );
             return;

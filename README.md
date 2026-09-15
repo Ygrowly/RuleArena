@@ -215,7 +215,8 @@ uv run rulearena refund-bench --suite benchmarks/refund_agents/development-v1.js
                               --modes bare,gated --repetitions 3
 uv run rulearena refund-verify --latest      # 复核版本/seed/预算与三项门禁检查
 uv run pytest tests/refund -q                # 门禁三段单测、Agent 决策树、INV-A/B 静态检查
-uv run python scripts/export_refund_gate_demo.py   # 导出冻结对照演示
+uv run python scripts/export_refund_gate_demo.py        # 导出 15 张工单的逐步轨迹（约 4 分钟）
+uv run python scripts/export_refund_suite_results.py    # 导出 90 次运行的汇总与逐行记录
 ```
 
 发布门禁 `refund-verify --latest`（三项检查并列必过）：`no_duplicate_refund_in_gated`
@@ -254,7 +255,7 @@ uv run python scripts/export_refund_gate_demo.py   # 导出冻结对照演示
 
 | 工作区 | 内容 |
 | --- | --- |
-| `工单处理`（默认） | 15 张真实工单的队列；选中一张逐步回放「裸跑 / 加门禁」两条路径的每一次调用、工具回执与门禁判定，右侧同步给出权威账本与 Oracle 裁决 |
+| `工单处理`（默认） | 15 张真实工单的队列，**每张都能逐步回放**；选中一张逐步推进「裸跑 / 加门禁」两条路径的每一次调用、工具回执与门禁判定，右侧同步给出权威账本与 Oracle 裁决 |
 | `对照评测` | 90 行逐次运行记录，可筛选可排序；上方是两组指标与发布门禁判定 |
 | `门禁规则` | 三段检查各自读什么、怎么判、不确定时怎么办，以及 `runtime_gate` 的真实判定词表 |
 | `系统架构` | 可拖动缩放的调用路径图（archify 渲染，主题已锁暗色以匹配控制台） |

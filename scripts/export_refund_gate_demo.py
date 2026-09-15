@@ -39,10 +39,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SUITE = ROOT / "benchmarks" / "refund_agents" / "development-v1.json"
 OUTPUT = ROOT / "frontend" / "public" / "frozen" / "refund-gate-demo.json"
 
-# One ticket per failure surface, so the demo shows the mechanism rather than a rate:
-# the acknowledgement loss (duplicated under the bare arm, recovered under the gated
-# one), a ticket that must simply be handled, and one that must be handed off.
-DEFAULT_TICKETS = ("rf-acklost-01", "rf-normal-full-01", "rf-mismatch-01")
+# Every ticket, both modes: the console lets a reader pick any row out of the queue
+# and step it, so a queue where twelve rows have no trace would be a dead end. One
+# execution per ticket per mode is about two minutes of wall clock.
+DEFAULT_TICKETS = "all"
 
 VERSIONS = VersionTuple(
     benchmark_version="refund-v1",
@@ -64,8 +64,11 @@ HONESTY = (
 
 
 def _subset(
-    cases: tuple[RefundTicketCase, ...], ticket_ids: tuple[str, ...]
+    cases: tuple[RefundTicketCase, ...], selection: str
 ) -> tuple[RefundTicketCase, ...]:
+    if selection == DEFAULT_TICKETS:
+        return cases
+    ticket_ids = tuple(item.strip() for item in selection.split(",") if item.strip())
     selected = [case for case in cases if case.case_id in ticket_ids]
     missing = sorted(set(ticket_ids) - {case.case_id for case in selected})
     if missing:
@@ -87,14 +90,14 @@ async def main() -> int:
     parser = argparse.ArgumentParser(description="Export the frozen refund-gate demo.")
     parser.add_argument(
         "--tickets",
-        default=",".join(DEFAULT_TICKETS),
-        help="comma-separated ticket ids to run in both modes",
+        default=DEFAULT_TICKETS,
+        help='comma-separated ticket ids, or "all" (the default)',
     )
     args = parser.parse_args()
     load_dotenv(override=False)
 
-    ticket_ids = tuple(item.strip() for item in args.tickets.split(",") if item.strip())
-    cases = _subset(RefundSuiteLoader(SUITE).load(), ticket_ids)
+    cases = _subset(RefundSuiteLoader(SUITE).load(), args.tickets)
+    ticket_ids = tuple(case.case_id for case in cases)
     executor = RefundCaseExecutor(
         os.environ["SANDBOX_HTTP_URL"], os.environ["INTERNAL_SERVICE_TOKEN"]
     )
@@ -112,8 +115,10 @@ async def main() -> int:
             "sandbox_version": "fixed + the ticket's declared defect axes",
             "oracle_version": "1.0",
             "scope": (
-                "本文件是 " + str(len(cases)) + " 张工单的机制演示，不是全量指标；"
-                "全量数字由 `rulearena refund-bench` 产出，并由 `rulearena refund-verify` 复核。"
+                "本文件是 " + str(len(cases)) + " 张工单各一次真实回放的逐步记录"
+                "（每张工单每种模式都新建 Sandbox Run）；页面上的汇总指标来自另一组全量运行"
+                "（15 张 × 3 次重复 × 2 种模式 = 90 次），由 `rulearena refund-bench` 产出、"
+                "`rulearena refund-verify` 复核。"
             ),
         },
         "suite": "benchmarks/refund_agents/development-v1.json",

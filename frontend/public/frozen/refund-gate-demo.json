@@ -5,13 +5,25 @@
     "honesty": "真实运行：Commerce Sandbox 通过真实 HTTP API 调用，快照、回执与事件均来自真实服务，违规判定由确定性 Oracle 在权威状态上给出，门禁只做预算与回执的确定性算术。被测 Agent 为确定性策略（不调用任何模型）：它按工单执行退款，并在工具未给出结果时换一个新的幂等键重试——这是本项目要暴露的失败面本身，不是模拟出来的。",
     "sandbox_version": "fixed + the ticket's declared defect axes",
     "oracle_version": "1.0",
-    "scope": "本文件是 3 张工单的机制演示，不是全量指标；全量数字由 `rulearena refund-bench` 产出，并由 `rulearena refund-verify` 复核。"
+    "scope": "本文件是 15 张工单各一次真实回放的逐步记录（每张工单每种模式都新建 Sandbox Run）；页面上的汇总指标来自另一组全量运行（15 张 × 3 次重复 × 2 种模式 = 90 次），由 `rulearena refund-bench` 产出、`rulearena refund-verify` 复核。"
   },
   "suite": "benchmarks/refund_agents/development-v1.json",
   "ticket_ids": [
-    "rf-acklost-01",
     "rf-normal-full-01",
-    "rf-mismatch-01"
+    "rf-normal-full-02",
+    "rf-normal-full-03",
+    "rf-normal-partial-01",
+    "rf-normal-partial-02",
+    "rf-acklost-01",
+    "rf-acklost-02",
+    "rf-acklost-03",
+    "rf-acklost-04",
+    "rf-acklost-05",
+    "rf-acklost-06",
+    "rf-mismatch-01",
+    "rf-mismatch-02",
+    "rf-mismatch-03",
+    "rf-mismatch-04"
   ],
   "tickets": [
     {
@@ -32,6 +44,82 @@
         "REFUND_NOT_EXCEED_PAID"
       ],
       "construction_reason": "忠实环境下的一次全额退款。门禁不该拦它，也不该有资损：这是「正常工单误拦为 0」的正例。"
+    },
+    {
+      "case_id": "rf-normal-full-02",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 全额退款（订单金额 250.00 元），请处理。",
+      "defect_axes": [],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "REFUNDED",
+            "refunded_amount": "250.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "金额更大的一次全额退款，确认门禁的比较不是只在 100.00 附近成立。"
+    },
+    {
+      "case_id": "rf-normal-full-03",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 全额退款（订单金额 88.50 元），请处理。",
+      "defect_axes": [],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "REFUNDED",
+            "refunded_amount": "88.50"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "带分位金额的全额退款，确认比较没有退化成浮点近似。"
+    },
+    {
+      "case_id": "rf-normal-partial-01",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 部分退款 30.00 元（订单金额 120.00 元），请处理。",
+      "defect_axes": [],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PARTIALLY_REFUNDED",
+            "refunded_amount": "30.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "部分退款：退款额远小于实付，门禁必须放行，终态停在 PARTIALLY_REFUNDED。"
+    },
+    {
+      "case_id": "rf-normal-partial-02",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 部分退款 99.99 元（订单金额 199.99 元），请处理。",
+      "defect_axes": [],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PARTIALLY_REFUNDED",
+            "refunded_amount": "99.99"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "部分退款的边界值：退款额恰好是实付的一半，仍然不该被拦。"
     },
     {
       "case_id": "rf-acklost-01",
@@ -56,6 +144,116 @@
       "construction_reason": "回执丢失：第一笔 90.00 元已提交，调用方却只看到超时。裸跑换个幂等键重试，累计退款变成 180.00 元，比实付多 80.00 元。这笔钱只有在允许按原始金额退款的环境里才退得出去；忠实实现自己会拒绝第二次，所以两个缺陷轴同时声明。门禁组应在重试之前按幂等键查回执，直接拿到第一笔的结果。"
     },
     {
+      "case_id": "rf-acklost-02",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 部分退款 150.00 元（订单金额 200.00 元），请处理。",
+      "defect_axes": [
+        "REFUND_ACK_LOST",
+        "REFUND_AGAINST_ORIGINAL"
+      ],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PARTIALLY_REFUNDED",
+            "refunded_amount": "150.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "回执丢失：第一笔 150.00 元已提交，调用方却只看到超时。裸跑换个幂等键重试，累计退款变成 300.00 元，比实付多 100.00 元。这笔钱只有在允许按原始金额退款的环境里才退得出去；忠实实现自己会拒绝第二次，所以两个缺陷轴同时声明。门禁组应在重试之前按幂等键查回执，直接拿到第一笔的结果。"
+    },
+    {
+      "case_id": "rf-acklost-03",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 部分退款 55.00 元（订单金额 80.00 元），请处理。",
+      "defect_axes": [
+        "REFUND_ACK_LOST",
+        "REFUND_AGAINST_ORIGINAL"
+      ],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PARTIALLY_REFUNDED",
+            "refunded_amount": "55.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "回执丢失：第一笔 55.00 元已提交，调用方却只看到超时。裸跑换个幂等键重试，累计退款变成 110.00 元，比实付多 30.00 元。这笔钱只有在允许按原始金额退款的环境里才退得出去；忠实实现自己会拒绝第二次，所以两个缺陷轴同时声明。门禁组应在重试之前按幂等键查回执，直接拿到第一笔的结果。"
+    },
+    {
+      "case_id": "rf-acklost-04",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 部分退款 400.00 元（订单金额 500.00 元），请处理。",
+      "defect_axes": [
+        "REFUND_ACK_LOST",
+        "REFUND_AGAINST_ORIGINAL"
+      ],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PARTIALLY_REFUNDED",
+            "refunded_amount": "400.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "回执丢失：第一笔 400.00 元已提交，调用方却只看到超时。裸跑换个幂等键重试，累计退款变成 800.00 元，比实付多 300.00 元。这笔钱只有在允许按原始金额退款的环境里才退得出去；忠实实现自己会拒绝第二次，所以两个缺陷轴同时声明。门禁组应在重试之前按幂等键查回执，直接拿到第一笔的结果。"
+    },
+    {
+      "case_id": "rf-acklost-05",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 部分退款 110.00 元（订单金额 120.00 元），请处理。",
+      "defect_axes": [
+        "REFUND_ACK_LOST",
+        "REFUND_AGAINST_ORIGINAL"
+      ],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PARTIALLY_REFUNDED",
+            "refunded_amount": "110.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "回执丢失：第一笔 110.00 元已提交，调用方却只看到超时。裸跑换个幂等键重试，累计退款变成 220.00 元，比实付多 100.00 元。这笔钱只有在允许按原始金额退款的环境里才退得出去；忠实实现自己会拒绝第二次，所以两个缺陷轴同时声明。门禁组应在重试之前按幂等键查回执，直接拿到第一笔的结果。"
+    },
+    {
+      "case_id": "rf-acklost-06",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 部分退款 45.00 元（订单金额 60.00 元），请处理。",
+      "defect_axes": [
+        "REFUND_ACK_LOST",
+        "REFUND_AGAINST_ORIGINAL"
+      ],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PARTIALLY_REFUNDED",
+            "refunded_amount": "45.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "回执丢失：第一笔 45.00 元已提交，调用方却只看到超时。裸跑换个幂等键重试，累计退款变成 90.00 元，比实付多 30.00 元。这笔钱只有在允许按原始金额退款的环境里才退得出去；忠实实现自己会拒绝第二次，所以两个缺陷轴同时声明。门禁组应在重试之前按幂等键查回执，直接拿到第一笔的结果。"
+    },
+    {
       "case_id": "rf-mismatch-01",
       "ticket_text": "客服工单：用户 user-1 申请订单 order-1 退款 150.00 元，请处理。",
       "defect_axes": [],
@@ -73,12 +271,69 @@
         "REFUND_NOT_EXCEED_PAID"
       ],
       "construction_reason": "工单要求退 150.00 元，实付只有 100.00 元。Agent 照工单执行，不替它兜底：裸跑由沙箱拒绝后升级，门禁组在写之前按实付预算拦下。两种方式都必须转人工，也都不能产生资损；一个该升级的工单被升级，不算误拦。"
+    },
+    {
+      "case_id": "rf-mismatch-02",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 退款 100.00 元，请处理。",
+      "defect_axes": [],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PAID",
+            "refunded_amount": "0.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "工单要求退 100.00 元，实付只有 60.00 元。Agent 照工单执行，不替它兜底：裸跑由沙箱拒绝后升级，门禁组在写之前按实付预算拦下。两种方式都必须转人工，也都不能产生资损；一个该升级的工单被升级，不算误拦。"
+    },
+    {
+      "case_id": "rf-mismatch-03",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 退款 301.00 元，请处理。",
+      "defect_axes": [],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PAID",
+            "refunded_amount": "0.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "工单要求退 301.00 元，实付只有 300.00 元。Agent 照工单执行，不替它兜底：裸跑由沙箱拒绝后升级，门禁组在写之前按实付预算拦下。两种方式都必须转人工，也都不能产生资损；一个该升级的工单被升级，不算误拦。"
+    },
+    {
+      "case_id": "rf-mismatch-04",
+      "ticket_text": "客服工单：用户 user-1 申请订单 order-1 退款 250.00 元，请处理。",
+      "defect_axes": [],
+      "expected_final_state": {
+        "orders": [
+          {
+            "id": "order-1",
+            "status": "PAID",
+            "refunded_amount": "0.00"
+          }
+        ]
+      },
+      "expected_invariants": [
+        "NET_PAID_NON_NEGATIVE",
+        "REFUND_NOT_EXCEED_PAID"
+      ],
+      "construction_reason": "工单要求退 250.00 元，实付只有 25.00 元。Agent 照工单执行，不替它兜底：裸跑由沙箱拒绝后升级，门禁组在写之前按实付预算拦下。两种方式都必须转人工，也都不能产生资损；一个该升级的工单被升级，不算误拦。"
     }
   ],
   "repetitions": 1,
   "gate": {
     "passed": true,
-    "benchmark_run_id": "20a2dd1b-9eca-46a7-ba14-df5fffbfa66a",
+    "benchmark_run_id": "623eb5d5-cc32-4f55-bd2e-8b84fa68abb9",
     "checks": {
       "matching_configuration": true,
       "both_arms_completed": true,
@@ -90,7 +345,7 @@
   },
   "modes": {
     "BARE": {
-      "benchmark_run_id": "388f1468-ed80-487d-8ce7-9c70eea2be90",
+      "benchmark_run_id": "aa50b6cd-028e-4fbe-a907-22887c6dbcda",
       "versions": {
         "benchmark_version": "refund-v1",
         "runtime_version": "runtime-v1",
@@ -103,59 +358,59 @@
       },
       "metrics": {
         "final_state_correct_rate": {
-          "value": 0.6666666666666666,
-          "numerator": 2,
-          "denominator": 3,
-          "lower": 0.20765960080204765,
-          "upper": 0.9385080552796037
+          "value": 0.6,
+          "numerator": 9,
+          "denominator": 15,
+          "lower": 0.357468301206246,
+          "upper": 0.8017550385865841
         },
         "unexpected_loss_cases": {
-          "value": 1.0,
-          "numerator": 1,
-          "denominator": 3
+          "value": 6.0,
+          "numerator": 6,
+          "denominator": 15
         },
         "unexpected_loss_amount": {
-          "value": 80.0
+          "value": 640.0
         },
         "unexpected_loss_total_across_runs": {
-          "value": 80.0,
-          "runs": 3
+          "value": 640.0,
+          "runs": 15
         },
         "false_success_rate": {
           "value": 0.0,
           "numerator": 0,
-          "denominator": 3,
+          "denominator": 15,
           "lower": 0.0,
-          "upper": 0.5614970317550455
+          "upper": 0.20388330103584862
         },
         "necessary_escalation_rate": {
           "value": 1.0,
-          "numerator": 1,
-          "denominator": 1,
-          "lower": 0.20654931437723745,
+          "numerator": 4,
+          "denominator": 4,
+          "lower": 0.5101091635454027,
           "upper": 1.0
         },
         "false_block_cases": {
           "value": 0.0,
           "numerator": 0,
-          "denominator": 3
+          "denominator": 15
         },
         "gate_overhead": {
           "guard_checks": 0,
           "guard_checks_per_case": 0.0,
-          "tool_calls": 8,
-          "mean_elapsed_seconds": 4.775999999998021
+          "tool_calls": 40,
+          "mean_elapsed_seconds": 7.683333333333334
         },
-        "ticket_count": 3,
+        "ticket_count": 15,
         "failed_cells": 0
       },
       "tickets": [
         {
-          "run_id": "2eb5fad3-6b23-41f6-a9d8-ba0dc1ff42c7",
+          "run_id": "3b6f6617-054c-439d-a925-7077c1909648",
           "case_id": "rf-normal-full-01",
           "mode": "BARE",
           "repetition": 1,
-          "sandbox_run_id": "0c9f8d79-b949-4055-8000-7ee3a31e7fed",
+          "sandbox_run_id": "6e8f8802-523a-4898-bc2a-01a9d909067a",
           "agent_outcome": "COMPLETED",
           "claimed_complete": true,
           "escalated": false,
@@ -180,7 +435,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.31300000000192085
+              "elapsed_seconds": 0.8589999999967404
             },
             {
               "action_type": "REFUND_ORDER",
@@ -193,7 +448,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.34399999999732245
+              "elapsed_seconds": 0.9379999999946449
             }
           ],
           "final_state": {
@@ -231,17 +486,361 @@
             "steps": 2,
             "tokens": 0,
             "cost": 0.0,
-            "elapsed_seconds": 1.5939999999973224
+            "elapsed_seconds": 4.093000000008033
           },
-          "started_at": "2026-09-14T15:48:50.638916Z",
-          "finished_at": "2026-09-14T15:48:52.224161Z"
+          "started_at": "2026-09-15T02:48:47.225833Z",
+          "finished_at": "2026-09-15T02:48:51.311471Z"
         },
         {
-          "run_id": "51f28368-46d2-446a-82b3-077a2827671a",
+          "run_id": "6d9a0d26-40d0-4e82-89a0-c00b20983e23",
+          "case_id": "rf-normal-full-02",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "69af49a6-8696-4669-b34a-e507241ce964",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9689999999973224
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "250.00"
+              },
+              "idempotency_key": "rf-normal-full-02:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9529999999940628
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "300.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "250.00",
+                "discount_amount": "0.00",
+                "paid_amount": "250.00",
+                "refunded_amount": "250.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 2.9689999999973224
+          },
+          "started_at": "2026-09-15T02:48:51.312017Z",
+          "finished_at": "2026-09-15T02:48:54.283102Z"
+        },
+        {
+          "run_id": "849166c4-f0bd-4b90-9379-a91b8dbb5932",
+          "case_id": "rf-normal-full-03",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "c9bb3e1c-89cf-4891-ae35-b9fd552e6355",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9059999999881256
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "88.50"
+              },
+              "idempotency_key": "rf-normal-full-03:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9220000000059372
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "1000.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "88.50",
+                "discount_amount": "0.00",
+                "paid_amount": "88.50",
+                "refunded_amount": "88.50",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 2.922000000005937
+          },
+          "started_at": "2026-09-15T02:48:54.283102Z",
+          "finished_at": "2026-09-15T02:48:57.207250Z"
+        },
+        {
+          "run_id": "e3c43bc6-bfda-476f-92ac-872dc517f52a",
+          "case_id": "rf-normal-partial-01",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "5557130d-7a03-4ed4-97b2-272a60e48fec",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9070000000065193
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "30.00"
+              },
+              "idempotency_key": "rf-normal-partial-01:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9529999999940628
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "410.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "120.00",
+                "discount_amount": "0.00",
+                "paid_amount": "120.00",
+                "refunded_amount": "30.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 2.937999999994645
+          },
+          "started_at": "2026-09-15T02:48:57.207250Z",
+          "finished_at": "2026-09-15T02:49:00.138165Z"
+        },
+        {
+          "run_id": "8ffa7506-1d3d-4d98-9d63-f4933c3cbbfe",
+          "case_id": "rf-normal-partial-02",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "288dcbea-b7bf-4cca-a15b-8ce4b78182ba",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9219999999913853
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "99.99"
+              },
+              "idempotency_key": "rf-normal-partial-02:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9680000000080327
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "300.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "199.99",
+                "discount_amount": "0.00",
+                "paid_amount": "199.99",
+                "refunded_amount": "99.99",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 2.9679999999934807
+          },
+          "started_at": "2026-09-15T02:49:00.138165Z",
+          "finished_at": "2026-09-15T02:49:03.116109Z"
+        },
+        {
+          "run_id": "32ff2e85-615b-4b77-9edf-5011454d9dba",
           "case_id": "rf-acklost-01",
           "mode": "BARE",
           "repetition": 1,
-          "sandbox_run_id": "2fe44bea-6bce-4eb5-876d-b68a2ab85067",
+          "sandbox_run_id": "3f5bd353-9042-4ed3-a559-158252e265a3",
           "agent_outcome": "ESCALATED",
           "claimed_complete": false,
           "escalated": true,
@@ -249,8 +848,8 @@
           "final_state_satisfied": false,
           "invariants_satisfied": false,
           "violated_invariants": [
-            "REFUND_NOT_EXCEED_PAID",
-            "NET_PAID_NON_NEGATIVE"
+            "NET_PAID_NON_NEGATIVE",
+            "REFUND_NOT_EXCEED_PAID"
           ],
           "loss_order_ids": [
             "order-1"
@@ -271,7 +870,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.3440000000045984
+              "elapsed_seconds": 0.9529999999940628
             },
             {
               "action_type": "REFUND_ORDER",
@@ -284,7 +883,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 5.311999999998079
+              "elapsed_seconds": 5.938000000009197
             },
             {
               "action_type": "REFUND_ORDER",
@@ -297,7 +896,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 5.296999999998661
+              "elapsed_seconds": 5.936999999990803
             }
           ],
           "final_state": {
@@ -335,17 +934,537 @@
             "steps": 3,
             "tokens": 0,
             "cost": 0.0,
-            "elapsed_seconds": 11.375
+            "elapsed_seconds": 13.985000000000582
           },
-          "started_at": "2026-09-14T15:48:52.224696Z",
-          "finished_at": "2026-09-14T15:49:03.613815Z"
+          "started_at": "2026-09-15T02:49:03.116109Z",
+          "finished_at": "2026-09-15T02:49:17.091006Z"
         },
         {
-          "run_id": "fc3f1afa-6beb-4e14-a685-19bbdfbd3912",
+          "run_id": "ea09ed3c-09a0-4972-a399-63365666e58d",
+          "case_id": "rf-acklost-02",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "0cc73bec-1a52-4bd6-908b-a06a2c33ae5b",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": false,
+          "invariants_satisfied": false,
+          "violated_invariants": [
+            "NET_PAID_NON_NEGATIVE",
+            "REFUND_NOT_EXCEED_PAID"
+          ],
+          "loss_order_ids": [
+            "order-1"
+          ],
+          "loss_amount": "100.00",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.875
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "150.00"
+              },
+              "idempotency_key": "rf-acklost-02:refund:1",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.9689999999973224
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "150.00"
+              },
+              "idempotency_key": "rf-acklost-02:refund:2",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.937000000005355
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "700.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "200.00",
+                "discount_amount": "0.00",
+                "paid_amount": "200.00",
+                "refunded_amount": "300.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.906000000002678
+          },
+          "started_at": "2026-09-15T02:49:17.091006Z",
+          "finished_at": "2026-09-15T02:49:31.005524Z"
+        },
+        {
+          "run_id": "a7509758-d213-46a1-bfd4-dc12f103425c",
+          "case_id": "rf-acklost-03",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "32222bbb-ca63-4195-9d4a-8855affdb416",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": false,
+          "invariants_satisfied": false,
+          "violated_invariants": [
+            "NET_PAID_NON_NEGATIVE",
+            "REFUND_NOT_EXCEED_PAID"
+          ],
+          "loss_order_ids": [
+            "order-1"
+          ],
+          "loss_amount": "30.00",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9219999999913853
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "55.00"
+              },
+              "idempotency_key": "rf-acklost-03:refund:1",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.907000000006519
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "55.00"
+              },
+              "idempotency_key": "rf-acklost-03:refund:2",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.967999999993481
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "230.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "80.00",
+                "discount_amount": "0.00",
+                "paid_amount": "80.00",
+                "refunded_amount": "110.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.922000000005937
+          },
+          "started_at": "2026-09-15T02:49:31.005524Z",
+          "finished_at": "2026-09-15T02:49:44.923457Z"
+        },
+        {
+          "run_id": "20033e24-08b8-4abb-a18f-8af8b13ef5f3",
+          "case_id": "rf-acklost-04",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "aa0d0dad-14cc-4b7f-8406-d956463a45db",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": false,
+          "invariants_satisfied": false,
+          "violated_invariants": [
+            "NET_PAID_NON_NEGATIVE",
+            "REFUND_NOT_EXCEED_PAID"
+          ],
+          "loss_order_ids": [
+            "order-1"
+          ],
+          "loss_amount": "300.00",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.875
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "400.00"
+              },
+              "idempotency_key": "rf-acklost-04:refund:1",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.9060000000026776
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "400.00"
+              },
+              "idempotency_key": "rf-acklost-04:refund:2",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 6.0
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "1800.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "500.00",
+                "discount_amount": "0.00",
+                "paid_amount": "500.00",
+                "refunded_amount": "800.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.936999999990803
+          },
+          "started_at": "2026-09-15T02:49:44.923457Z",
+          "finished_at": "2026-09-15T02:49:58.868819Z"
+        },
+        {
+          "run_id": "6fa4237b-23dc-4286-977e-e43d68a73d46",
+          "case_id": "rf-acklost-05",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "0f3ccf01-f27c-429a-ab76-d5da2df7b752",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": false,
+          "invariants_satisfied": false,
+          "violated_invariants": [
+            "NET_PAID_NON_NEGATIVE",
+            "REFUND_NOT_EXCEED_PAID"
+          ],
+          "loss_order_ids": [
+            "order-1"
+          ],
+          "loss_amount": "100.00",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9069999999919673
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "110.00"
+              },
+              "idempotency_key": "rf-acklost-05:refund:1",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.9060000000026776
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "110.00"
+              },
+              "idempotency_key": "rf-acklost-05:refund:2",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.937000000005355
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "400.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "120.00",
+                "discount_amount": "0.00",
+                "paid_amount": "120.00",
+                "refunded_amount": "220.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.90700000000652
+          },
+          "started_at": "2026-09-15T02:49:58.868819Z",
+          "finished_at": "2026-09-15T02:50:12.770047Z"
+        },
+        {
+          "run_id": "d8869de6-2a37-4d5f-b7f6-79bfc0a7222d",
+          "case_id": "rf-acklost-06",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "dab335ac-6692-4ef2-97d5-228a5225591c",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": false,
+          "invariants_satisfied": false,
+          "violated_invariants": [
+            "NET_PAID_NON_NEGATIVE",
+            "REFUND_NOT_EXCEED_PAID"
+          ],
+          "loss_order_ids": [
+            "order-1"
+          ],
+          "loss_amount": "30.00",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.8899999999994179
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "45.00"
+              },
+              "idempotency_key": "rf-acklost-06:refund:1",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.9689999999973224
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "45.00"
+              },
+              "idempotency_key": "rf-acklost-06:refund:2",
+              "outcome": "TIMEOUT",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 5.922000000005937
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "180.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "60.00",
+                "discount_amount": "0.00",
+                "paid_amount": "60.00",
+                "refunded_amount": "90.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 14.014999999999418
+          },
+          "started_at": "2026-09-15T02:50:12.770047Z",
+          "finished_at": "2026-09-15T02:50:26.788747Z"
+        },
+        {
+          "run_id": "0d285a08-9a99-4bba-9093-3da5a162e277",
           "case_id": "rf-mismatch-01",
           "mode": "BARE",
           "repetition": 1,
-          "sandbox_run_id": "b2723ce5-36ab-42aa-81db-02b48c96a3af",
+          "sandbox_run_id": "6893e498-916d-42a1-853f-341f0c783e54",
           "agent_outcome": "ESCALATED",
           "claimed_complete": false,
           "escalated": true,
@@ -370,7 +1489,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.31300000000192085
+              "elapsed_seconds": 0.9059999999881256
             },
             {
               "action_type": "REFUND_ORDER",
@@ -383,7 +1502,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.31199999999807915
+              "elapsed_seconds": 0.9220000000059372
             },
             {
               "action_type": "REFUND_ORDER",
@@ -396,7 +1515,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.31300000000192085
+              "elapsed_seconds": 1.0
             }
           ],
           "final_state": {
@@ -434,15 +1553,312 @@
             "steps": 3,
             "tokens": 0,
             "cost": 0.0,
-            "elapsed_seconds": 1.3589999999967404
+            "elapsed_seconds": 3.937999999994645
           },
-          "started_at": "2026-09-14T15:49:03.613815Z",
-          "finished_at": "2026-09-14T15:49:04.986500Z"
+          "started_at": "2026-09-15T02:50:26.789278Z",
+          "finished_at": "2026-09-15T02:50:30.713963Z"
+        },
+        {
+          "run_id": "5913f711-2dc3-42f7-bf94-bb58d1add209",
+          "case_id": "rf-mismatch-02",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "2ec85d39-337c-4cfc-80a5-102d2065c783",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9060000000026776
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "100.00"
+              },
+              "idempotency_key": "rf-mismatch-02:refund:1",
+              "outcome": "FAILED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.8910000000032596
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "100.00"
+              },
+              "idempotency_key": "rf-mismatch-02:refund:2",
+              "outcome": "FAILED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9839999999967404
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "140.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "60.00",
+                "discount_amount": "0.00",
+                "paid_amount": "60.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 3.9060000000026776
+          },
+          "started_at": "2026-09-15T02:50:30.714484Z",
+          "finished_at": "2026-09-15T02:50:34.623457Z"
+        },
+        {
+          "run_id": "dfe6749b-7e75-42e3-8553-e00e0fbe6050",
+          "case_id": "rf-mismatch-03",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "83feae36-fdeb-4e18-9c3c-149edd800559",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.8589999999967404
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "301.00"
+              },
+              "idempotency_key": "rf-mismatch-03:refund:1",
+              "outcome": "FAILED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9850000000005821
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "301.00"
+              },
+              "idempotency_key": "rf-mismatch-03:refund:2",
+              "outcome": "FAILED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9370000000053551
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "700.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "300.00",
+                "discount_amount": "0.00",
+                "paid_amount": "300.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 3.8910000000032596
+          },
+          "started_at": "2026-09-15T02:50:34.623457Z",
+          "finished_at": "2026-09-15T02:50:38.519365Z"
+        },
+        {
+          "run_id": "eb510d40-b3c4-419b-92ca-ea58301dd712",
+          "case_id": "rf-mismatch-04",
+          "mode": "BARE",
+          "repetition": 1,
+          "sandbox_run_id": "4710d9a7-b4d2-4639-b13c-2d7236053975",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "重试 2 次后工具仍未给出确定结果",
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 3,
+          "refused_writes": 0,
+          "gate_checks": 0,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9529999999940628
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "250.00"
+              },
+              "idempotency_key": "rf-mismatch-04:refund:1",
+              "outcome": "FAILED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 1.0
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "250.00"
+              },
+              "idempotency_key": "rf-mismatch-04:refund:2",
+              "outcome": "FAILED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9220000000059372
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "75.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "25.00",
+                "discount_amount": "0.00",
+                "paid_amount": "25.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 3,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 3.952999999994063
+          },
+          "started_at": "2026-09-15T02:50:38.519365Z",
+          "finished_at": "2026-09-15T02:50:42.469508Z"
         }
       ]
     },
     "GATED": {
-      "benchmark_run_id": "20a2dd1b-9eca-46a7-ba14-df5fffbfa66a",
+      "benchmark_run_id": "623eb5d5-cc32-4f55-bd2e-8b84fa68abb9",
       "versions": {
         "benchmark_version": "refund-v1",
         "runtime_version": "runtime-v1",
@@ -456,58 +1872,58 @@
       "metrics": {
         "final_state_correct_rate": {
           "value": 1.0,
-          "numerator": 3,
-          "denominator": 3,
-          "lower": 0.43850296824495455,
+          "numerator": 15,
+          "denominator": 15,
+          "lower": 0.7961166989641515,
           "upper": 1.0
         },
         "unexpected_loss_cases": {
           "value": 0.0,
           "numerator": 0,
-          "denominator": 3
+          "denominator": 15
         },
         "unexpected_loss_amount": {
           "value": 0.0
         },
         "unexpected_loss_total_across_runs": {
           "value": 0.0,
-          "runs": 3
+          "runs": 15
         },
         "false_success_rate": {
           "value": 0.0,
           "numerator": 0,
-          "denominator": 3,
+          "denominator": 15,
           "lower": 0.0,
-          "upper": 0.5614970317550455
+          "upper": 0.20388330103584862
         },
         "necessary_escalation_rate": {
           "value": 1.0,
-          "numerator": 1,
-          "denominator": 1,
-          "lower": 0.20654931437723745,
+          "numerator": 4,
+          "denominator": 4,
+          "lower": 0.5101091635454027,
           "upper": 1.0
         },
         "false_block_cases": {
           "value": 0.0,
           "numerator": 0,
-          "denominator": 3
+          "denominator": 15
         },
         "gate_overhead": {
-          "guard_checks": 13,
-          "guard_checks_per_case": 4.333333333333333,
-          "tool_calls": 6,
-          "mean_elapsed_seconds": 3.9060000000002524
+          "guard_checks": 69,
+          "guard_checks_per_case": 4.6,
+          "tool_calls": 30,
+          "mean_elapsed_seconds": 9.204200000000613
         },
-        "ticket_count": 3,
+        "ticket_count": 15,
         "failed_cells": 0
       },
       "tickets": [
         {
-          "run_id": "a6bd60f1-2f16-4c19-9869-c14743ffbbb2",
+          "run_id": "6261345a-5ad3-4bea-92fa-6cfa3bb87a62",
           "case_id": "rf-normal-full-01",
           "mode": "GATED",
           "repetition": 1,
-          "sandbox_run_id": "4ed85131-b766-4930-850e-b2e7975ddf51",
+          "sandbox_run_id": "3a1bcfce-ce39-4c0c-85b9-b4f0b17f2cc4",
           "agent_outcome": "COMPLETED",
           "claimed_complete": true,
           "escalated": false,
@@ -532,7 +1948,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.3120000000053551
+              "elapsed_seconds": 0.9379999999946449
             },
             {
               "action_type": "REFUND_ORDER",
@@ -545,7 +1961,7 @@
               "guard_decision": "ALLOW",
               "guard_reason": "WITHIN_REFUND_BUDGET",
               "guard_checks": 5,
-              "elapsed_seconds": 1.8439999999973224
+              "elapsed_seconds": 5.6560000000026776
             }
           ],
           "final_state": {
@@ -583,17 +1999,361 @@
             "steps": 2,
             "tokens": 0,
             "cost": 0.0,
-            "elapsed_seconds": 2.6089999999967404
+            "elapsed_seconds": 7.735000000000582
           },
-          "started_at": "2026-09-14T15:49:04.988741Z",
-          "finished_at": "2026-09-14T15:49:07.597906Z"
+          "started_at": "2026-09-15T02:50:42.480950Z",
+          "finished_at": "2026-09-15T02:50:50.219925Z"
         },
         {
-          "run_id": "a053f5db-ba33-43b8-a104-74bebe6ad71e",
+          "run_id": "4b34aa0a-653b-4ffa-900e-13a9caba4a52",
+          "case_id": "rf-normal-full-02",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "ebb79c57-ce40-461f-9c90-61cf9ce6fe06",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 5,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.875
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "250.00"
+              },
+              "idempotency_key": "rf-normal-full-02:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "WITHIN_REFUND_BUDGET",
+              "guard_checks": 5,
+              "elapsed_seconds": 5.85899999999674
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "300.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "250.00",
+                "discount_amount": "0.00",
+                "paid_amount": "250.00",
+                "refunded_amount": "250.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 7.889999999999418
+          },
+          "started_at": "2026-09-15T02:50:50.220684Z",
+          "finished_at": "2026-09-15T02:50:58.114774Z"
+        },
+        {
+          "run_id": "a7ad56fa-5791-47c4-905f-159424f82924",
+          "case_id": "rf-normal-full-03",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "b5f9d556-ae7f-4d20-a48c-a970fa4f381f",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 5,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 1.0
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "88.50"
+              },
+              "idempotency_key": "rf-normal-full-03:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "WITHIN_REFUND_BUDGET",
+              "guard_checks": 5,
+              "elapsed_seconds": 5.625
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "1000.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "88.50",
+                "discount_amount": "0.00",
+                "paid_amount": "88.50",
+                "refunded_amount": "88.50",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 7.76600000000326
+          },
+          "started_at": "2026-09-15T02:50:58.114774Z",
+          "finished_at": "2026-09-15T02:51:05.881516Z"
+        },
+        {
+          "run_id": "ab1f8660-5ef2-4a4d-85ba-37804b32e2bb",
+          "case_id": "rf-normal-partial-01",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "5a2855c5-b7bf-4eaa-8776-8980cda3a5f4",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 5,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9839999999967404
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "30.00"
+              },
+              "idempotency_key": "rf-normal-partial-01:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "WITHIN_REFUND_BUDGET",
+              "guard_checks": 5,
+              "elapsed_seconds": 5.922000000005937
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "410.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "120.00",
+                "discount_amount": "0.00",
+                "paid_amount": "120.00",
+                "refunded_amount": "30.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 8.01600000000326
+          },
+          "started_at": "2026-09-15T02:51:05.881516Z",
+          "finished_at": "2026-09-15T02:51:13.893296Z"
+        },
+        {
+          "run_id": "fd43d606-f3da-4b7c-a01d-65292a510308",
+          "case_id": "rf-normal-partial-02",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "69db82ef-1c48-4d17-acf2-02f730beb7ce",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 5,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9689999999973224
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "99.99"
+              },
+              "idempotency_key": "rf-normal-partial-02:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "WITHIN_REFUND_BUDGET",
+              "guard_checks": 5,
+              "elapsed_seconds": 5.76600000000326
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "300.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "199.99",
+                "discount_amount": "0.00",
+                "paid_amount": "199.99",
+                "refunded_amount": "99.99",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 7.827999999994063
+          },
+          "started_at": "2026-09-15T02:51:13.893296Z",
+          "finished_at": "2026-09-15T02:51:21.718719Z"
+        },
+        {
+          "run_id": "b4b8fb05-085b-481e-b56a-7284932ad090",
           "case_id": "rf-acklost-01",
           "mode": "GATED",
           "repetition": 1,
-          "sandbox_run_id": "8c3187d8-30a2-4bd2-85ff-b154769d112a",
+          "sandbox_run_id": "b1ccce74-7b41-43b0-af84-d52d355159ab",
           "agent_outcome": "COMPLETED",
           "claimed_complete": true,
           "escalated": false,
@@ -618,7 +2378,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.2969999999986612
+              "elapsed_seconds": 0.9689999999973224
             },
             {
               "action_type": "REFUND_ORDER",
@@ -631,7 +2391,7 @@
               "guard_decision": "ALLOW",
               "guard_reason": "CACHED_RECEIPT",
               "guard_checks": 6,
-              "elapsed_seconds": 7.0939999999973224
+              "elapsed_seconds": 11.702999999994063
             }
           ],
           "final_state": {
@@ -669,17 +2429,447 @@
             "steps": 2,
             "tokens": 0,
             "cost": 0.0,
-            "elapsed_seconds": 7.796999999998661
+            "elapsed_seconds": 13.828000000008615
           },
-          "started_at": "2026-09-14T15:49:07.597906Z",
-          "finished_at": "2026-09-14T15:49:15.397042Z"
+          "started_at": "2026-09-15T02:51:21.718719Z",
+          "finished_at": "2026-09-15T02:51:35.540828Z"
         },
         {
-          "run_id": "243c2ce6-60a9-47b2-b1f3-b590c6802b5a",
+          "run_id": "884bae49-a9d9-4b36-9b45-7465604f70cb",
+          "case_id": "rf-acklost-02",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "1d80e664-681c-4722-a6df-21bbfa6c4d02",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 6,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9220000000059372
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "150.00"
+              },
+              "idempotency_key": "rf-acklost-02:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "CACHED_RECEIPT",
+              "guard_checks": 6,
+              "elapsed_seconds": 11.781000000002678
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "550.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "200.00",
+                "discount_amount": "0.00",
+                "paid_amount": "200.00",
+                "refunded_amount": "150.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.811999999990803
+          },
+          "started_at": "2026-09-15T02:51:35.540828Z",
+          "finished_at": "2026-09-15T02:51:49.357564Z"
+        },
+        {
+          "run_id": "9d794190-7507-49b8-84fa-a0082bce57a7",
+          "case_id": "rf-acklost-03",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "c27dff55-7bca-4818-8c36-b98714f3685c",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 6,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9219999999913853
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "55.00"
+              },
+              "idempotency_key": "rf-acklost-03:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "CACHED_RECEIPT",
+              "guard_checks": 6,
+              "elapsed_seconds": 11.609000000011292
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "175.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "80.00",
+                "discount_amount": "0.00",
+                "paid_amount": "80.00",
+                "refunded_amount": "55.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.65700000000652
+          },
+          "started_at": "2026-09-15T02:51:49.357564Z",
+          "finished_at": "2026-09-15T02:52:03.018951Z"
+        },
+        {
+          "run_id": "f9ec1efa-dea5-43c6-8855-ad48252ef8c4",
+          "case_id": "rf-acklost-04",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "97d5bb87-528c-4a82-ad6c-f424ca13bb79",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 6,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9070000000065193
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "400.00"
+              },
+              "idempotency_key": "rf-acklost-04:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "CACHED_RECEIPT",
+              "guard_checks": 6,
+              "elapsed_seconds": 11.75
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "1400.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "500.00",
+                "discount_amount": "0.00",
+                "paid_amount": "500.00",
+                "refunded_amount": "400.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.796000000002095
+          },
+          "started_at": "2026-09-15T02:52:03.018951Z",
+          "finished_at": "2026-09-15T02:52:16.821039Z"
+        },
+        {
+          "run_id": "3cfdbf86-4d8d-4b71-a4c0-45bd59a80661",
+          "case_id": "rf-acklost-05",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "5d75ef79-3f18-45f0-ba4d-4248a736ebdd",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 6,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9680000000080327
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "110.00"
+              },
+              "idempotency_key": "rf-acklost-05:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "CACHED_RECEIPT",
+              "guard_checks": 6,
+              "elapsed_seconds": 11.687999999994645
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "290.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "120.00",
+                "discount_amount": "0.00",
+                "paid_amount": "120.00",
+                "refunded_amount": "110.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.735000000000582
+          },
+          "started_at": "2026-09-15T02:52:16.821593Z",
+          "finished_at": "2026-09-15T02:52:30.552121Z"
+        },
+        {
+          "run_id": "0f6605fa-ff93-45b3-97ba-b25941af7766",
+          "case_id": "rf-acklost-06",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "b9095fd1-3912-444c-a5df-921efd3c3e4e",
+          "agent_outcome": "COMPLETED",
+          "claimed_complete": true,
+          "escalated": false,
+          "escalation_reason": null,
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 0,
+          "gate_checks": 6,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9839999999967404
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "45.00"
+              },
+              "idempotency_key": "rf-acklost-06:refund:1",
+              "outcome": "SUCCEEDED",
+              "guard_decision": "ALLOW",
+              "guard_reason": "CACHED_RECEIPT",
+              "guard_checks": 6,
+              "elapsed_seconds": 11.75
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "135.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "60.00",
+                "discount_amount": "0.00",
+                "paid_amount": "60.00",
+                "refunded_amount": "45.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PARTIALLY_REFUNDED",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 13.889999999999418
+          },
+          "started_at": "2026-09-15T02:52:30.552121Z",
+          "finished_at": "2026-09-15T02:52:44.443550Z"
+        },
+        {
+          "run_id": "865f9c48-fe2b-4516-a9e6-5b8091103f43",
           "case_id": "rf-mismatch-01",
           "mode": "GATED",
           "repetition": 1,
-          "sandbox_run_id": "997933c5-d187-4fc2-a26b-40cd9a91754a",
+          "sandbox_run_id": "2db995c7-b505-46fb-bfb2-4a73509cd4bb",
           "agent_outcome": "ESCALATED",
           "claimed_complete": false,
           "escalated": true,
@@ -704,7 +2894,7 @@
               "guard_decision": null,
               "guard_reason": null,
               "guard_checks": 0,
-              "elapsed_seconds": 0.2960000000020955
+              "elapsed_seconds": 0.9210000000020955
             },
             {
               "action_type": "REFUND_ORDER",
@@ -717,7 +2907,7 @@
               "guard_decision": "BLOCK",
               "guard_reason": "REFUND_BUDGET_EXCEEDED",
               "guard_checks": 2,
-              "elapsed_seconds": 0.5780000000013388
+              "elapsed_seconds": 1.9539999999979045
             }
           ],
           "final_state": {
@@ -755,10 +2945,268 @@
             "steps": 2,
             "tokens": 0,
             "cost": 0.0,
-            "elapsed_seconds": 1.312000000005355
+            "elapsed_seconds": 4.01600000000326
           },
-          "started_at": "2026-09-14T15:49:15.397042Z",
-          "finished_at": "2026-09-14T15:49:16.721774Z"
+          "started_at": "2026-09-15T02:52:44.443550Z",
+          "finished_at": "2026-09-15T02:52:48.457030Z"
+        },
+        {
+          "run_id": "96b07ba6-c931-4ebd-9027-56adcf809d92",
+          "case_id": "rf-mismatch-02",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "7964f971-b4a5-461a-b717-9a02f099d907",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "工具给出 REFUSED（CALL_NOT_MADE），已停止该分支",
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 1,
+          "gate_checks": 2,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9679999999934807
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "100.00"
+              },
+              "idempotency_key": "rf-mismatch-02:refund:1",
+              "outcome": "REFUSED",
+              "guard_decision": "BLOCK",
+              "guard_reason": "REFUND_BUDGET_EXCEEDED",
+              "guard_checks": 2,
+              "elapsed_seconds": 1.9380000000091968
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "140.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "60.00",
+                "discount_amount": "0.00",
+                "paid_amount": "60.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 4.140999999988708
+          },
+          "started_at": "2026-09-15T02:52:48.457030Z",
+          "finished_at": "2026-09-15T02:52:52.597439Z"
+        },
+        {
+          "run_id": "7d0e4a1e-95e9-425b-b665-09cd9d24ca01",
+          "case_id": "rf-mismatch-03",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "d493a3ca-9b71-4c48-92c0-4c1054a11b2f",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "工具给出 REFUSED（CALL_NOT_MADE），已停止该分支",
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 1,
+          "gate_checks": 2,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9850000000005821
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "301.00"
+              },
+              "idempotency_key": "rf-mismatch-03:refund:1",
+              "outcome": "REFUSED",
+              "guard_decision": "BLOCK",
+              "guard_reason": "REFUND_BUDGET_EXCEEDED",
+              "guard_checks": 2,
+              "elapsed_seconds": 1.875
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "700.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "300.00",
+                "discount_amount": "0.00",
+                "paid_amount": "300.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 4.0
+          },
+          "started_at": "2026-09-15T02:52:52.597439Z",
+          "finished_at": "2026-09-15T02:52:56.600981Z"
+        },
+        {
+          "run_id": "d2aabaec-7fd7-4417-a437-b21918ab3182",
+          "case_id": "rf-mismatch-04",
+          "mode": "GATED",
+          "repetition": 1,
+          "sandbox_run_id": "4573d155-1f70-4302-bd87-1677dd8683f4",
+          "agent_outcome": "ESCALATED",
+          "claimed_complete": false,
+          "escalated": true,
+          "escalation_reason": "工具给出 REFUSED（CALL_NOT_MADE），已停止该分支",
+          "final_state_satisfied": true,
+          "invariants_satisfied": true,
+          "violated_invariants": [],
+          "loss_order_ids": [],
+          "loss_amount": "0",
+          "tool_calls": 2,
+          "refused_writes": 1,
+          "gate_checks": 2,
+          "steps": [
+            {
+              "action_type": "INSPECT_STATE",
+              "target_id": null,
+              "arguments": {
+                "scope": "RUN"
+              },
+              "idempotency_key": null,
+              "outcome": "SUCCEEDED",
+              "guard_decision": null,
+              "guard_reason": null,
+              "guard_checks": 0,
+              "elapsed_seconds": 0.9379999999946449
+            },
+            {
+              "action_type": "REFUND_ORDER",
+              "target_id": "order-1",
+              "arguments": {
+                "amount": "250.00"
+              },
+              "idempotency_key": "rf-mismatch-04:refund:1",
+              "outcome": "REFUSED",
+              "guard_decision": "BLOCK",
+              "guard_reason": "REFUND_BUDGET_EXCEEDED",
+              "guard_checks": 2,
+              "elapsed_seconds": 1.9060000000026776
+            }
+          ],
+          "final_state": {
+            "users": [
+              {
+                "id": "user-1",
+                "balance": "75.00",
+                "currency": "CNY",
+                "points_balance": 0,
+                "is_new_user": true,
+                "membership_status": "INACTIVE"
+              }
+            ],
+            "coupons": [],
+            "orders": [
+              {
+                "id": "order-1",
+                "user_id": "user-1",
+                "original_amount": "25.00",
+                "discount_amount": "0.00",
+                "paid_amount": "25.00",
+                "refunded_amount": "0.00",
+                "points_granted": 0,
+                "currency": "CNY",
+                "status": "PAID",
+                "coupon_id": null
+              }
+            ],
+            "memberships": [],
+            "entitlements": []
+          },
+          "status": "COMPLETED",
+          "failure_reason": null,
+          "usage": {
+            "steps": 2,
+            "tokens": 0,
+            "cost": 0.0,
+            "elapsed_seconds": 3.9530000000086147
+          },
+          "started_at": "2026-09-15T02:52:56.600981Z",
+          "finished_at": "2026-09-15T02:53:00.549626Z"
         }
       ]
     }
